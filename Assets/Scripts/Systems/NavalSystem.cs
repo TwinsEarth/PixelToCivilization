@@ -59,7 +59,9 @@ namespace PixelToCivilization.Systems
                 {
                     float ang=a/24f*Mathf.PI*2f;
                     float cx=s.X+Mathf.Cos(ang)*r, cz=s.Z+Mathf.Sin(ang)*r;
-                    if(!_terrain.IsOceanWater(cx,cz)||!_terrain.InsideFrontier(cx,cz)) continue; // 河/湖一律不是归位点
+                    // V7.0.6 归位点必须是“当前确有海水”的外海连通格（掩码=1 且当下是水、在疆域内），
+                    // 河湖掩码为 0 被排除，退潮干滩也不会被选为归位点——杜绝把船拖进大陆湖或搁在滩上。
+                    if(!_terrain.IsOceanWater(cx,cz)||!_terrain.IsWater(cx,cz)||!_terrain.InsideFrontier(cx,cz)) continue;
                     if(r<best){best=r;bx=cx;bz=cz;found=true;}
                 }
             }

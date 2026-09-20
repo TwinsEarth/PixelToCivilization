@@ -10,23 +10,35 @@ namespace PixelToCivilization.Actors
     public class HumanoidAnimator : MonoBehaviour
     {
         public HumanoidRig Rig;
+        // 外部（人口/军事系统）写入的意图速度；动画器同时按自身 Transform 的真实位移自测算速度，
+        // 二者取水平幅值较大者——只要画面里的人真的在移动就一定迈腿，V7.0.5 根治“走动不迈腿”。
         public Vector3 Velocity;
         public float StrideFreq = 7.5f;     // 步频
         public float MaxSwing = 38f;        // 最大摆腿角度
         public float TurnSpeed = 10f;
         float _idle;
+        Vector3 _prevPos;
+        bool _hasPrev;
 
         void LateUpdate()
         {
             if (Rig==null) return;
-            float speed = new Vector2(Velocity.x,Velocity.z).magnitude;
+            float udt=Mathf.Max(Time.unscaledDeltaTime,0.0001f);
+            Vector3 cur=transform.position;
+            Vector3 measured=_hasPrev ? (cur-_prevPos)/udt : Vector3.zero;
+            _prevPos=cur; _hasPrev=true;
+            // 暂停（timeScale=0）时真实位移为 0，自动进入待机
+            Vector3 extH=new Vector3(Velocity.x,0f,Velocity.z);
+            Vector3 meaH=new Vector3(measured.x,0f,measured.z);
+            Vector3 moveH = meaH.sqrMagnitude>=extH.sqrMagnitude ? meaH : extH;
+            float speed = moveH.magnitude;
             Rig.Moving = speed > 0.02f;
             float dt=Mathf.Max(Time.deltaTime,0.0001f);
 
             if (Rig.Moving)
             {
                 // 朝向速度方向
-                Vector3 fwd=Velocity; fwd.y=0;
+                Vector3 fwd=moveH; fwd.y=0;
                 if(fwd.sqrMagnitude>0.0001f){
                     var target=Quaternion.LookRotation(fwd);
                     Rig.hip.rotation=Quaternion.Slerp(Rig.hip.rotation,target,TurnSpeed*dt);

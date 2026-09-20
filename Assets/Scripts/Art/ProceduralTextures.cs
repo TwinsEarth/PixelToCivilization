@@ -58,6 +58,7 @@ namespace PixelToCivilization.Art
         /// <summary>生成一张灰度 FBM 高度/噪声图（用于法线、遮罩）</summary>
         public static Texture2D HeightNoise(int seed, int res, float scale, int octaves = 4)
         {
+            res = Mathf.Clamp(res, 8, 512); // V9.0.1fix 分辨率上限，防误传大值导致巨型贴图分配越界
             int key = HashKey(seed, res, Mathf.RoundToInt(scale * 100), octaves, 900);
             if (_cache.TryGetValue(key, out var t)) return t;
             var data = GetHeightData(seed, res, scale, octaves, key);
@@ -97,6 +98,7 @@ namespace PixelToCivilization.Art
         public static Texture2D Albedo(Color baseColor, int seed, int res = -1, float variation = 0.045f)
         {
             res = res < 0 ? Res : res;
+            res = Mathf.Clamp(res, 8, 512); // V9.0.1fix 防御：分辨率绝不允许被（误传的大种子等）撑到数 TB 分配
             int key = HashKey(seed, res, Mathf.RoundToInt(variation * 1000), ColorKey(baseColor), 100);
             if (_cache.TryGetValue(key, out var t)) return t;
             var npx = HeightBytes(seed + 7, res, 6, 4);
@@ -117,6 +119,7 @@ namespace PixelToCivilization.Art
         public static Texture2D Normal(int seed, int res = -1, float strength = 1.6f, float scale = 5f)
         {
             res = res < 0 ? Res : res;
+            res = Mathf.Clamp(res, 8, 512); // V9.0.1fix 防御：分辨率绝不允许被（误传的大种子等）撑到数 TB 分配
             int key = HashKey(seed, res, Mathf.RoundToInt(strength * 100), Mathf.RoundToInt(scale * 100), 200);
             if (_cache.TryGetValue(key, out var t)) return t;
             var hpx = HeightBytes(seed + 21, res, Mathf.RoundToInt(scale), 4);
@@ -140,6 +143,7 @@ namespace PixelToCivilization.Art
         public static Texture2D Mask(float metallic, float smoothness, int seed, int res = -1, float aoVar = 0.12f)
         {
             res = res < 0 ? Res : res;
+            res = Mathf.Clamp(res, 8, 512); // V9.0.1fix 防御：分辨率绝不允许被（误传的大种子等）撑到数 TB 分配
             int key = HashKey(seed, res, Mathf.RoundToInt(metallic * 100), Mathf.RoundToInt(smoothness * 100), 300);
             if (_cache.TryGetValue(key, out var t)) return t;
             var npx = HeightBytes(seed + 33, res, 8, 3);

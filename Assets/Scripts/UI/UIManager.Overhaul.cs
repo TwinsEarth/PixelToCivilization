@@ -27,6 +27,8 @@ namespace PixelToCivilization.UI
         private GameObject _rightBody;
         private bool _rightCollapsed, _rightWide;
         private Button _leftMinBtn, _rightMinBtn;
+        // V7.0.4 雷达式整窗收起：面板整体隐藏后，露出的独立小“恢复”按钮
+        private GameObject _leftRestore, _rightRestore;
         // —— 顶部资源悬浮说明 ——
         private GameObject _resTipGo;
         private Text _resTipText;
@@ -244,25 +246,51 @@ private void BuildTopBarV2(Transform parent)
             var scroll=UITheme.VerticalScroll("BuildScroll",_leftBody.transform,out var content,3);
             _buildList=content;scroll.gameObject.AddComponent<LayoutElement>().flexibleHeight=1;
             RefreshTabColors();
+            // V7.0.4 雷达式恢复钮（独立于面板，面板整体隐藏时仍可见）
+            _leftRestore=MakeRestoreBtn("RestoreLeft",parent,"build","展开建造面板",false,ToggleLeftPanel);
+        }
+
+        /// <summary>V7.0.4 雷达式整窗收起后的小恢复钮：46×46 纯图标，贴左/右上角。</summary>
+        private GameObject MakeRestoreBtn(string nm,Transform parent,string iconKey,string tip,bool rightEdge,Action onClick)
+        {
+            var b=UITheme.Btn(nm,parent,"",12,UITheme.Chip);
+            var le=b.GetComponent<LayoutElement>(); if(le!=null){le.preferredWidth=46;le.preferredHeight=46;le.minWidth=46;}
+            var rt=b.GetComponent<RectTransform>();
+            rt.anchorMin=rt.anchorMax=rt.pivot=rightEdge?new Vector2(1,1):new Vector2(0,1);
+            rt.sizeDelta=new Vector2(46,46);
+            rt.anchoredPosition=rightEdge?new Vector2(-10,-64):new Vector2(10,-64);
+            var tx=b.transform.Find("Text"); if(tx)Destroy(tx.gameObject);
+            var ic=UITheme.Icon(b.transform,iconKey,12);
+            ic.rectTransform.anchorMin=Vector2.zero;ic.rectTransform.anchorMax=Vector2.one;
+            ic.rectTransform.offsetMin=new Vector2(11,11);ic.rectTransform.offsetMax=new Vector2(-11,-11);
+            UITheme.SetOutline(b.gameObject,UITheme.Gold,1);
+            AddHover(b.gameObject,tip);
+            b.onClick.AddListener(()=>onClick());
+            b.gameObject.SetActive(false);
+            return b.gameObject;
         }
 
         public void WebToggleLeft(){ToggleLeftPanel();}
         public void WebToggleRight(){ToggleRightPanel();}
-        // 雷达式最小化：整个面板收成 40px 标题条，露出大地图；再点恢复
+        // V7.0.4 雷达式最小化：整个窗口（含标题条）整体 SetActive 收起、露出大地图，
+        // 仅留一枚独立的小恢复钮；再点恢复钮/最小化钮还原。
         private void ToggleLeftPanel()
         {
             _leftCollapsed=!_leftCollapsed;
-            _leftBody.SetActive(!_leftCollapsed);
-            var lrt=_leftPanel.GetComponent<RectTransform>();
-            lrt.offsetMin=new Vector2(10,_leftCollapsed?-98:-1010);
-            if(_leftMinBtn)_leftMinBtn.GetComponentInChildren<Text>().text=_leftCollapsed?"+":"—";
+            if(_leftPanel)_leftPanel.SetActive(!_leftCollapsed);
+            if(_leftRestore)_leftRestore.SetActive(_leftCollapsed);
+            if(!_leftCollapsed && _leftBody)_leftBody.SetActive(true);
         }
         private void ToggleRightPanel()
         {
             _rightCollapsed=!_rightCollapsed;
-            _rightBody.SetActive(!_rightCollapsed);
-            _rightRt.offsetMin=new Vector2(_rightWide?-392:-250,_rightCollapsed?-98:-1010);
-            if(_rightMinBtn)_rightMinBtn.GetComponentInChildren<Text>().text=_rightCollapsed?"+":"—";
+            if(_rightRt)_rightRt.gameObject.SetActive(!_rightCollapsed);
+            if(_rightRestore)_rightRestore.SetActive(_rightCollapsed);
+            if(!_rightCollapsed)
+            {
+                if(_rightBody)_rightBody.SetActive(true);
+                _rightRt.offsetMin=new Vector2(_rightWide?-392:-250,-1010);
+            }
         }
         /// <summary>把按钮固定在父级右侧 x 偏移处、纵向拉伸（不依赖布局组）</summary>
         private static void FixedRight(RectTransform rt,float rightX,float w)
@@ -452,10 +480,11 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             var actions=UITheme.Panel("Actions",_rightBody.transform,new Color(0,0,0,0));
             var ag=actions.AddComponent<GridLayoutGroup>();ag.constraint=GridLayoutGroup.Constraint.FixedColumnCount;ag.constraintCount=3;
             ag.cellSize=new Vector2(70,32);ag.spacing=new Vector2(4,5);
-            actions.AddComponent<LayoutElement>().preferredHeight=136;
+            actions.AddComponent<LayoutElement>().preferredHeight=175;   // V9.0.7 11 个按钮（含城市）4 行
             UITheme.BtnIcon("tech",actions.transform,"research","科技",12).onClick.AddListener(OpenTechModal);
             UITheme.BtnIcon("policy",actions.transform,"culture","政策",12).onClick.AddListener(OpenPolicyModal);
             UITheme.BtnIcon("gods",actions.transform,"god","九神",12).onClick.AddListener(OpenGodsModal);
+            UITheme.BtnIcon("city",actions.transform,"market","城市",12).onClick.AddListener(OpenCityModal);
             UITheme.BtnIcon("philosophy",actions.transform,"culture","百家",12).onClick.AddListener(OpenPhilosophyModal);
             UITheme.BtnIcon("army",actions.transform,"military","征兵",12).onClick.AddListener(()=>GM.Military.TrainSoldiers());
             UITheme.BtnIcon("cavalry",actions.transform,"military","骑兵",12).onClick.AddListener(()=>GM.Military.TrainCavalry());
@@ -476,6 +505,8 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
 
             _rightMinBtn=min;min.onClick.AddListener(ToggleRightPanel);
             max.onClick.AddListener(()=>{_rightWide=!_rightWide;_rightRt.offsetMin=new Vector2(_rightWide?-392:-250,_rightCollapsed?-98:-1010);});
+            // V7.0.4 雷达式恢复钮（独立于国家状态面板）
+            _rightRestore=MakeRestoreBtn("RestoreRight",parent,"target","展开国家状态",true,ToggleRightPanel);
         }
 
         // ============================================================

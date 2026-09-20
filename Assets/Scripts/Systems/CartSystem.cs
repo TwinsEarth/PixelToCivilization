@@ -110,12 +110,38 @@ namespace PixelToCivilization.Systems
                 return;
             }
             float sp=d.Speed*60f*(c.HasDriver?1f:0.4f);
-            float nx=c.X+dx/dist*sp*dt, nz=c.Z+dz/dist*sp*dt;
-            // V6.3.4：车辆只能在陆地，下一步若是水/海则放弃移动并重新选目标，绝不驶入水中
-            bool onBridge=GM.Bridge!=null && GM.Bridge.IsBridgeAt(nx,nz); // V6.3.9 桥面可越水通行
-
-            if(_terrain!=null && ((_terrain.IsWater(nx,nz)&&!onBridge)||!_terrain.InsideFrontier(nx,nz))){ PickNextTarget(c); return; } // 车不进水(桥除外)、不出疆域
+            float step=sp*dt, ux=dx/dist, uz=dz/dist;
+            float nx=c.X+ux*step, nz=c.Z+uz*step;
+            // V7.0.6 车辆永不上水：当前已在水里（涨潮/地图扩展/旧存档）先一次性归位最近陆地
+            if(_terrain!=null && _terrain.IsWater(c.X,c.Z) && !(GM.Bridge!=null&&GM.Bridge.IsBridgeAt(c.X,c.Z)))
+            {
+                if(NearestLand(c.X,c.Z,40f,out float lx,out float lz)){ nx=lx;nz=lz; }
+                else { return; }
+            }
+            bool LandOK(float px,float pz){
+                if(_terrain==null)return true;
+                bool br=GM.Bridge!=null&&GM.Bridge.IsBridgeAt(px,pz);
+                return (br||!_terrain.IsWater(px,pz)) && _terrain.InsideFrontier(px,pz);
+            }
+            if(!LandOK(nx,nz))
+            {
+                // 贴岸绕行：在当前朝向上左右偏转找一块陆地/桥面，而不是原地放弃或冲进水里
+                bool slid=false;
+                for(int turn=30;turn<=150&&!slid;turn+=30)
+                {
+                    float rad=turn*Mathf.Deg2Rad;
+                    float cs=Mathf.Cos(rad),sn=Mathf.Sin(rad);
+                    for(int side=-1;side<=1&&!slid;side+=2)
+                    {
+                        float dxr=ux*cs-side*uz*sn, dzr=uz*cs+side*ux*sn;
+                        float sx=c.X+dxr*step, sz=c.Z+dzr*step;
+                        if(LandOK(sx,sz)){ nx=sx;nz=sz;slid=true; }
+                    }
+                }
+                if(!slid){ PickNextTarget(c); return; } // 三面环水：重选同大陆目标，绝不下水
+            }
             c.X=nx; c.Z=nz;
+            bool onBridge=GM.Bridge!=null && GM.Bridge.IsBridgeAt(c.X,c.Z); // V6.3.9 桥面可越水通行
             if(onBridge) c.H=GM.Bridge.DeckHeightAt(c.X,c.Z); else if(_terrain!=null) c.H=_terrain.HeightAt(c.X,c.Z);
             if(c.View!=null)
             {
@@ -128,11 +154,53 @@ namespace PixelToCivilization.Systems
         private void PickNextTarget(CartEntity c)
         {
             var bs=S.Buildings;
-            if(bs.Count==0){ c.WanderTimer-=1f; if(c.WanderTimer<=0){c.WanderTimer=3f;var a=Random.value*Mathf.PI*2;float r=Random.Range(8f,40f);c.TargetX=c.X+Mathf.Cos(a)*r;c.TargetZ=c.Z+Mathf.Sin(a)*r;} return; }
-            // 找与当前目标不同的最近建筑
+            int homeCont=_terrain!=null?_terrain.ContinentAt(c.X,c.Z):0;   // V7.0.6 只在同一大陆内派目标，不隔海指建筑
+            if(bs.Count==0){ PickLandWander(c); return; }
+            // 找同大陆、与当前目标不同的最近建筑；同大陆没有则陆地游走，绝不把目标指向水里/海外
             BuildingEntity best=null;float bd=99999;
-            foreach(var b in bs){float dd=(b.X-c.X)*(b.X-c.X)+(b.Z-c.Z)*(b.Z-c.Z);if(dd>4&&dd<bd){bd=dd;best=b;}}
+            foreach(var b in bs)
+            {
+                if(_terrain!=null && _terrain.ContinentAt(b.X,b.Z)!=homeCont) continue;
+                float dd=(b.X-c.X)*(b.X-c.X)+(b.Z-c.Z)*(b.Z-c.Z);
+                if(dd>4&&dd<bd){bd=dd;best=b;}
+            }
             if(best!=null){c.TargetX=best.X;c.TargetZ=best.Z;c.HasDriver=true;}
+            else PickLandWander(c);
+        }
+
+        // V7.0.6 无建筑可去时，在周围挑一个陆地/桥面游走点（多次采样，挑不到就原地不动）
+        private void PickLandWander(CartEntity c)
+        {
+            c.WanderTimer-=1f; if(c.WanderTimer>0) return;
+            c.WanderTimer=3f;
+            for(int k=0;k<10;k++)
+            {
+                var a=Random.value*Mathf.PI*2; float r=Random.Range(8f,40f);
+                float tx=c.X+Mathf.Cos(a)*r, tz=c.Z+Mathf.Sin(a)*r;
+                bool bridge=GM.Bridge!=null&&GM.Bridge.IsBridgeAt(tx,tz);
+                if(_terrain==null || bridge || (!_terrain.IsWater(tx,tz)&&_terrain.InsideFrontier(tx,tz)))
+                { c.TargetX=tx;c.TargetZ=tz; return; }
+            }
+        }
+
+        /// <summary>V7.0.6 由近及远螺旋搜索最近陆地/桥面（车上水后的归位点）。</summary>
+        bool NearestLand(float x,float z,float maxR,out float ox,out float oz)
+        {
+            ox=x;oz=z;bool found=false;float best=maxR*maxR;
+            if(_terrain==null)return false;
+            for(float r=2f;r<=maxR;r+=2f)
+            {
+                int n=Mathf.Max(8,Mathf.RoundToInt(2f*Mathf.PI*r/2f));
+                for(int k=0;k<n;k++)
+                {
+                    float ang=k*(Mathf.PI*2f/n), cx=x+Mathf.Cos(ang)*r, cz=z+Mathf.Sin(ang)*r;
+                    bool bridge=GM.Bridge!=null&&GM.Bridge.IsBridgeAt(cx,cz);
+                    bool land=bridge||!_terrain.IsWater(cx,cz);
+                    if(land){float d=(cx-x)*(cx-x)+(cz-z)*(cz-z);if(d<best){best=d;ox=cx;oz=cz;found=true;}}
+                }
+                if(found)return true;
+            }
+            return false;
         }
 
         // 对齐 v5.9.9 第七类自动建造：每80人1辆车，资源足够时概率补车

@@ -14,7 +14,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: ToFuture
-  productName: "\u4ECE\u50CF\u7D20\u5230\u6587\u660E V7.0.2"
+  productName: "\u4ECE\u50CF\u7D20\u5230\u6587\u660E V9.1.2"
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.12156863, g: 0.12156863, b: 0.1254902, a: 1}
@@ -42,7 +42,7 @@ PlayerSettings:
     height: 1
   m_SplashScreenLogos: []
   m_VirtualRealitySplashScreen: {fileID: 0}
-  expectedBundleIdentifier: com.ToFuture.-------------------V7.0.2
+  expectedBundleIdentifier: com.ToFuture.-------------------V9.1.2
   integrityHash: 
   m_HolographicTrackingLossScreen: {fileID: 0}
   defaultScreenWidth: 1920

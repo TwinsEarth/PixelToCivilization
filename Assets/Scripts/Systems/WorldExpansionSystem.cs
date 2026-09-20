@@ -2,6 +2,7 @@
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
 using PixelToCivilization.UI;
+using PixelToCivilization.Data;
 
 namespace PixelToCivilization.Systems
 {
@@ -23,10 +24,11 @@ namespace PixelToCivilization.Systems
         bool _primed;
         System.Random _growRng;
 
-        /// <summary>每100年×1.01，每1000年×1.30；倍率封顶5（X到5倍，Z由ActiveHalfZ在3倍处触顶）</summary>
+        /// <summary>每100年×1.01，每1000年×1.30；倍率封顶5（X到5倍，Z由ActiveHalfZ在3倍处触顶）。
+        /// V9.0.1 起以【开局年公元1700=游戏年4700】为零点：开局倍率必须=1，不能因绝对年份已达4700而瞬间撑满地图。</summary>
         public static float ExpandFactor(int gameYear)
         {
-            int years = Mathf.Max(0, gameYear - 1);
+            int years = Mathf.Max(0, gameYear - GameConstants.StartGameYear);
             int centuries = years/100, millennia = years/1000;
             return Mathf.Min(MaxExpansion, Mathf.Pow(1.01f,centuries)*Mathf.Pow(1.30f,millennia));
         }
@@ -42,19 +44,27 @@ namespace PixelToCivilization.Systems
 
         public override void OnYear(int year)
         {
-            int years0=Mathf.Max(0,year-1);
-            if (!_primed || year<=1)   // 首年/新游戏/读档后：以当前年份为基线，不补历史欠账
+            int years0=Mathf.Max(0,year-GameConstants.StartGameYear);   // V9.0.1 相对开局年(公元1700)计
+            if (!_primed || year<=GameConstants.StartGameYear)   // 首年/新游戏/读档后：以当前年份为基线，不补历史欠账
             {
                 _lastCentury=years0/100;_lastHalfMil=years0/500;_lastMillennium=years0/1000;
                 _pendIsland=_pendSec=_pendMain=0;_primed=true;
             }
             if (_terrain == null) _terrain = Object.FindObjectOfType<WorldGenerator>();
+            if (S.EarthMode)
+            {   // V9.1.0 真实地球：七大洲固定，不做年代增陆/迷雾扩张；仅保留时代里程碑
+                S.WorldExpansion=1f;
+                int gyE = GM.Time != null ? GM.Time.GregorianYear : -3000 + year;
+                if (gyE >= 1000 && !S.AgeOfSail){ S.AgeOfSail=true; S.OceanUnlocked=true; }
+                if (gyE >= 2000 && !S.AgeOfSpace){ S.AgeOfSpace=true; S.SpaceUnlocked=true; }
+                return;
+            }
             float e = ExpandFactor(year);
             S.WorldExpansion = e;
             _terrain?.SetExpansion(e);                 // 先展开方形边疆
 
-            // —— 实时随机增陆节奏（与倍率同一口径 (year-1)，避免错位一年）——
-            int years=Mathf.Max(0,year-1);
+            // —— 实时随机增陆节奏（与倍率同一口径：相对开局年，避免错位一年）——
+            int years=Mathf.Max(0,year-GameConstants.StartGameYear);
             int c=years/100, h=years/500, m=years/1000;
             if (c>_lastCentury){_pendIsland+=c-_lastCentury;_lastCentury=c;}                 // 每百年欠1岛
             if (h>_lastHalfMil){_pendSec+=(h-_lastHalfMil)*(2+_growRng.Next(2));_lastHalfMil=h;} // 每500年欠2~3次大陆
@@ -102,8 +112,9 @@ namespace PixelToCivilization.Systems
         {
             if (_terrain == null) _terrain = Object.FindObjectOfType<WorldGenerator>();
             if (_terrain==null) return;
-            _terrain.UpdateReveal(Mathf.Min(0.05f, Time.unscaledDeltaTime));
             if(!_entitySynced){ SyncEntityVisibility(); _entitySynced=true; }
+            if(S.EarthMode) return;   // V9.1.0 地球模式：无迷雾轮询、无实时增陆
+            _terrain.UpdateReveal(Mathf.Min(0.05f, Time.unscaledDeltaTime));
             var found=_terrain.PollNewlyRevealed();
             if(found.Count>0 && _veg==null)_veg=Object.FindObjectOfType<VegetationSystem>();
             foreach(var id in found)

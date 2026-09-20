@@ -102,6 +102,13 @@ namespace PixelToCivilization.Systems
                 if (_flashCd <= 0f) { _flashT = 0.14f; _flashCd = Random.Range(3f, 7f); }
                 if (_flashT > 0f) { _flashT -= dt; sunI = 2.2f; sunC = Color.white; }
             }
+            // V9.0.8 天气光照必须服从昼夜：旧逻辑每帧把太阳拉回白天基准 _baseSunIntensity、雾拉回白天色，
+            // 与 EnvironmentDirector 的夜景循环打架（深夜仍像白天）。按 DayFactor 统一压到月光/夜雾目标。
+            float df = Rendering.EnvironmentDirector.Instance != null ? Rendering.EnvironmentDirector.Instance.DayFactor : 1f;
+            if (Current != W.Thunder || _flashT <= 0f)
+                sunI *= Mathf.Lerp(0.10f, 1f, df);
+            sunC = Color.Lerp(new Color(0.55f, 0.65f, 1f), sunC, df);
+            fogC = Color.Lerp(new Color(0.04f, 0.05f, 0.09f), fogC, df);
             _sun.intensity = Mathf.Lerp(_sun.intensity, sunI, dt * 2f);
             _sun.color = Color.Lerp(_sun.color, sunC, dt * 2f);
             RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, fogD, dt * 2f);
@@ -163,6 +170,9 @@ namespace PixelToCivilization.Systems
             cone.transform.localScale = new Vector3(7f, 2.2f, 7f);
             var r2 = cone.GetComponent<Renderer>(); r2.material = ShaderHelper.Mat(new Color(0.36f, 0.34f, 0.30f, 0.7f));
             _tornado.SetActive(false);
+
+            // V8.0.1 乐高积木立方云（纯装饰，单例跟随相机）
+            // V9.0.1 现代风停用乐高积木云（V8.0.1 专属），恢复普通云与天空
         }
 
         private ParticleSystem MakePrecip(string name, Color c, float size, float speed, float life, float rate, Vector3 box)

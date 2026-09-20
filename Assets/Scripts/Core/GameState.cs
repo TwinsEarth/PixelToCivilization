@@ -128,6 +128,14 @@ namespace PixelToCivilization.Core
 
         // ---- 电力/AI ----
         public float ElectricGrid, PowerCoverage, AiBonus;
+        // ---- V9.0.4 工业与能源链：电网供需比、污染指数(0-100)、产业链乘数 ----
+        public float PowerSupply, PowerDemand, PowerRatio = 1f;   // PowerRatio=供电/用电(钳0-1)，无用电需求时=1
+        public float Pollution;                                  // 污染指数 0~100（年度趋向平衡值）
+        public float IndustryChainMult = 1f;                     // 产业链完整度乘数 0.7~1.25
+        // ---- V9.0.5 城市指标（0~100）与现代人口结构 ----
+        public float CityHealth = 60f, CityEducation = 40f, CitySafety = 55f, CityEmployment = 85f;
+        // ---- V9.0.7 城市财政：税率档位 0低税/1标准/2重税 ----
+        public int CityTaxLevel = 1;
 
         // ---- 太空副本 ----
         public float SpElevator, SpShips, SpDyson, SpLunar, SpMars; // 太空工程进度
@@ -144,6 +152,7 @@ namespace PixelToCivilization.Core
         public bool AgeOfSail;             // V6.1.3 公元1000年·大航海时代已开启（防重复触发）
         public bool AgeOfSpace;            // V6.1.3 公元2000年·宇宙大开发时代已开启
         public float WorldExpansion=1f;    // V6.1.3 地图自然延展倍率（每100年×1.1、每1000年×2）
+        public bool EarthMode;             // V9.1.0 真实地球模式（固定七大洲，停用随机增陆）
 
         // ---- 胜负/日志 ----
         public bool Victory;
@@ -189,8 +198,9 @@ namespace PixelToCivilization.Core
         public void Reset()
         {
             Running = false; Paused = false; Speed = 1f; DebugLevel = 0;
+            EarthMode=false;   // V9.1.0 重开默认经典随机模式
             CryoAccumYears=0f; CryoActive=false; CryoRemainSec=0f; // V6.1.9 冷冻状态归零
-            Year = 1; Day = 0; Era = 0; DynastyIdx = 0;
+            Year = GameConstants.StartGameYear; Day = 0; Era = 0; DynastyIdx = 0; // V9.0.1 开局公元1700（游戏年4700·清康熙·大航海殖民末期）；Era/DynastyIdx 随后由 GameTime.SnapToStartYear 静默对齐
             Res = ResourceDatabase.InitialResources();
             Pop = GameConstants.StartPop; MaxPop = 100; Housing = 0; Happiness = 70;
             Children=25;Young=35;Middle=30;Old=10;
@@ -216,12 +226,15 @@ namespace PixelToCivilization.Core
             foreach(var k in new List<string>(OceanResources.Keys)) OceanResources[k]=0;
             OceanTradePosts.Clear();
             ElectricGrid=PowerCoverage=AiBonus=0;
+            PowerSupply=PowerDemand=0; PowerRatio=1f; Pollution=0; IndustryChainMult=1f; // V9.0.4
+            CityHealth=60f; CityEducation=40f; CitySafety=55f; CityEmployment=85f;      // V9.0.5
+            CityTaxLevel=1;                                                             // V9.0.7
             SpElevator=SpShips=SpDyson=SpLunar=SpMars=0; SpaceUnlocked=false;
             foreach(var k in new List<string>(SpaceResources.Keys)) SpaceResources[k]=0;
             SpaceBases.Clear();
             CurrentMap="home"; Victory=false; EventLog.Clear();
             Wonders.Clear(); Achievements.Clear(); WonderAuto=false; // V6.8.0
-            AgeOfSail=false; AgeOfSpace=false; WorldExpansion=1f;
+            AgeOfSail=true; OceanUnlocked=true; AgeOfSpace=false; WorldExpansion=1f; // V9.0.1 开局1700已处大航海时代（公元1000后），海洋已解锁；宇宙大开发（公元2000）未到
             Nations.Clear(); VillageX.Clear(); VillageZ.Clear();
             WorldPhase="split"; PhaseYearsLeft=0; PlayerNationId=0;
         }

@@ -23,6 +23,24 @@ namespace PixelToCivilization.Systems
         private readonly Dictionary<int,GameObject> _views = new();
         private int N => GameConstants.MaxMapSize;   // V6.3.7(真扩展) 与全量地形网格一致
         private int Idx(int gx,int gz)=>gz*N+gx;
+        // V9.1.1 地球模式：运河仅主大陆（陆块1，玩家欧亚）。缓存其包围盒，BFS 只在盒内+近岸取水
+        bool _bboxReady; int _x0,_x1,_z0,_z1;
+        void EnsureBBox()
+        {
+            if (_bboxReady || _world==null || !_world.EarthMode) { if(!_world.EarthMode){_x0=2;_x1=N-2;_z0=2;_z1=N-2;_bboxReady=true;} return; }
+            _x0=N;_z0=N;_x1=0;_z1=0; bool any=false;
+            for(int gz=2;gz<N-2;gz++)for(int gx=2;gx<N-2;gx++)
+                if(_world.ContinentAt(_world.C2WX(gx)+GameConstants.Tile*0.5f,_world.C2WZ(gz)+_world.TZ*0.5f)==1)
+                { any=true; if(gx<_x0)_x0=gx; if(gx>_x1)_x1=gx; if(gz<_z0)_z0=gz; if(gz>_z1)_z1=gz; }
+            if(any){ int m=10; _x0=Mathf.Max(2,_x0-m);_x1=Mathf.Min(N-2,_x1+m);_z0=Mathf.Max(2,_z0-m);_z1=Mathf.Min(N-2,_z1+m); }
+            else { _x0=_x1=_z0=_z1=0; }
+            _bboxReady=true;
+        }
+        bool MainLandCell(int gx,int gz)
+        {
+            if(_world==null||!_world.EarthMode) return true;
+            return _world.ContinentAt(_world.C2WX(gx)+GameConstants.Tile*0.5f,_world.C2WZ(gz)+_world.TZ*0.5f)==1;
+        }
 
         public override void Init(GameManager gm)
         {
@@ -63,6 +81,10 @@ namespace PixelToCivilization.Systems
             if (S.GetRes("gold")<30||S.GetRes("stone")<20||S.GetRes("wood")<15) return;
             var path=FindCanalDigPoint();
             if (path==null) return;
+            // V9.1.1 地球模式：运河只能开在主大陆（陆块1），路径触及其他陆地则本周期不开挖
+            if (_world!=null && _world.EarthMode)
+                foreach (var pc in path)
+                    if (!IsWaterCell(pc.x,pc.y) && !MainLandCell(pc.x,pc.y)) return;
             S.AddRes("gold",-30);S.AddRes("stone",-20);S.AddRes("wood",-15);
             int dug=0;
             foreach (var cell in path)
@@ -71,6 +93,7 @@ namespace PixelToCivilization.Systems
                 if (IsWaterCell(cell.x,cell.y)) continue;
                 if (S.CanalCells.Contains(idx)) continue;
                 if (HasBuildingAt(cell.x,cell.y)) continue;
+                if (_world!=null && _world.EarthMode && !MainLandCell(cell.x,cell.y)) continue;
                 S.CanalCells.Add(idx);
                 CreateCellView(cell.x,cell.y);
                 dug++;
@@ -99,9 +122,10 @@ namespace PixelToCivilization.Systems
         private List<Vector2Int> FindCanalDigPoint()
         {
             if (_world==null) return null;
+            EnsureBBox();
             var water=new List<Vector2Int>();
-            for (int gz=2;gz<N-2;gz++)
-                for (int gx=2;gx<N-2;gx++)
+            for (int gz=_z0;gz<=_z1;gz++)
+                for (int gx=_x0;gx<=_x1;gx++)
                     if (IsWaterCell(gx,gz)) water.Add(new Vector2Int(gx,gz));
             if (water.Count<10) return null;
 

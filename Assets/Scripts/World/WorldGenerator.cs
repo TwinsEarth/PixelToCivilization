@@ -14,12 +14,15 @@ namespace PixelToCivilization.World
     /// ⑤沙漠（内陆低地遮罩）；最后自适应挑选最平坦且近淡水的村址并平坦化。
     /// 逐顶点生物群系色地形（PxC/VertexColor，全平台一致），提供 HeightAt/IsWater/IsBeach/BiomeAt 查询。
     /// </summary>
-    public class WorldGenerator : MonoBehaviour
+    public partial class WorldGenerator : MonoBehaviour
     {
         public int Seed = 20260829;
         public float[,] HeightMap;
         public float[,] WaterMap;
         public BiomeKind[,] Biome;
+        /// <summary>V7.0.6 外海连通掩码：1=与地图边界连通的外海（flood-fill，不经过河道），0=陆地/内河/被围湖泊。
+        /// 与潮汐、群系启发式无关，是“船只能不能在这格”的权威依据，从根上杜绝海船被拖进大陆湖。</summary>
+        public byte[,] OceanMask;
         public float Tile => GameConstants.Tile;
         // 全量画布（V6.5.8：长X=初始5倍4800 × 宽Z=初始3倍2880，面积15倍；网格取方形 G=1200，Z 轴每格 TileZ=2.4）
         public int G => GameConstants.MaxMapSize;
@@ -56,8 +59,11 @@ namespace PixelToCivilization.World
         // 未显现的外圈区域沉入海中（视觉/小地图隐藏），逻辑高度仍以 HeightMap 为准；随年代 RevealRadius 平滑外扩
         public float RevealRadius=-1f, RevealTarget=-1f, RevealBase;
         public float Expansion=1f;
-        Mesh _terrainMesh; MeshCollider _terrainCol;
+        Mesh _terrainMesh; MeshCollider _terrainCol; Mesh _terrainColMesh;
         Vector3[] _rvVerts; Color32[] _rvCols32;   // V6.5.8 地形刷新复用缓冲
+        // V9.0.1 碰撞体降采样：视觉网格 1200²≈864 万面，直接做 MeshCollider 会在 WebGL 烘焙时爆内存/越界；
+        // 碰撞体每 ColStride 格采样（约 24 万面）。点击落点 XZ 足够准，Y 与水陆/平坦判定一律由 HeightAt 等精确采样兜底。
+        const int ColStride=5;
         public bool RevealEnabled => RevealTarget>0f;
 
         readonly List<(int land,float x,float z,float r,float h)> _peaks = new();
@@ -90,11 +96,13 @@ namespace PixelToCivilization.World
         public void Generate(int seed = 20260829, float forceScale = -1f)
         {
             Seed = seed;
+            EarthMode = false;   // V9.1.0 经典随机生成路径：明确退出地球模式
             int n = G;
             HeightMap = new float[n,n];
             WaterMap = new float[n,n];
             Biome = new BiomeKind[n,n];
             ContinentMap = new int[n,n];
+            OceanMask = new byte[n,n];
             _peaks.Clear(); _deserts.Clear(); _lands.Clear(); GrownLands.Clear(); _plateaus.Clear(); ContinentCenters.Clear(); _revealedLands.Clear();
             var rng = new System.Random(seed);
             float centerX = HalfX, centerZ = HalfZ;
@@ -291,6 +299,7 @@ namespace PixelToCivilization.World
             // ⑥ 大陆连通图（可徒涉地含浅水/河槽，8 邻域连通，深海阻隔），并重映射主大陆=1
             BuildContinentMap(n);
             RemapHomeContinent(n,main);
+            ComputeOceanMask(n);   // V7.0.6 外海连通掩码（须在河湖/河道全部定稿后）
 
             // ⑦ 主大陆内自适应挑选最平坦、近淡水的村址并平坦化
             SettlementCenter = ChooseSettlement(n, centerX, centerZ, out int vx, out int vz);
@@ -409,6 +418,30 @@ namespace PixelToCivilization.World
                         if(nx<0||nz<0||nx>=n||nz>=n||seen[nz,nx]||!walk[nz,nx])continue;
                         seen[nz,nx]=true; q.Enqueue((nx,nz));
                     }
+                }
+            }
+        }
+
+        /// <summary>V7.0.6 外海连通掩码：从四条边界的“基础水体（静态水位以下、非河道）”做 8 邻域 flood，
+        /// 连通到边界的水体记为外海(1)；被陆地围住的湖泊、内河记为 0。结果不随潮汐变化，扩地/读档重建后重算。</summary>
+        public void ComputeOceanMask(int n)
+        {
+            if(OceanMask==null||OceanMask.GetLength(0)!=n) OceanMask=new byte[n,n];
+            else System.Array.Clear(OceanMask,0,OceanMask.Length);
+            bool Sea(int x,int z)=> HeightMap[z,x] < GameConstants.WaterLevel && Biome[z,x]!=BiomeKind.River;
+            var seen=new bool[n,n]; var q=new Queue<(int x,int z)>();
+            void Seed(int x,int z){ if(x<0||z<0||x>=n||z>=n||seen[z,x]||!Sea(x,z))return; seen[z,x]=true;q.Enqueue((x,z)); }
+            for(int x=0;x<n;x++){ Seed(x,0); Seed(x,n-1); }
+            for(int z=0;z<n;z++){ Seed(0,z); Seed(n-1,z); }
+            while(q.Count>0)
+            {
+                var c=q.Dequeue(); OceanMask[c.z,c.x]=1;
+                for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++)
+                {
+                    if(dx==0&&dz==0)continue;
+                    int nx=c.x+dx,nz=c.z+dz;
+                    if(nx<0||nz<0||nx>=n||nz>=n||seen[nz,nx]||!Sea(nx,nz))continue;
+                    seen[nz,nx]=true; q.Enqueue((nx,nz));
                 }
             }
         }
@@ -685,6 +718,10 @@ namespace PixelToCivilization.World
             var go = new GameObject("Terrain"); go.transform.SetParent(transform);
             var mf = go.AddComponent<MeshFilter>();
             var mr = go.AddComponent<MeshRenderer>();
+            // V9.0.1fix 必须在 mf.mesh 赋全量地形网格之前创建碰撞体并清空，否则 MeshCollider 会自动继承
+            // 864 万面视觉网格先烘焙一次（触发 >2M 面 Fast Midphase 警告并产生巨大 PhysX 内存峰值，可致 WASM 越界）
+            var mc = go.AddComponent<MeshCollider>();
+            mc.sharedMesh=null;
             var mesh = new Mesh(); mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
             int verts = (n+1)*(n+1);
             var vertices = new Vector3[verts];
@@ -720,7 +757,35 @@ namespace PixelToCivilization.World
             mr.material=mat;
             mr.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows=false;
-            var mc = go.AddComponent<MeshCollider>(); mc.sharedMesh=mesh; _terrainCol=mc;
+            // V9.0.1 用降采样粗网格做碰撞体（视觉网格 864 万面直接做 MeshCollider 会在 WebGL 烘焙时爆内存/越界）
+            _terrainColMesh=BuildCoarseCollider(n);
+            mc.sharedMesh=_terrainColMesh; _terrainCol=mc;
+        }
+
+        /// <summary>V9.0.1 地形碰撞体：按 ColStride 对高度场降采样，面数约为视觉网格的 1/ColStride²，
+        /// 供鼠标点击/放置射线检测；精确高度与水陆判定仍走 HeightAt/IsWater。</summary>
+        Mesh BuildCoarseCollider(int n)
+        {
+            int cs=Mathf.Max(1,n/ColStride);
+            var cm=new Mesh();
+            int cv=(cs+1)*(cs+1);
+            if(cv>65000) cm.indexFormat=UnityEngine.Rendering.IndexFormat.UInt32;
+            var verts=new Vector3[cv];
+            float halfX=HalfX,halfZ=HalfZ; int vi=0;
+            for(int z=0;z<=cs;z++)for(int x=0;x<=cs;x++)
+            {
+                int gx=Mathf.Min(x*ColStride,n), gz=Mathf.Min(z*ColStride,n);
+                verts[vi++]=new Vector3(gx*Tile-halfX, SampleHeightInt(gx,gz), gz*TZ-halfZ);
+            }
+            var tris=new int[cs*cs*6]; int ti=0;
+            for(int z=0;z<cs;z++)for(int x=0;x<cs;x++)
+            {
+                int a=z*(cs+1)+x,b=a+1,c=a+(cs+1),d=c+1;
+                tris[ti++]=a;tris[ti++]=c;tris[ti++]=b;
+                tris[ti++]=b;tris[ti++]=c;tris[ti++]=d;
+            }
+            cm.vertices=verts;cm.triangles=tris;cm.RecalculateNormals();cm.name="TerrainCoarseCollider";
+            return cm;
         }
 
         // V6.1.3：某顶点的"显示高度/颜色"——未延展到的外圈沉入深海（逻辑高度仍以 HeightMap 为准）
@@ -733,7 +798,8 @@ namespace PixelToCivilization.World
             // V6.3.7(fix) 方形疆域（长宽同步外扩）：用切比雪夫距离=max(|x|,|z|)；海洋随疆域显现，未"发现"的陆地无论远近一律沉海
             float rz=Mathf.Min(RevealRadius,HalfZ);
             float cheb=Mathf.Max(Mathf.Abs(wx),Mathf.Abs(wz)*(HalfX/rz));
-            int cid=ContinentMap[gz,gx];
+            // V9.0.1 修复启动越界：地形网格为 (n+1)² 顶点，边界 gx/gz 会取到 n；ContinentMap 仅 n×n，必须夹紧到 n-1（与 SampleHeightInt/BiomeColor 一致）
+            int cid=ContinentMap[Mathf.Clamp(gz,0,G-1),Mathf.Clamp(gx,0,G-1)];
             bool landKnown = cid<=0 || _revealedLands.Contains(cid);
             bool inside=Mathf.Abs(wx)<=RevealRadius && Mathf.Abs(wz)<=rz;
             if(inside && landKnown) return (fh,bc);
@@ -778,6 +844,7 @@ namespace PixelToCivilization.World
             int newId=LabelNewComponent(land);
             land.Id=newId; land.Grown=true; _lands.Add(land); GrownLands.Add(land);
             _revealedLands.Add(newId);
+            ComputeOceanMask(G);   // V7.0.6 扩地后重算外海掩码，新内陆湖立即与外海区分
             RefreshRevealMesh();
             return newId;
         }
@@ -793,7 +860,7 @@ namespace PixelToCivilization.World
             land.Id=newId;_lands.Add(land);GrownLands.Add(land);_revealedLands.Add(newId);
             return newId;
         }
-        public void EndRestoreGrown(){ RefreshRevealMesh(); }
+        public void EndRestoreGrown(){ ComputeOceanMask(G); RefreshRevealMesh(); }   // V7.0.6 读档重建陆地后重算外海掩码
 
         /// <summary>把一块新陆地实时盖戳进高度图/水体/生态（只扫其包围盒，不动其它陆地）</summary>
         void StampLand(Landmass L,int shapeKind,System.Random rng)
@@ -971,11 +1038,18 @@ namespace PixelToCivilization.World
                 _rvVerts[vi]=new Vector3(wx,dh,wz); _rvCols32[vi]=(Color32)dc; vi++;
             }
             _terrainMesh.SetVertices(_rvVerts); _terrainMesh.SetColors(_rvCols32);
-            if(_terrainCol!=null){_terrainCol.sharedMesh=null;_terrainCol.sharedMesh=_terrainMesh;}
+            // V9.0.1 扩张刷新时只重建降采样碰撞体（绝不再把 864 万面视觉网格塞回 MeshCollider）
+            if(_terrainCol!=null)
+            {
+                if(_terrainColMesh!=null){ Object.DestroyImmediate(_terrainColMesh); }
+                _terrainColMesh=BuildCoarseCollider(G);
+                _terrainCol.sharedMesh=null; _terrainCol.sharedMesh=_terrainColMesh;
+            }
         }
 
         private Color BiomeColor(float h,int gx,int gz)
         {
+            if (EarthMode) return EarthBiomeColor(h,gx,gz);   // V9.1.0 真实地球气候带着色
             if (h < GameConstants.WaterLevel)
             {
                 // 河流：清透浅蓝
@@ -1063,6 +1137,12 @@ namespace PixelToCivilization.World
         /// 旧逻辑会把船沿“最近的水”引入河道、再顺着入海/湖河道拖进大陆湖；以此从根上切断。</summary>
         public bool IsOceanWater(float x,float z)
         {
+            int gx=Mathf.FloorToInt(x/Tile+G/2f), gz=Mathf.FloorToInt(z/TZ+G/2f);
+            if (gx<0||gx>=G||gz<0||gz>=G) return false;
+            // V7.0.6 权威判定=外海连通掩码（与潮汐/群系启发式无关）：
+            // 退潮露出的外海潮滩掩码仍为 1（坐滩等涨潮），被围湖泊/内河掩码为 0（海船绝不可入）。
+            if(OceanMask!=null) return OceanMask[gz,gx]==1;
+            // 兼容兜底（掩码尚未构建时）
             if(!IsWater(x,z)) return false;
             var b=BiomeAt(x,z);
             return b!=BiomeKind.FreshWater && b!=BiomeKind.River;

@@ -37,6 +37,8 @@ Shader "PxC/WaterURP"
             float4 _Shallow, _Deep, _SkyTint;
             float _Smoothness, _WaveAmp, _WaveFreq, _Distort, _FresnelPow;
             CBUFFER_END
+            // V9.0.8 全局昼夜系数（EnvironmentDirector 每帧 SetGlobalFloat，1=昼 0=夜）
+            float _GlobalDay;
 
             struct a2v { float4 pos:POSITION; float2 uv:TEXCOORD0; };
             struct v2f {
@@ -106,6 +108,8 @@ Shader "PxC/WaterURP"
 
                 float alpha=lerp(_Deep.a, _Shallow.a, ndv*0.7);
                 alpha=max(alpha,fres*0.85);
+                // V9.0.8 夜间水面压暗染冷蓝（Unlit 固有色部分不响应灯光）
+                col *= lerp(float3(0.20, 0.28, 0.50), float3(1.0,1.0,1.0), _GlobalDay);
                 float4 res=float4(col,alpha);
                 #if defined(FOG_LINEAR)||defined(FOG_EXP)||defined(FOG_EXP2)
                 res.rgb=MixFog(res.rgb,i.fog);

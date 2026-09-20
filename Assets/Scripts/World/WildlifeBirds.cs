@@ -3,6 +3,7 @@ using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
 using PixelToCivilization.Rendering;
+using PixelToCivilization.Audio;
 
 namespace PixelToCivilization.World
 {
@@ -176,6 +177,9 @@ namespace PixelToCivilization.World
             float scale=(0.5f+(float)_rng.NextDouble()*2.5f)*sp.SizeBias; // 0.5~3 随机 × 品种基准
             go.transform.localScale=Vector3.one*scale;
             var lod=LODKit.Attach(go,0.8f*scale,2,0.01f,0.003f,"bird",100);
+            // V7.1.0 鸟鸣：按品种挂发声器（6 种），声轨预算由 AudioManager 统一控制
+            var es=go.AddComponent<EntitySound>();
+            es.Cat=SoundCat.Bird; es.Res="bird_"+species; es.MaxDistance=58f; es.BaseVolume=0.9f;
             return new Bird{
                 Lod=lod,Root=go.transform,WL=wl,WR=wr,WL2=wl2,WR2=wr2,Color=bodyC,Scale=scale,Species=species,
                 LifeYears=5f+(float)_rng.NextDouble()*15f,

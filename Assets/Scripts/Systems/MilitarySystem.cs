@@ -39,7 +39,7 @@ namespace PixelToCivilization.Systems
     /// 军事系统 —— V6.1.4 骑兵&amp;塔防&amp;群雄争霸：征兵/训练骑兵、我方步骑机动部队、五方势力互伐吞并、
     /// 玩家主动讨伐、城墙阻挡、火塔/炮塔 AOE、兵种相克（骑克步、箭塔/炮塔克骑）。1:1 继承 v5.9.9 征兵与塔防。
     /// </summary>
-    public class MilitarySystem : GameSystemBase
+    public partial class MilitarySystem : GameSystemBase
     {
         public static readonly (string id,string name,long color)[] FactionDefs =
         {
@@ -77,6 +77,7 @@ namespace PixelToCivilization.Systems
         public void InitFactions()
         {
             Factions.Clear();
+            if (S.EarthMode){ InitEarthFactions(); return; }   // V9.1.1 三支阵营远征军
             int home = _terrain!=null ? _terrain.HomeContinent : 1;
             float hx = S.VillageX.Count>0 ? S.VillageX[0] : 0f;
             float hz = S.VillageZ.Count>0 ? S.VillageZ[0] : 0f;
@@ -281,7 +282,7 @@ namespace PixelToCivilization.Systems
             };
             Color c = kind=="cannonball"?new Color(0.2f,0.2f,0.2f)
                     : kind=="fire"?new Color(1f,0.45f,0.1f):new Color(0.9f,0.8f,0.4f);
-            p.View=EntityViewFactory.Spawn("Projectile",_root,PrimitiveType.Sphere,c,kind=="arrow"?0.22f:0.34f);
+            p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,c,kind=="arrow"?0.22f:0.34f);
             S.Projectiles.Add(p);
         }
 
@@ -300,7 +301,7 @@ namespace PixelToCivilization.Systems
                     else if (p.Kind=="cannonball") { AoeDamage(p.Pos,5f,p.Damage,0.5f,t); p.Life=0; }
                     else { t.Hp-=p.Damage; p.Life=0; }
                 }
-                if (p.Life<=0){ if(p.View)Object.Destroy(p.View); S.Projectiles.RemoveAt(i); }
+                if (p.Life<=0){ if(p.View)EntityViewFactory.RecyclePooled(p.View,PrimitiveType.Sphere); S.Projectiles.RemoveAt(i); }
             }
         }
 
@@ -515,6 +516,19 @@ namespace PixelToCivilization.Systems
         private static bool IsWall(BuildingEntity b)
             => b.Type=="wall"||b.Type=="great_wall"||b.Type=="watchtower";
 
+        private static readonly HashSet<string> MilBuildingTypes = new()
+        { "wall","great_wall","watchtower","barracks","stable","castle","fort","bunker",
+          "fire_tower","cannon_tower","arrow_tower","defense_tower","garrison","military_base","new_army" };
+        /// <summary>V9.1.1 军民分离：仅军事设施可被敌军锁定/受击；民居/农田/工厂/市场/医院/警局/消防/学校/公园/小区等民用设施绝不被攻击。</summary>
+        public static bool IsMilitaryBuilding(BuildingEntity b)
+        {
+            if (b==null||b.Def==null) return false;
+            if (b.Def.GetFunc("attack")>0) return true;     // 箭塔/火塔/炮塔/碉堡
+            if (IsWall(b)) return true;
+            if (b.Def.Cat=="军事") return true;
+            return MilBuildingTypes.Contains(b.Type);
+        }
+
         private BuildingEntity ChooseGoal(EnemyUnit u)
         {
             BuildingEntity direct=NearestBuilding(u.X,u.Z);
@@ -537,9 +551,11 @@ namespace PixelToCivilization.Systems
 
         private BuildingEntity NearestBuilding(float x,float z)
         {
+            // V9.1.1 敌军只以军事设施为目标（民用设施不被攻击）
             BuildingEntity best=null; float bd=99999;
             foreach (var b in S.Buildings)
-            { float d=Vector2.Distance(new Vector2(x,z),new Vector2(b.X,b.Z)); if (d<bd){bd=d;best=b;} }
+            { if(!IsMilitaryBuilding(b)) continue;
+              float d=Vector2.Distance(new Vector2(x,z),new Vector2(b.X,b.Z)); if (d<bd){bd=d;best=b;} }
             return best;
         }
         private BuildingEntity NearestWall(float x,float z)

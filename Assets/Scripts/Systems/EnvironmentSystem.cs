@@ -11,7 +11,7 @@ namespace PixelToCivilization.Systems
     /// <summary>
     /// 环境系统 —— 对齐 v5.9.9：初始森林、树木生长/枯荣、人口小人（按社会阶层着色）、实时昼夜光照、环境生物。
     /// </summary>
-    public class EnvironmentSystem : GameSystemBase
+    public partial class EnvironmentSystem : GameSystemBase
     {
         public Transform TreeRoot, AgentRoot;
         public Light Sun;
@@ -68,6 +68,7 @@ namespace PixelToCivilization.Systems
         public void PopulateInitial()
         {
             if (_terrain==null) return;
+            if (_terrain.EarthMode){ PopulateInitialEarth(); return; }   // V9.1.1 地球固定 13 国首都
             AdoptSun(); // 此时 EnvironmentDirector 已就绪，销毁保底光、统一为导演主光
             _village=_terrain.SettlementCenter;
             var centers=new List<Vector3>{_village};
@@ -268,7 +269,7 @@ namespace PixelToCivilization.Systems
         public void SpawnAgent(float x,float z,float homeX,float homeZ)
         {
             var cls=PickClass();
-            SpawnAgent(x,z,homeX,homeZ,cls,PickJob(cls));
+            SpawnAgent(x,z,homeX,homeZ,cls,PickJob(cls,S.Era));
         }
 
         /// <summary>V6.1.2 读档恢复：按指定阶层/职业重建村民（不再随机）</summary>
@@ -284,7 +285,7 @@ namespace PixelToCivilization.Systems
             else { float rr=Random.value;                          // 开局即可见幼 / 壮 / 老
                    rollAge = rr<0.25f?Random.Range(0,14) : rr<0.85f?Random.Range(14,56) : Random.Range(56,76); }
             var a=new AgentEntity{X=x,Z=z,HomeX=homeX,HomeZ=homeZ,SocialClass=cls,
-                                  Job=string.IsNullOrEmpty(job)?PickJob(cls):job,
+                                  Job=string.IsNullOrEmpty(job)?PickJob(cls,S.Era):job,
                                   Age=rollAge,WanderTimer=Random.value*3f,
                                   ColorSeed=colorSeed>0?colorSeed:Random.Range(1,999999),
                                   LifeSpan=Random.Range(60,89)};
@@ -346,12 +347,29 @@ namespace PixelToCivilization.Systems
             SpawnAgent(x,z,x,z);
         }
 
-        // 职业分配（农耕为主，辅以劳工/伐木/采矿/兵/商/官吏）
-        private static string PickJob(string cls)
+        // 职业分配（农耕为主，辅以劳工/伐木/采矿/兵/商/官吏；V9.1.1 近现代补公共服务/交通职业）
+        private static string PickJob(string cls,int era=0)
         {
             float r=Random.value;
             if (cls=="noble") return r<0.5f?"official":"merchant";
             if (cls=="rich")  return r<0.5f?"merchant":"official";
+            if (era>=4)   // 清/民国起进入近现代：警察/医生/消防/教师/司机/船员/科研各就其业
+            {
+                if (r<0.24f) return "farmer";
+                if (r<0.36f) return "worker";
+                if (r<0.44f) return "woodcutter";
+                if (r<0.50f) return "miner";
+                if (r<0.60f) return "soldier";
+                if (r<0.66f) return "merchant";
+                if (r<0.71f) return "driver";
+                if (r<0.76f) return "sailor";
+                if (r<0.81f) return "teacher";
+                if (r<0.86f) return "police";
+                if (r<0.90f) return "doctor";
+                if (r<0.94f) return "firefighter";
+                if (r<0.97f) return "researcher";
+                return "official";
+            }
             if (r<0.40f) return "farmer";
             if (r<0.60f) return "worker";
             if (r<0.75f) return "woodcutter";
@@ -359,12 +377,17 @@ namespace PixelToCivilization.Systems
             if (r<0.97f) return "soldier";
             return "merchant";
         }
-        // V6.1.3 职业服装色（骨骼人形 outfit）
+        // V6.1.3 职业服装色（骨骼人形 outfit）；V9.1.1 近现代公共/交通职业明亮玩具色
         private static Color JobColor(string job)=>job switch
         { "farmer"=>new Color(0.86f,0.27f,0.18f),"woodcutter"=>new Color(0.30f,0.62f,0.30f),  // V7.0.1 红衣工人玩具色
           "miner"=>new Color(0.36f,0.58f,0.68f),"worker"=>new Color(0.96f,0.55f,0.14f),
           "soldier"=>new Color(0.78f,0.20f,0.18f),"merchant"=>new Color(0.16f,0.66f,0.64f),
-          "official"=>new Color(0.22f,0.42f,0.82f),_=>new Color(0.86f,0.30f,0.18f) };
+          "official"=>new Color(0.22f,0.42f,0.82f),
+          "police"=>new Color(0.16f,0.34f,0.78f),"doctor"=>new Color(0.92f,0.95f,0.98f),
+          "firefighter"=>new Color(0.90f,0.22f,0.14f),"teacher"=>new Color(0.30f,0.62f,0.85f),
+          "driver"=>new Color(0.95f,0.72f,0.16f),"sailor"=>new Color(0.20f,0.55f,0.78f),
+          "researcher"=>new Color(0.55f,0.45f,0.85f),
+          _=>new Color(0.86f,0.30f,0.18f) };
         private Material JobMat(string job)
         {
             if (_jobMats.TryGetValue(job,out var m)) return m;

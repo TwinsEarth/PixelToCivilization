@@ -10,15 +10,15 @@ namespace PixelToCivilization.World
     /// </summary>
     public static class TerrainPainter
     {
-        // —— 真实感生物群系基色（Linear 友好）——
-        static readonly Color Sand = new(0.95f, 0.86f, 0.58f);   // V7.0.1 暖浅沙
-        static readonly Color GrassA = new(0.47f, 0.81f, 0.31f);  // 亮柠檬草绿
-        static readonly Color GrassB = new(0.57f, 0.87f, 0.38f);
-        static readonly Color Rock = new(0.66f, 0.64f, 0.59f);    // 柔灰岩
-        static readonly Color RockDark = new(0.52f, 0.50f, 0.46f);
+        // —— V9.0.1 模拟城市式干净明亮生物群系基色（Linear 友好）——
+        static readonly Color Sand = new(0.93f, 0.84f, 0.60f);   // 暖米色沙滩
+        static readonly Color GrassA = new(0.40f, 0.70f, 0.27f);  // 饱和草坪绿
+        static readonly Color GrassB = new(0.49f, 0.77f, 0.33f);  // 亮草坪绿
+        static readonly Color Rock = new(0.63f, 0.63f, 0.61f);    // 中性灰岩
+        static readonly Color RockDark = new(0.50f, 0.50f, 0.49f);
         static readonly Color Snow = new(0.94f, 0.97f, 1.00f);
-        static readonly Color Underwater = new(0.55f, 0.83f, 0.88f); // 透亮浅水沙
-        static readonly Color Dirt = new(0.70f, 0.56f, 0.37f);   // 暖棕土
+        static readonly Color Underwater = new(0.46f, 0.74f, 0.82f); // 浅海沙青
+        static readonly Color Dirt = new(0.66f, 0.53f, 0.36f);   // 暖棕土
 
         // ---------- 可平铺 value noise / fbm ----------
         static int Hash(int x,int y,int seed){
@@ -49,7 +49,8 @@ namespace PixelToCivilization.World
             return Mathf.Lerp(Mathf.Lerp(h[z0,x0],h[z0,x1],tx),Mathf.Lerp(h[z1,x0],h[z1,x1],tx),tz);
         }
 
-        /// <summary>烘焙一整套地形 PBR 贴图。res 建议 512(手机)/1024(PC)。</summary>
+        /// <summary>烘焙一整套地形 PBR 贴图。res 建议 512(手机)/1024(PC)。
+        /// V8.0.1 乐高底板：按地形格切面化(facet)着色/法线 + 每格圆形凸点(亮盘/AO环/格缝) + 塑料光滑度。</summary>
         public static void Bake(float[,] height, float tile, int seed, int res,
             out Texture2D albedo, out Texture2D normal, out Texture2D mask)
         {
@@ -58,36 +59,33 @@ namespace PixelToCivilization.World
             normal=new Texture2D(res,res,TextureFormat.RGBA32,true){wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Trilinear};
             mask  =new Texture2D(res,res,TextureFormat.RGBA32,true){wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear};
             var ca=new Color32[res*res]; var cn=new Color32[res*res]; var cm=new Color32[res*res];
+            float water=GameConstants.WaterLevel;
 
-            float H(float u,float v)=>SampleH(height,u,v);
+            // V9.0.1 平滑现代地表：双线性连续高度 + 有限差分连续法线，跨格无切面/无凸点/无量化色阶
+            const float duv=0.9f;                            // 法线差分步长（约 1 格，uv 单位 1/n）
+            float invSpan=1f/(2f*(duv/n)*n*tile);            // 世界高差→法线斜率
             for(int y=0;y<res;y++)for(int x=0;x<res;x++){
                 float u=x/(float)(res-1), v=y/(float)(res-1);
-                // 中心差分求世界法线（含真实坡度）
-                float e=1.5f/(res-1);
-                float hl=H(Mathf.Max(0,u-e),v),hr=H(Mathf.Min(1,u+e),v);
-                float hd=H(u,Mathf.Max(0,v-e)),hu=H(u,Mathf.Min(1,v+e));
-                Vector3 nw=new Vector3((hl-hr)*tile, 2.2f, (hd-hu)*tile).normalized;
-                float slope=1f-nw.y; // 越陡越大
-
-                float hgt=H(u,v);
-                // 细节噪声（颜色斑驳 + 法线微扰）
-                float grain=Vn(u*140f,v*140f,256,seed+5)*0.5f+Vn(u*60f+3,v*60f,128,seed+9)*0.5f;
-                float n1=Vn(u*220f,v*220f,400,seed+3)-0.5f, n2=Vn(u*220f+7f,v*220f,400,seed+8)-0.5f;
-
-                Color col=BiomeColor(hgt,slope,grain,seed);
-                // 微明暗
-                col*=0.965f+grain*0.07f;  // V7.0.1 干净玩具明暗
-                ca[y*res+x]=col;
-
-                // 法线：宏观地形法线 + 高频细节，转切线空间（地形平面 XZ）
-                Vector3 detail=new Vector3(n1*1.4f,n2*1.4f,1f).normalized;
-                Vector3 fn=new Vector3(nw.x+detail.x*0.35f, Mathf.Max(0.15f,nw.y), nw.z+detail.y*0.35f).normalized;
-                cn[y*res+x]=new Color(fn.x*0.5f+0.5f,fn.y*0.5f+0.5f,fn.z*0.5f+0.5f,1f);
-
-                // Mask：G=AO 微变，A=Smoothness（雪/湿沙高，草低）
-                float sm=BiomeSmoothness(hgt,slope);
-                byte ao=(byte)Mathf.Clamp(Mathf.RoundToInt((0.92f+grain*0.16f)*255),0,255);
-                cm[y*res+x]=new Color32(0,ao,0,(byte)Mathf.Clamp(Mathf.RoundToInt(sm*255),0,255));
+                float h=SampleH(height,u,v);
+                float hl=SampleH(height,Mathf.Clamp01(u-duv/n),v), hr=SampleH(height,Mathf.Clamp01(u+duv/n),v);
+                float hd=SampleH(height,u,Mathf.Clamp01(v-duv/n)), hu=SampleH(height,u,Mathf.Clamp01(v+duv/n));
+                Vector3 fn=new Vector3((hl-hr)*invSpan,1f,(hd-hu)*invSpan).normalized;
+                float slope=1f-fn.y;
+                float grain=Mathf.Lerp(0.94f,1.06f,Mathf.PerlinNoise(u*n*1.7f+seed*0.37f,v*n*1.7f+seed*0.19f));
+                Color col=BiomeColor(h,slope,grain,seed);
+                if(h<water){
+                    float depth=Mathf.Clamp01((water-h)/2.2f);
+                    col=Color.Lerp(Underwater,col,Mathf.Lerp(0.82f,0.40f,depth));
+                    if(depth<0.12f) col=Color.Lerp(col,Sand,0.35f); // 近岸湿润沙晕
+                }
+                col*=0.92f+fn.y*0.10f;                         // 连续向光面微提亮、坡面微压
+                ca[y*res+x]=(Color32)col;
+                cn[y*res+x]=new Color32((byte)Mathf.Clamp(Mathf.RoundToInt((fn.x*0.5f+0.5f)*255f),0,255),
+                                         (byte)Mathf.Clamp(Mathf.RoundToInt((fn.y*0.5f+0.5f)*255f),0,255),
+                                         (byte)Mathf.Clamp(Mathf.RoundToInt((fn.z*0.5f+0.5f)*255f),0,255),255);
+                float sm=BiomeSmoothness(h,slope);
+                if(h<water) sm=Mathf.Max(sm,0.45f);            // 水面微亮，草坪/沙/岩保持哑光
+                cm[y*res+x]=new Color32(0,235,0,(byte)Mathf.Clamp(Mathf.RoundToInt(sm*255),0,255));
             }
             albedo.SetPixels32(ca);normal.SetPixels32(cn);mask.SetPixels32(cm);
             albedo.Apply(true,false);normal.Apply(true,false);mask.Apply(true,false);

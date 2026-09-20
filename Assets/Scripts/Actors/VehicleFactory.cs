@@ -58,11 +58,10 @@ namespace PixelToCivilization.Actors
             switch(kind)
             {
                 case VehicleKind.Cart:
-                    // V6.8.1 大马车保留程序化“双马四轮华盖大车”（与中车形态明确区分、且吃阵营色），不替换为真实车模
-                    if(sub=="large_cart"){ return false; }
-                    if(sub=="medium_cart"){res="Cars/cart_high";len=2.4f;wid=1.6f;}
-                    else {res="Cars/cart";len=1.8f;wid=1.3f;}
-                    return true;
+                    // V7.0.5 三种古代车（小推车/单马布篷马车/双马朱漆华盖大马车）一律保留程序化精细建模，
+                    // 形态、配色、材质差异确定可见，不替换为可能缺色/缺资源的外部整车模型；
+                    // 现代汽车/卡车仍走 CC0 真实模型。
+                    return false;
                 case VehicleKind.Car: res="Cars/sedan";len=2.2f;wid=1.2f;return true;
                 case VehicleKind.Truck: res="Cars/truck";len=3.2f;wid=1.4f;return true;
                 default: return false; // 坦克/飞机/火箭/悬浮等保留程序化
@@ -148,6 +147,8 @@ namespace PixelToCivilization.Actors
                                                         Part(t,"Lantern",PrimitiveType.Sphere,Fire,new Vector3(sx,1.25f,-len*0.55f),Vector3.one*0.12f); }
                 Part(t,"Cargo",PrimitiveType.Cube,Lacquer,new Vector3(0,1.28f,0.95f),new Vector3(1.3f,0.62f,0.8f));
                 Part(t,"CargoGold",PrimitiveType.Cube,Gold,new Vector3(0,1.32f,0.95f),new Vector3(1.34f,0.08f,0.84f));
+                // V8.0.1 乐高凸点：华盖金顶一排
+                PixelToCivilization.World.LegoKit.StudRow(t.transform,new Vector3(-0.5f,1.68f,0.3f),new Vector3(0.5f,0f,0f),3,0.09f,0.08f,Gold);
             }
         }
         static void BuildHorse(GameObject t,float ox,float oz)
@@ -234,6 +235,8 @@ namespace PixelToCivilization.Actors
             if(cls==3){ Part(t,"LanternL",PrimitiveType.Sphere,Fire,new Vector3(-w*0.4f,h+0.7f,len*0.3f),Vector3.one*0.16f);
                         Part(t,"LanternR",PrimitiveType.Sphere,Fire,new Vector3( w*0.4f,h+0.7f,len*0.3f),Vector3.one*0.16f);
                         Part(t,"Eave",PrimitiveType.Cube,war?RedSail:Gold,new Vector3(0,h+1.5f,1.0f),new Vector3(w*1.05f,0.14f,2.2f)); }
+            // V8.0.1 乐高凸点：LV3 近景船尾甲板的白色积木凸点（小船自动放弃）
+            PixelToCivilization.World.LegoKit.StudGrid(t.transform,new Vector2(0f,len*0.22f),h+0.08f,w*0.5f,len*0.16f,Sail,0.42f,8,0.12f,0.10f);
             // 阵营色小燕尾旗（舰艏）
             Part(t,"Pennant",PrimitiveType.Cube,war?RedSail:Gold,new Vector3(0,h+0.2f,-len*0.5f),new Vector3(0.04f,0.16f,0.4f));
         }

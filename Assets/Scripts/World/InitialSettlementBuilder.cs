@@ -11,7 +11,7 @@ namespace PixelToCivilization.World
     /// AI 邻村(full=false)：祭坛 + 4 棚屋 + 2 农田 + 简化道路 + 国色旗帜。
     /// 分裂期新立的方国用 BuildOutpost（祭坛 + 2 棚屋 + 旗帜的轻量据点）。全部开局免费赠予。
     /// </summary>
-    public static class InitialSettlementBuilder
+    public static partial class InitialSettlementBuilder
     {
         /// <summary>构建一处聚落。flagHex=国色(无#)；full=是否玩家主村（含码头/船/车全套）；settlementIndex=聚落序号（节点名）</summary>
         public static Vector3 Build(GameManager gm, WorldGenerator terrain, Vector3 center,
@@ -53,6 +53,22 @@ namespace PixelToCivilization.World
                 roadPts.Add(new Vector3(cx-14f,0,cz+8f));
                 roadPts.Add(new Vector3(cx+3f,0,cz-16f));
                 roadPts.Add(new Vector3(cx-13f,0,cz-11f));
+                BuildRoads(terrain, root, new Vector3(cx,0,cz), roadPts);
+            }
+            else if (sizeTier == 3)
+            {
+                // V9.1.2 迷你地球城（Lv1/Lv2 城市）：祭坛 + 2 棚屋 + 1 农田（半径8），控制 38 城总建筑量与算力
+                const int hutN = 2;
+                const float ringR = 8f;
+                for (int i=0;i<hutN;i++)
+                {
+                    float a=i*Mathf.PI*2f/hutN + Mathf.PI/4f;
+                    float rx=cx+Mathf.Cos(a)*ringR, rz=cz+Mathf.Sin(a)*ringR;
+                    if (!terrain.IsWater(rx,rz)) gm.Building.PlaceInitial("hut",rx,rz);
+                    roadPts.Add(new Vector3(rx,0,rz));
+                }
+                gm.Building.PlaceInitial("farm", cx+(ringR+2f), cz+3f);
+                roadPts.Add(new Vector3(cx+(ringR+2f),0,cz+3f));
                 BuildRoads(terrain, root, new Vector3(cx,0,cz), roadPts);
             }
             else

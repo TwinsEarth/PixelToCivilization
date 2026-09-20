@@ -68,10 +68,14 @@ namespace PixelToCivilization.Buildings
                 case "space_elevator": w*=0.4f;d*=0.4f;wallH*=12f; break;
                 case "hut": w*=0.7f;d*=0.7f;wallH*=0.55f; break;
                 case "farm": BuildFarm(host,b); return;
-                case "road": case "highway": case "highway_modern": case "railway_pre": case "high_speed_rail":
+                case "road": case "highway": case "arterial": case "highway_modern": case "interchange": case "railway_pre":
                     BuildRoad(host,b,style); return;
+                // V9.0.1 高铁站走现代建筑独立形制（BuildModern），不在道路分支
                 case "canal": BuildCanal(host,b); return;
             }
+
+            // V9.0.1 现代风（SimCity BuildIt）：现代/城市公共设施/工业时代建筑独立形制，优先于古代特型
+            if (BuildModern(host,b,style,eraId,w,d,wallH)) return;
 
             // V6.3.7：功能建筑独立轮廓（不再套统一房屋主体，避免"千屋一面"）
             if (BuildSpecial(host,b,style,eraId)) return;
@@ -199,6 +203,8 @@ namespace PixelToCivilization.Buildings
                     Box("Roof",new Vector3(0,baseY+0.12f,0),new Vector3(w+0.3f,0.24f,d+0.3f),roofMat,parent);
                     Box("Parapet",new Vector3(0,baseY+0.34f,d/2),new Vector3(w+0.3f,0.3f,0.16f),roofMat,parent);
                     Box("Parapet",new Vector3(0,baseY+0.34f,-d/2),new Vector3(w+0.3f,0.3f,0.16f),roofMat,parent);
+                    // V8.0.1 乐高凸点：仅 LV3 近景、女儿墙内侧的平屋顶顶面
+                    if(CurHigh) LegoKit.StudGrid(parent,Vector2.zero,baseY+0.24f,Mathf.Max(0.2f,w-0.2f),Mathf.Max(0.2f,d-0.2f),roofMat,0.6f,24);
                     break;
                 case RoofType.Energy:
                 {
@@ -597,10 +603,80 @@ namespace PixelToCivilization.Buildings
         }
         private void BuildRoad(GameObject root,BuildingEntity b,BuildingStyle s)
         {
-            Box("Road",new Vector3(0,0.05f,0),new Vector3(4.5f,0.1f,2f),Mat(s.RoadColor),root.transform);
-            // 车道线 / 铁轨
-            if(b.Type=="railway_pre"||b.Type=="high_speed_rail"){ Box("RailL",new Vector3(0,0.12f,0.45f),new Vector3(4.5f,0.08f,0.12f),Metal,root.transform);Box("RailR",new Vector3(0,0.12f,-0.45f),new Vector3(4.5f,0.08f,0.12f),Metal,root.transform); }
-            else Box("Lane",new Vector3(0,0.12f,0),new Vector3(4.2f,0.04f,0.08f),Mat(new Color(0.9f,0.86f,0.5f)),root.transform);
+            var t=root.transform;
+            if(b.Type=="interchange"){ BuildInterchange(t); return; }   // V9.0.3 互通立交（独立枢纽形制）
+            bool rail=b.Type=="railway_pre"||b.Type=="high_speed_rail";
+            bool hs=b.Type=="highway_modern";
+            bool art=b.Type=="arterial";
+            if(rail)
+            {   // 道砟/混凝土道床 + 双轨 + 枕木（高铁为混凝土高架道床）
+                bool fast=b.Type=="high_speed_rail";
+                float bedW=fast?2.8f:2.2f;
+                Box("Bed",new Vector3(0,0.05f,0),new Vector3(4.5f,0.12f,bedW),fast?MConcrete:Mat(new Color(0.46f,0.43f,0.40f)),t);
+                Box("RailL",new Vector3(0,0.14f,0.45f),new Vector3(4.5f,0.08f,0.1f),Metal,t);
+                Box("RailR",new Vector3(0,0.14f,-0.45f),new Vector3(4.5f,0.08f,0.1f),Metal,t);
+                if(CurHigh) for(float x=-2.0f;x<=2.01f;x+=0.5f)
+                        Box("Sleeper",new Vector3(x,0.11f,0),new Vector3(0.12f,0.06f,1.3f),fast?MConcreteDark:Wood,t);
+                return;
+            }
+            // V9.0.1/9.0.3 沥青道路：大马路/主干道/高速公路三级宽度，炭黑路面 + 浅水泥缘石 + 车道虚线
+            float halfW=hs?1.5f:(art?1.22f:0.95f), W=halfW*2f;
+            float laneOff=hs?0.72f:0.58f;
+            Box("SideL",new Vector3(0,0.05f, halfW+0.24f),new Vector3(4.5f,0.12f,0.46f),MSidewalk,t);
+            Box("SideR",new Vector3(0,0.05f,-halfW-0.24f),new Vector3(4.5f,0.12f,0.46f),MSidewalk,t);
+            Box("Road",new Vector3(0,0.05f,0),new Vector3(4.5f,0.1f,W),MAsphalt,t);
+            var lineW=MC(new Color(0.95f,0.95f,0.92f),0f,0.2f);
+            var lineY=MC(new Color(0.96f,0.80f,0.20f),0f,0.2f);
+            for(float x=-2.0f;x<=2.01f;x+=0.8f)
+            {
+                Box("Dash",new Vector3(x,0.115f,0),new Vector3(0.4f,0.04f,0.09f),lineY,t);          // 中央黄色虚线
+                if(hs||art){ Box("LaneDash",new Vector3(x,0.115f, laneOff),new Vector3(0.4f,0.04f,0.08f),lineW,t);
+                             Box("LaneDash",new Vector3(x,0.115f,-laneOff),new Vector3(0.4f,0.04f,0.08f),lineW,t); }
+            }
+            if(hs||art){ Box("EdgeL",new Vector3(0,0.115f, halfW-0.12f),new Vector3(4.4f,0.04f,0.06f),lineW,t);
+                         Box("EdgeR",new Vector3(0,0.115f,-halfW+0.12f),new Vector3(4.4f,0.04f,0.06f),lineW,t); }
+        }
+
+        /// <summary>V9.0.3 互通立交：地面十字 + 两层高架主线（X 向低、Z 向高）+ 混凝土桥墩 + 四条弧形近似匝道</summary>
+        private void BuildInterchange(Transform t)
+        {
+            // 地面十字道路
+            Box("GroundX",new Vector3(0,0.06f,0),new Vector3(12f,0.1f,3f),MAsphalt,t);
+            Box("GroundZ",new Vector3(0,0.07f,0),new Vector3(3f,0.1f,12f),MAsphalt,t);
+            // 一层高架（沿 X，y≈1.5）
+            float y1=1.5f;
+            Box("FlyoverX",new Vector3(0,y1,0),new Vector3(12f,0.34f,2.6f),MAsphalt,t);
+            Box("CapX1",new Vector3(0,y1-0.05f,0),new Vector3(12f,0.06f,2.7f),MConcreteDark,t);
+            // 二层高架（沿 Z，y≈3.0）
+            float y2=3.0f;
+            Box("FlyoverZ",new Vector3(0,y2,0),new Vector3(2.6f,0.34f,12f),MAsphalt,t);
+            Box("CapZ1",new Vector3(0,y2-0.05f,0),new Vector3(2.7f,0.06f,12f),MConcreteDark,t);
+            // 桥墩（一层 4 根、二层 4 根，错位）
+            foreach(float x in new[]{-4.6f,4.6f})
+            { Cyl("Pier",new Vector3(x,y1/2f,0),new Vector3(0.28f,y1/2f,0.28f),MConcrete,t);
+              Cyl("Pier",new Vector3(x,y1+0.3f,1.5f),new Vector3(0.24f,0.3f,0.24f),MConcrete,t); }
+            foreach(float z in new[]{-4.6f,4.6f})
+            { Cyl("Pier",new Vector3(0,y2/2f,z),new Vector3(0.28f,y2/2f,0.28f),MConcrete,t);
+              Cyl("Pier",new Vector3(1.5f,y1+0.3f,z),new Vector3(0.24f,0.3f,0.24f),MConcrete,t); }
+            // 四条接地匝道（斜置长盒，从高架端斜降到地面）
+            var rampMat=MAsphalt;
+            (float,float,float,float)[] ramps={(-5.4f,0.75f,-1.6f,18f),(5.4f,0.75f,1.6f,-18f),
+                                               (-1.6f,0.75f,-5.4f,18f),(1.6f,0.75f,5.4f,-18f)};
+            int ri=0;
+            foreach(var r in ramps)
+            {
+                bool alongX=Mathf.Abs(r.Item1)>4f;
+                var ramp=Box("Ramp",new Vector3(r.Item1,r.Item2,r.Item3),
+                    alongX?new Vector3(3.2f,0.28f,2.2f):new Vector3(2.2f,0.28f,3.2f),rampMat,t);
+                ramp.transform.localRotation=Quaternion.Euler(alongX?r.Item4:0,0,alongX?0:r.Item4);
+                ri++;
+            }
+            // 高架车道虚线（仅近景 Lv3）
+            if(CurHigh){
+                var lineW=MC(new Color(0.95f,0.95f,0.92f),0f,0.2f);
+                for(float x=-5f;x<=5.01f;x+=1.6f) Box("DashX",new Vector3(x,y1+0.2f,0),new Vector3(0.7f,0.04f,0.08f),lineW,t);
+                for(float z=-5f;z<=5.01f;z+=1.6f) Box("DashZ",new Vector3(0,y2+0.2f,z),new Vector3(0.08f,0.04f,0.7f),lineW,t);
+            }
         }
         private void BuildCanal(GameObject root,BuildingEntity b)
         {

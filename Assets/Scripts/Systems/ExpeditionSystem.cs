@@ -149,9 +149,16 @@ namespace PixelToCivilization.Systems
                 case "current": Teleport(e); return "🌀 遭遇强劲洋流，被卷往他处";
                 // ---- 太空 ----
                 case "moon":
-                    if (e.NodeUsed[idx]==0){ e.NodeUsed[idx]=1; return "🌙 抵达月球轨道，可「建立月球前哨」"; }
+                    // V9.1.2 月球为太空岛：须进入太空时代(Era7)并建成太空电梯(SpElevator=100)才能抵达，任何铁路不可达
+                    if (S.Era < 7 || S.SpElevator < 100)
+                        return "🌙 月球遥不可及：须先进入太空时代并建成「太空电梯」（铁路无法到达月球）";
+                    if (e.NodeUsed[idx]==0){ e.NodeUsed[idx]=1; return "🌙 经太空电梯抵达月球轨道，可「建立月球前哨」"; }
                     return "🌙 重返月球轨道，可建立/扩建前哨";
                 case "mars":
+                    if (S.Era < 7 || S.SpElevator < 100)
+                        return "🔴 火星遥不可及：须先建成太空电梯";
+                    if (S.SpLunar < 100)
+                        return "🔴 前往火星前须先建成月球基地（月球前哨进度100%）作为跳板";
                     if (e.NodeUsed[idx]==0){ e.NodeUsed[idx]=1; return "🔴 抵达火星轨道，可「建立火星前哨」（满进度即火星移民胜利）"; }
                     return "🔴 重返火星轨道";
                 case "asteroid": {
@@ -193,6 +200,7 @@ namespace PixelToCivilization.Systems
             string k=CurrentNode(e);
             if (k=="moon")
             {
+                if (S.Era < 7 || S.SpElevator < 100){ GM.AddEvent("bad","须先进入太空时代并建成「太空电梯」，才能在月球建立前哨"); return false; }
                 if (S.GetRes("steel")<60||S.GetRes("fusion")<15){ GM.AddEvent("bad","建立月球前哨需 钢60 聚变15"); return false; }
                 S.AddRes("steel",-60);S.AddRes("fusion",-15);
                 S.SpLunar=Mathf.Min(100,S.SpLunar+25);
@@ -202,6 +210,8 @@ namespace PixelToCivilization.Systems
             }
             if (k=="mars")
             {
+                if (S.Era < 7 || S.SpElevator < 100){ GM.AddEvent("bad","须先建成太空电梯，才能前往火星"); return false; }
+                if (S.SpLunar < 100){ GM.AddEvent("bad","须先建成月球基地（进度100%）作为前往火星的跳板"); return false; }
                 if (S.GetRes("steel")<100||S.GetRes("fusion")<30){ GM.AddEvent("bad","建立火星前哨需 钢100 聚变30"); return false; }
                 S.AddRes("steel",-100);S.AddRes("fusion",-30);
                 S.SpMars=Mathf.Min(100,S.SpMars+20);

@@ -11,7 +11,7 @@ namespace PixelToCivilization.Systems
     /// 分裂→统一：最强国（玩家强盛时即玩家）吞并余国，国号取当前朝代；
     /// 统一→分裂：旧势力于旧村址复国、不足则在新陆地立据点，凑够 3~7 国并立。
     /// </summary>
-    public class NationSystem : GameSystemBase
+    public partial class NationSystem : GameSystemBase
     {
         // 势力旗帜调色板（玩家固定朱红 d9402f，AI 依次取色）
         public static readonly string[] FlagPalette =
@@ -57,6 +57,7 @@ namespace PixelToCivilization.Systems
         public override void OnYear(int year)
         {
             if (S.Nations==null || S.Nations.Count==0) return;
+            if (S.WorldPhase=="earth"){ EarthOnYear(); return; }   // V9.1.1 地球固定格局，不分不合
             // 各国人口/国力消长（玩家国跟随真实人口）
             foreach (var n in S.Nations)
             {

@@ -14,6 +14,7 @@ namespace PixelToCivilization.UI
     {
         private GameObject _techModal,_policyModal,_godsModal,_oceanModal,_spaceModal,_buildingModal,_shipModal,_cartModal;
         private GameObject _campaignModal,_colonyModal;   // V6.1.4 群雄讨伐 / V6.1.5 殖民地
+        private GameObject _cityModal;                    // V9.0.7 城市治理（等级/财政/税率/地价）
         private ShipEntity _selectedShip;
         private CartEntity _selectedCart;
         private Transform _modalLayer;
@@ -43,6 +44,9 @@ namespace PixelToCivilization.UI
             cab.parent.GetComponent<RectTransform>().sizeDelta=new Vector2(580,620);
             _colonyModal=MakeModal("ColonyModal","【殖民时代 · 海外领地】",out var cob);
             cob.parent.GetComponent<RectTransform>().sizeDelta=new Vector2(660,620);
+            // V9.0.7 城市治理（等级/财政预算/税率/地价/公共服务/电力/城市指标）
+            _cityModal=MakeModal("CityModal"," 城市治理 · 财政预算",out var cib);
+            cib.parent.GetComponent<RectTransform>().sizeDelta=new Vector2(720,660);
         }
 
         private GameObject MakeModal(string name,string title,out RectTransform body,bool destroyOnClose=false)
@@ -88,6 +92,7 @@ namespace PixelToCivilization.UI
             else if (m==_spaceModal) FillSpace(m);
             else if (m==_campaignModal) FillCampaign(m);
             else if (m==_colonyModal) FillColony(m);
+            else if (m==_cityModal) FillCity(m);
         }
 
         // ===== 诸子百家（策划书·学派抉择） =====
@@ -163,6 +168,102 @@ namespace PixelToCivilization.UI
                 var brt=b.GetComponent<RectTransform>();brt.anchorMin=new Vector2(0.74f,0.2f);brt.anchorMax=new Vector2(0.99f,0.8f);brt.offsetMin=brt.offsetMax=Vector2.zero;
                 string id=p.Id;b.onClick.AddListener(()=>{GM.Policy.Toggle(id);FillPolicy(modal);});
             }
+        }
+
+        // ===== V9.0.7 城市治理：等级/财政预算/税率/地价/公共服务/电力/城市指标 =====
+        private void OpenCityModal(){ FillCity(_cityModal);Open(_cityModal); }
+        private void FillCity(GameObject modal)
+        {
+            var body=ModalBody(modal);Clear(body);
+            UITheme.VerticalScroll("CityScroll",body.transform,out var content,6);
+            var vl=content.GetComponent<VerticalLayoutGroup>();
+            vl.spacing=6;vl.childControlWidth=true;vl.childForceExpandWidth=true;
+
+            var fin=GM.CityFinance;
+            if(fin==null){ UITheme.Label("no",content,"城市财政系统未装配",13); return; }
+            GM.CityServices?.RecomputeCoverage();
+            fin.Recompute(false);
+
+            // —— 城市等级 / 地价 / 国库 ——
+            var top=UITheme.Panel("top",content,UITheme.HexA(0x1b2440,0.10f));
+            top.AddComponent<LayoutElement>().preferredHeight=64;
+            UITheme.Label("ti",top.transform,
+                $"【{fin.TierName}】　人口 {S.Pop}　升格阈值 村落120 / 集镇350 / 县城800 / 都市1400 / 大都市1600\n"+
+                $"地价指数 {fin.LandPrice:F0}　国库金币 {fin.Treasury:F0}　污染 {S.Pollution:F0}　拥堵 {(GM.ModernTraffic!=null?GM.ModernTraffic.AvgCongestion:0f):F1}",
+                14,TextAnchor.MiddleLeft,UITheme.Gold).SetInset(12,0.06f);
+
+            // —— 税率档位（点击循环）——
+            var tr=Row(content,36);
+            UITheme.Label("tl",tr.transform,"税率政策：",13,TextAnchor.MiddleRight);
+            UITheme.Btn("tax",tr.transform,CityFinanceSystem.TaxNames[fin.TaxLevel]+"（点击切换）",12)
+                .onClick.AddListener(()=>{fin.CycleTax();FillCity(modal);});
+
+            // —— 年度财政预算 ——
+            SectionTitle(content,"年度财政预算（金币/游戏年）");
+            BudgetRow(content,"人头税收入",fin.HeadRevenue,true);
+            BudgetRow(content,"现代商税（超市/写字楼）",fin.CommerceRevenue,true);
+            BudgetRow(content,"公共服务运维",fin.ServiceCost,false);
+            BudgetRow(content,"道路运维",fin.RoadCost,false);
+            var netRow=UITheme.Panel("net",content,UITheme.HexA(fin.NetAnnual>=0?0x2e7d32:0xc62828,0.12f));
+            netRow.AddComponent<LayoutElement>().preferredHeight=30;
+            UITheme.Label("nl",netRow.transform,"年度净额",13,TextAnchor.MiddleLeft).SetInset(10,0.3f);
+            UITheme.Label("nv",netRow.transform,(fin.NetAnnual>=0?"+":"")+fin.NetAnnual.ToString("F0")+
+                (fin.NetAnnual<0&&fin.Treasury<50?"　⚠ 财政破产，停俸减民心":""),13,TextAnchor.MiddleRight,
+                fin.NetAnnual>=0?UITheme.Good:UITheme.Bad).rectTransform.SetInsetRight(10);
+
+            // —— 公共服务覆盖率 ——
+            var cs=GM.CityServices;
+            if(cs!=null)
+            {
+                SectionTitle(content,"公共服务覆盖率");
+                Gauge(content,"消防",cs.FireCov);
+                Gauge(content,"治安",cs.PoliceCov);
+                Gauge(content,"医疗",cs.HospitalCov);
+                Gauge(content,"教育",cs.SchoolCov);
+                Gauge(content,"公园",cs.ParkCov);
+                Gauge(content,"商业",cs.MarketCov);
+            }
+            // —— 电力供需 ——
+            SectionTitle(content,"能源与城市指标");
+            Gauge(content,"电力供应",S.PowerRatio);
+            Gauge(content,"健康",S.CityHealth/100f);
+            Gauge(content,"教育",S.CityEducation/100f);
+            Gauge(content,"治安",S.CitySafety/100f);
+            Gauge(content,"就业",S.CityEmployment/100f);
+
+            UITheme.Label("tip",content,"说明：人头税随时代货币化程度提高；低税增民心、重税减民心；公共设施与道路每年产生运维支出；"+
+                "地价由时代、城市等级、服务覆盖、城市指标、污染与拥堵综合决定。财政数据每年结算一次并随存档保存。",
+                11,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=44;
+        }
+        private void SectionTitle(Transform content,string text)
+        {
+            UITheme.Label("sec",content,text,14,TextAnchor.MiddleLeft,UITheme.Gold)
+                .gameObject.AddComponent<LayoutElement>().preferredHeight=26;
+        }
+        private void BudgetRow(Transform content,string name,float val,bool income)
+        {
+            var row=UITheme.Panel("b_"+name,content,UITheme.HexA(0xffffff,0.05f));
+            row.AddComponent<LayoutElement>().preferredHeight=26;
+            UITheme.Label("n",row.transform,name,12,TextAnchor.MiddleLeft).SetInset(12,0.3f);
+            UITheme.Label("v",row.transform,(income?"+":"−")+val.ToString("F0"),12,TextAnchor.MiddleRight,
+                income?UITheme.Good:UITheme.Bronze).rectTransform.SetInsetRight(12);
+        }
+        /// <summary>0~1 仪表条：名称（左 30%）+ 轨道（30%~84%）+ 百分比（右）</summary>
+        private void Gauge(Transform parent,string name,float ratio01)
+        {
+            float r=Mathf.Clamp01(ratio01);
+            var row=UITheme.Panel("g_"+name,parent,UITheme.HexA(0xffffff,0.05f));
+            row.AddComponent<LayoutElement>().preferredHeight=24;
+            UITheme.Label("n",row.transform,name,12,TextAnchor.MiddleLeft).SetInset(12,0.5f);
+            var track=UITheme.Panel("track",row.transform,UITheme.HexA(0x000000,0.16f));
+            var trt=track.GetComponent<RectTransform>();
+            trt.anchorMin=new Vector2(0.30f,0.16f);trt.anchorMax=new Vector2(0.84f,0.84f);trt.offsetMin=trt.offsetMax=Vector2.zero;
+            Color fc = r>=0.6f?UITheme.Good : r>=0.3f?UITheme.Gold : UITheme.Bad;
+            var fill=UITheme.Panel("fill",track.transform,fc);
+            var frt=fill.GetComponent<RectTransform>();
+            frt.anchorMin=Vector2.zero;frt.anchorMax=new Vector2(Mathf.Max(0.02f,r),1);frt.offsetMin=frt.offsetMax=Vector2.zero;
+            var val=UITheme.Label("v",row.transform,(ratio01*100f).ToString("F0")+"%",12,TextAnchor.MiddleRight,fc);
+            val.rectTransform.SetInsetRight(12);
         }
 
         // ===== V6.1.8 九智能体共治（AI 多智能体议会；底部保留 v5.9.9 神话九神赐福） =====
@@ -556,6 +657,13 @@ public void ShowBuilding(BuildingEntity b)
         {
             t.rectTransform.offsetMin=new Vector2(left,2);
             t.rectTransform.offsetMax=new Vector2(-8,-2);
+            return t;
+        }
+        /// <summary>右对齐数值文字：锚定父容器右侧，垂直居中，留 right 像素右边距</summary>
+        public static RectTransform SetInsetRight(this RectTransform t,float right)
+        {
+            t.anchorMin=new Vector2(0.70f,0f);t.anchorMax=new Vector2(1f,1f);
+            t.offsetMin=new Vector2(0,2f);t.offsetMax=new Vector2(-right,-2f);
             return t;
         }
     }

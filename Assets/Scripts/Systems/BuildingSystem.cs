@@ -23,6 +23,7 @@ namespace PixelToCivilization.Systems
             {"compass_shop","compass"},{"treasure_shipyard","treasure_ship"},{"modern_arsenal","modern_military"},
             {"railway_pre","railway"},{"power_plant","electricity"},{"data_center","computer"},
             {"ai_lab","ai_tech"},{"high_speed_rail","high_speed_rail_tech"},{"airport","aviation"},
+            {"subway","electricity"},   // V9.0.8 地铁需电网科技
             {"space_elevator","space_elevator_tech"},{"fusion_plant","fusion_power"},
             {"dyson_swarm","dyson_swarm_tech"},{"lunar_base","lunar_landing"},{"mars_colony","mars_landing"},
         };
@@ -168,6 +169,16 @@ namespace PixelToCivilization.Systems
             if (b.View != null) Object.Destroy(b.View);
             S.Buildings.Remove(b);
             GM.AddEvent("bad","🔥 敌军摧毁了一座"+nm);
+        }
+
+        /// <summary>V9.0.2 城市灾害（火灾等）摧毁：只移除实体与视图、绝不返还资源，文案由灾害类型指定</summary>
+        public void DestroyByDisaster(BuildingEntity b, string causeIcon, string causeText)
+        {
+            if (b==null) return;
+            string nm=b.Def!=null?b.Def.Name:"建筑";
+            if (b.View != null) Object.Destroy(b.View);
+            S.Buildings.Remove(b);
+            GM.AddEvent("bad", (causeIcon??"⚠️") + " " + causeText + "：一座" + nm + "被毁（无赔偿）");
         }
 
         // ===== 老化 =====

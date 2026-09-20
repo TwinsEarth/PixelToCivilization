@@ -13,7 +13,7 @@ namespace PixelToCivilization.World
     /// </summary>
     public class VegetationSystem : MonoBehaviour
     {
-        Mesh _cylinder, _sphere, _quad, _cone;
+        Mesh _cylinder, _sphere, _sphere3, _quad, _cone;
         Material _bark, _leafA, _leafB, _grass, _shrubA, _shrubB, _ground;
         Material _rockA, _rockB;
         Material[] _flower;
@@ -44,9 +44,14 @@ namespace PixelToCivilization.World
             _sets.Clear(); _sets3.Clear();
             LODManager.ClearCull();
             _cylinder = Builtin("Cylinder.fbx") ?? BuildCylinder();
-            _sphere = Builtin("Sphere.fbx") ?? BuildSphere();
+            // V9.0.1fix 圆球阔叶/灌木/岩石/大榕树冠：绝不用内置 Sphere.fbx（515 顶点）。
+            // 植被有数千实例 × 每株多个叶球/岩石 × LV2/LV3 双份合并，高面数球会让合并网格顶点量暴涨数十倍，
+            // 在启动同步阶段撑爆 WASM 固定堆（memory access out of bounds，崩在 Populate）。
+            // 改用程序化二十面体球：LV2 中远景 subdiv1=42 顶点，LV3 近景 subdiv2=162 顶点，圆润观感与低占用兼得。
+            _sphere  = BuildIcoSphere(1);   // 42 顶点（中远景树冠/灌木/岩石/花心）
+            _sphere3 = BuildIcoSphere(2);   // 162 顶点（近景 LV3 完全体）
             _quad = BuildQuad();
-            _cone = BuildCone(); // V6.3.4 三角形（锥形）树冠
+            _cone = BuildCone(); // V6.3.4 三角形（锥形）针叶树冠（保留，与方块阔叶形成三角/方块层次）
                         _bark = ShaderHelper.Pbr(new Color(0.45f,0.31f,0.19f), 0f, 0.14f, seed+1, 1.4f);  // V7.0.1 暖棕干
             _leafA = ShaderHelper.Pbr(new Color(0.22f,0.64f,0.24f), 0f, 0.20f, seed+2, 1.6f);  // 饱和松绿
             _leafB = ShaderHelper.Pbr(new Color(0.32f,0.72f,0.30f), 0f, 0.22f, seed+3, 1.6f);  // 嫩绿
@@ -240,12 +245,12 @@ namespace PixelToCivilization.World
                 // —— LV3：V6.3.1 近景（更多气根、板根、分层叶团）——
                 var b3=new GameObject("LV3"); b3.transform.SetParent(go.transform,false);
                 AddPart(b3,_cylinder,barkM,new Vector3(0,1.6f,0),new Vector3(0.78f,1.65f,0.78f));
-                AddPart(b3,_sphere,canM,new Vector3(0,3.5f,0),new Vector3(3.6f,1.6f,3.6f));
+                AddPart(b3,_sphere3,canM,new Vector3(0,3.5f,0),new Vector3(3.6f,1.6f,3.6f));
                 for(int i=0;i<10;i++)
                 {
                     float a=i/10f*Mathf.PI*2f+(float)rng.NextDouble()*0.4f;
                     float rr3=1.4f+(float)rng.NextDouble()*1.6f;
-                    AddPart(b3,_sphere,canM,new Vector3(Mathf.Cos(a)*rr3,3.0f+(float)rng.NextDouble()*0.9f,Mathf.Sin(a)*rr3),
+                    AddPart(b3,_sphere3,canM,new Vector3(Mathf.Cos(a)*rr3,3.0f+(float)rng.NextDouble()*0.9f,Mathf.Sin(a)*rr3),
                         Vector3.one*(1.1f+(float)rng.NextDouble()*0.7f));
                 }
                 for(int i=0;i<8;i++)
@@ -302,6 +307,13 @@ namespace PixelToCivilization.World
             var m=go.GetComponent<MeshFilter>().sharedMesh; var copy=Object.Instantiate(m);
             Object.DestroyImmediate(go); return copy;
         }
+        // V8.0.1 乐高方块体素网格（阔叶/灌木/岩石/大榕树冠）
+        static Mesh BuildCube()
+        {
+            var go=GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var m=go.GetComponent<MeshFilter>().sharedMesh; var copy=Object.Instantiate(m);
+            Object.DestroyImmediate(go); return copy;
+        }
         // V6.3.4 程序化圆锥（Unity 无 Cone primitive）：底圈 y=-0.5 半径0.5，锥尖 y=+0.5
         static Mesh BuildCone(int seg=14)
         {
@@ -318,6 +330,51 @@ namespace PixelToCivilization.World
             }
             var m=new Mesh(){indexFormat=UnityEngine.Rendering.IndexFormat.UInt32};
             m.SetVertices(verts); m.SetTriangles(tris,0); m.RecalculateNormals(); return m;
+        }
+
+        // V9.0.1fix 程序化二十面体球：subdiv1=42 顶点/80 三角，subdiv2=162 顶点/320 三角，
+        // 远低于内置 Sphere.fbx(515 顶点/768 三角)。数千植被实例静态合批时把合并网格体量压一个数量级，
+        // 避免启动 Populate 阶段合并网格原生内存暴涨撑爆 WASM 固定堆（memory access out of bounds）。
+        static Mesh BuildIcoSphere(int subdivisions)
+        {
+            float tt=(1f+Mathf.Sqrt(5f))/2f;
+            var verts=new List<Vector3>{
+                new(-1,tt,0),new(1,tt,0),new(-1,-tt,0),new(1,-tt,0),
+                new(0,-1,tt),new(0,1,tt),new(0,-1,-tt),new(0,1,-tt),
+                new(tt,0,-1),new(tt,0,1),new(-tt,0,-1),new(-tt,0,1)
+            };
+            for(int i=0;i<verts.Count;i++) verts[i]=verts[i].normalized;
+            var tris=new List<int>{
+                0,11,5, 0,5,1, 0,1,7, 0,7,10, 0,10,11,
+                1,5,9, 5,11,4, 11,10,2, 10,7,6, 7,1,8,
+                3,9,4, 3,4,2, 3,2,6, 3,6,8, 3,8,9,
+                4,9,5, 2,4,11, 6,2,10, 8,6,7, 9,8,1
+            };
+            var mid=new Dictionary<long,int>();
+            int MidPoint(int a,int b)
+            {
+                long key=((long)Mathf.Min(a,b)<<32)|(uint)Mathf.Max(a,b);
+                if(mid.TryGetValue(key,out var mm)) return mm;
+                verts.Add((verts[a]+verts[b]).normalized); mm=verts.Count-1; mid[key]=mm; return mm;
+            }
+            for(int s=0;s<subdivisions;s++)
+            {
+                var next=new List<int>(tris.Count*4);
+                for(int i=0;i<tris.Count;i+=3)
+                {
+                    int a=tris[i],b=tris[i+1],c=tris[i+2];
+                    int ab=MidPoint(a,b),bc=MidPoint(b,c),ca=MidPoint(c,a);
+                    next.Add(a);next.Add(ab);next.Add(ca);
+                    next.Add(b);next.Add(bc);next.Add(ab);
+                    next.Add(c);next.Add(ca);next.Add(bc);
+                    next.Add(ab);next.Add(bc);next.Add(ca);
+                }
+                tris=next;
+            }
+            var mesh=new Mesh();
+            if(verts.Count>65000) mesh.indexFormat=UnityEngine.Rendering.IndexFormat.UInt32;
+            mesh.SetVertices(verts); mesh.SetTriangles(tris,0); mesh.RecalculateNormals();
+            return mesh;
         }
 
         // V6.3.4 四季调色：春嫩绿→夏深绿→秋橙→冬苍灰，按 GameTime 年内进度平滑过渡
@@ -380,13 +437,13 @@ namespace PixelToCivilization.World
         {
             float main=(steep?1.25f:0.85f)+(float)rng.NextDouble()*0.8f;
             var q=Quaternion.Euler((float)(rng.NextDouble()*16-8),(float)(rng.NextDouble()*360),(float)(rng.NextDouble()*16-8));
-            a.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x,y+main*0.42f,z),q,new Vector3(main,main*0.95f,main))));
+            a.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x,y+main*0.42f,z),q,new Vector3(main,main*0.95f,main))));
             // 顶部叠一块小岩形成层理
-            a.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x+main*0.12f,y+main*0.95f,z-main*0.1f),Quaternion.Euler(0,(float)rng.NextDouble()*360,0),new Vector3(main*0.55f,main*0.4f,main*0.5f))));
+            a.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x+main*0.12f,y+main*0.95f,z-main*0.1f),Quaternion.Euler(0,(float)rng.NextDouble()*360,0),new Vector3(main*0.55f,main*0.4f,main*0.5f))));
             int n=steep?4:2;
             for(int i=0;i<n;i++){ float ang=i/(float)n*Mathf.PI*2f+(float)rng.NextDouble()*0.6f, d=main*(0.6f+(float)rng.NextDouble()*0.7f);
                 float sc=main*(0.3f+(float)rng.NextDouble()*0.34f);
-                b.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x+Mathf.Cos(ang)*d,y+sc*0.4f,z+Mathf.Sin(ang)*d),Quaternion.Euler((float)(rng.NextDouble()*20-10),(float)(rng.NextDouble()*360),(float)(rng.NextDouble()*20-10)),new Vector3(sc,sc*0.85f,sc)))); }
+                b.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x+Mathf.Cos(ang)*d,y+sc*0.4f,z+Mathf.Sin(ang)*d),Quaternion.Euler((float)(rng.NextDouble()*20-10),(float)(rng.NextDouble()*360),(float)(rng.NextDouble()*20-10)),new Vector3(sc,sc*0.85f,sc)))); }
         }
         // ② 灌木（团状、无主干）
         void AddShrub(List<CombineInstance> list,float x,float y,float z,float r1,float r2)
@@ -436,23 +493,23 @@ namespace PixelToCivilization.World
                 la.Add(CI(_cone,Matrix4x4.TRS(new Vector3(x,y+3.9f*s,z),Quaternion.identity,new Vector3(1.05f*s,1.5f*s,1.05f*s))));
             }
             else
-            {   // V6.6.1 阔叶近景：7 团浓密分层 + 顶冠，明暗交错
-                la.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x,y+2.4f*s,z),Quaternion.identity,Vector3.one*1.2f*s)));
-                la.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x,y+3.15f*s,z),Quaternion.identity,Vector3.one*0.78f*s)));
-                lb.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x+0.58f*s,y+2.15f*s,z+0.28f),Quaternion.identity,Vector3.one*0.8f*s)));
-                la.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x-0.54f*s,y+2.22f*s,z-0.3f),Quaternion.identity,Vector3.one*0.74f*s)));
-                lb.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x+0.12f*s,y+2.78f*s,z-0.52f),Quaternion.identity,Vector3.one*0.66f*s)));
-                la.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x-0.2f*s,y+2.72f*s,z+0.52f),Quaternion.identity,Vector3.one*0.6f*s)));
-                lb.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x+0.42f*s,y+2.85f*s,z+0.4f),Quaternion.identity,Vector3.one*0.5f*s)));
+            {   // V6.6.1 阔叶近景：7 团浓密分层 + 顶冠，明暗交错（V9 用 162 顶点近景球 _sphere3）
+                la.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x,y+2.4f*s,z),Quaternion.identity,Vector3.one*1.2f*s)));
+                la.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x,y+3.15f*s,z),Quaternion.identity,Vector3.one*0.78f*s)));
+                lb.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x+0.58f*s,y+2.15f*s,z+0.28f),Quaternion.identity,Vector3.one*0.8f*s)));
+                la.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x-0.54f*s,y+2.22f*s,z-0.3f),Quaternion.identity,Vector3.one*0.74f*s)));
+                lb.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x+0.12f*s,y+2.78f*s,z-0.52f),Quaternion.identity,Vector3.one*0.66f*s)));
+                la.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x-0.2f*s,y+2.72f*s,z+0.52f),Quaternion.identity,Vector3.one*0.6f*s)));
+                lb.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x+0.42f*s,y+2.85f*s,z+0.4f),Quaternion.identity,Vector3.one*0.5f*s)));
             }
         }
         void AddShrub3(List<CombineInstance> list,float x,float y,float z,float r1,float r2)
         {
             float s=0.5f+r1*0.5f;
-            list.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x,y+0.34f*s,z),Quaternion.identity,new Vector3(0.82f*s,0.58f*s,0.82f*s))));
-            list.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x+(r2-0.5f)*0.6f,y+0.44f*s,z+(r1-0.5f)*0.6f),Quaternion.identity,new Vector3(0.52f*s,0.42f*s,0.52f*s))));
-            list.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x+(r1-0.5f)*0.5f,y+0.5f*s,z+(r2-0.5f)*0.5f),Quaternion.identity,new Vector3(0.4f*s,0.34f*s,0.4f*s))));
-            list.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x+(0.5f-r2)*0.5f,y+0.4f*s,z+(0.5f-r1)*0.5f),Quaternion.identity,new Vector3(0.36f*s,0.3f*s,0.36f*s))));
+            list.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x,y+0.34f*s,z),Quaternion.identity,new Vector3(0.82f*s,0.58f*s,0.82f*s))));
+            list.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x+(r2-0.5f)*0.6f,y+0.44f*s,z+(r1-0.5f)*0.6f),Quaternion.identity,new Vector3(0.52f*s,0.42f*s,0.52f*s))));
+            list.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x+(r1-0.5f)*0.5f,y+0.5f*s,z+(r2-0.5f)*0.5f),Quaternion.identity,new Vector3(0.4f*s,0.34f*s,0.4f*s))));
+            list.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x+(0.5f-r2)*0.5f,y+0.4f*s,z+(0.5f-r1)*0.5f),Quaternion.identity,new Vector3(0.36f*s,0.3f*s,0.36f*s))));
         }
         void AddGrassBlade3(List<CombineInstance> list,float x,float y,float z,float r1,float r2)
         {   // 四片交叉叶（0/90 + 45/135）
@@ -473,7 +530,7 @@ namespace PixelToCivilization.World
             float h=herb?0.28f+r*0.14f:0.11f+r*0.07f;
             float w=herb?0.36f:0.22f; var q=Quaternion.Euler(0,r*360f,0);
             for(int k=0;k<3;k++) petals.Add(CI(_quad,Matrix4x4.TRS(new Vector3(x,y+h*0.5f,z),q*Quaternion.Euler(0,k*60f,0),new Vector3(w,h,1))));
-            center.Add(CI(_sphere,Matrix4x4.TRS(new Vector3(x,y+h,z),Quaternion.identity,Vector3.one*(herb?0.07f:0.045f))));
+            center.Add(CI(_sphere3,Matrix4x4.TRS(new Vector3(x,y+h,z),Quaternion.identity,Vector3.one*(herb?0.07f:0.045f))));
         }
 
         CombineInstance CI(Mesh m,Matrix4x4 t)=>new(){mesh=m,transform=t};

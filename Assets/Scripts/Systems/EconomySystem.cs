@@ -13,7 +13,7 @@ namespace PixelToCivilization.Systems
     {
         // 每秒产出（供UI显示）
         public Dictionary<string, float> ProductionRate { get; } = new();
-        private readonly string[] _stoneBuildings = { "market","temple","well","rich_house","noble_palace","mine","altar","wall","great_wall","watchtower","barracks","palace","pagoda","granary","bank","porcelain_kiln","arsenal","grand_hall","brick_works","factory_pre","factory_modern","power_plant","data_center","skyscraper","ai_lab","space_elevator","fusion_plant","lunar_base","mars_colony","orbital_station","dyson_swarm" };
+        private readonly string[] _stoneBuildings = { "market","temple","well","rich_house","noble_palace","mine","altar","wall","great_wall","watchtower","barracks","palace","pagoda","granary","bank","porcelain_kiln","arsenal","grand_hall","brick_works","factory_pre","factory_modern","power_plant","data_center","skyscraper","ai_lab","space_elevator","fusion_plant","lunar_base","mars_colony","orbital_station","dyson_swarm","subway" };
         private float _warnCd;
 
         public override void Init(GameManager gm)
@@ -27,16 +27,21 @@ namespace PixelToCivilization.Systems
             // ===== 产出 =====
             float food=0,gold=0,wood=0,stone=0,iron=0,research=0,culture=0,bronze=0,goods=0,trade=0;
             bool wonderPower = GM.Wonder != null && GM.Wonder.ForcePower;
-            float powerMult = S.Era >= 6 ? ((S.PowerCoverage >= 50 || wonderPower) ? 1.5f : 1f) : 1f;
+            // V9.0.4 连续电网：电网时代(era≥6)且有用电需求时，产出加成=1+0.5×供需比（满供1.5/全黑1.0）；奇观强制供电按满供
+            bool gridActive = S.Era >= 6 && S.PowerDemand > 0f;
+            float powerMult = gridActive ? 1f + 0.5f*S.PowerRatio : (wonderPower ? 1.5f : 1f);
+            float brownMult = gridActive ? 0.35f + 0.65f*S.PowerRatio : 1f;   // 缺电工业产出系数
             float aiMult = 1f + S.AiBonus;
             float songMult = S.Era == 3 ? 2f : 1f; // 两宋研究翻倍
             // 火力软上限：由兵力与建筑规模决定，避免火力建筑/学派/事件只增不减导致后期数值无限膨胀
             float fireCap = (80f + S.MilSoldiers*1.5f + S.Buildings.Count*2f) * (GM.Wonder!=null?GM.Wonder.FireCapMul:1f);
 
+            int dcN = 0;   // V9.0.8 数据中心数量（全国科研速度乘数）
             foreach (var b in S.Buildings)
             {
                 var d = b.Def; if (d == null) continue;
                 float m = b.LevelMult;
+                if (b.Type == "data_center") dcN++;
                 food += d.GetProd("food")*m;
                 gold += d.GetProd("gold")*m;
                 wood += d.GetProd("wood")*m;
@@ -80,6 +85,12 @@ namespace PixelToCivilization.Systems
                 research *= GM.Wonder.ResearchMul; culture *= GM.Wonder.CultureMul;
                 gold *= GM.Wonder.GoldMul; food *= GM.Wonder.FoodMul; goods *= GM.Wonder.GoodsMul;
             }
+            // V9.0.8 数据中心集群：每座全国科研速度 +8%，8 座封顶 +60%（基础 research20 产出不变）
+            research *= Mathf.Min(1.6f, 1f + 0.08f * dcN);
+            // V9.0.4 产业链完整度 + 缺电减产作用于商品（工厂/作坊/超市 goods 产线）
+            // V9.0.5 现代起劳动力短缺（岗位多于劳力）再封顶工业产出，农业社会不受影响
+            float laborMult = S.Era >= 5 && GM.CityMetrics != null ? GM.CityMetrics.LaborFillMult : 1f;
+            goods *= S.IndustryChainMult * brownMult * laborMult;
             // 电力与AI
             food *= powerMult*aiMult; gold *= powerMult*aiMult; research *= powerMult*aiMult;
 
@@ -119,7 +130,7 @@ namespace PixelToCivilization.Systems
                 if (b.Type=="power_plant"||b.Type=="data_center"||b.Type=="ai_lab"||b.Type=="space_elevator"||
                     b.Type=="fusion_plant"||b.Type=="lunar_base"||b.Type=="mars_colony"||b.Type=="orbital_station"||
                     b.Type=="dyson_swarm"||b.Type=="spaceship_yard") goldC += 0.03f;
-                if (b.Type=="factory_pre"||b.Type=="factory_modern"||b.Type=="modern_arsenal"||b.Type=="dockyard_modern") goldC += 0.02f;
+                if (b.Type=="factory_pre"||b.Type=="factory_modern"||b.Type=="modern_arsenal"||b.Type=="dockyard_modern"||b.Type=="subway") goldC += 0.02f; // V9.0.8 地铁票务运维
             }
             S.AddRes("gold", -goldC*dt*0.3f);
 
@@ -130,7 +141,7 @@ namespace PixelToCivilization.Systems
                 foreach (var b in S.Buildings)
                 {
                     if (b.Type=="factory_modern"||b.Type=="power_plant"||b.Type=="data_center"||b.Type=="ai_lab"||
-                        b.Type=="high_speed_rail"||b.Type=="airport"||b.Type=="highway_modern") steelC += 0.01f;
+                        b.Type=="high_speed_rail"||b.Type=="airport"||b.Type=="highway_modern"||b.Type=="subway") steelC += 0.01f; // V9.0.8 地铁轨道车辆养护
                     if (b.Type=="space_elevator"||b.Type=="fusion_plant"||b.Type=="lunar_base"||b.Type=="mars_colony"||
                         b.Type=="orbital_station"||b.Type=="dyson_swarm"||b.Type=="spaceship_yard") steelC += 0.02f;
                 }
@@ -139,7 +150,7 @@ namespace PixelToCivilization.Systems
 
             // ===== 资源转换 =====
             if (S.Era >= 6 && S.GetRes("iron")>50 && S.GetRes("stone")>30)
-            { S.AddRes("steel", dt*0.3f); S.AddRes("concrete", dt*0.5f); }
+            { S.AddRes("steel", dt*0.3f*brownMult*laborMult); S.AddRes("concrete", dt*0.5f*brownMult*laborMult); } // V9.0.4 缺电限产 / V9.0.5 缺工限产
             if (S.Era >= 7 && S.GetRes("helium3")>10)
             { S.AddRes("fusion", dt*0.5f); S.AddRes("carbon", dt*0.2f); }
 

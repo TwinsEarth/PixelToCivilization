@@ -64,6 +64,11 @@ namespace PixelToCivilization.Data
         public const float StartHappiness = 70f;
         public const int StartPop = 80;
 
+        // V9.0.1 现代风：开局公元 1700 年（美国建国前后·大航海殖民末期）。游戏纪年 = 公元 + 3000
+        // （民国 游戏4912=公元1912、清起 游戏4636=公元1636 均吻合），故公元1700 = 游戏年 4700，落在 era4 明·清。
+        public const int StartGameYearAD = 1700;
+        public const int StartGameYear = StartGameYearAD + 3000;   // 4700
+
         // Debug分级：0=普通(最高100倍) 1=Debug(300倍) 2=密码解锁(1000倍)。v5.9.9 为连续倍速，这里仅作键盘循环快捷档
         public const string DebugPassword = "ToFuture";
         public const float SpeedMaxNormal = 100f, SpeedMaxDebug1 = 300f, SpeedMaxDebug2 = 1000f;

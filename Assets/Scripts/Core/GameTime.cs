@@ -78,6 +78,17 @@ namespace PixelToCivilization.Core
         /// <summary>每过一游戏年触发（建筑老化、人口增长等由各系统订阅）</summary>
         private void AdvanceYear() => OnYearAdvanced?.Invoke(State.Year);
 
+        /// <summary>V9.0.1 开局静默对齐到公元1700（游戏年4700）：直接把朝代/时代算到正确值，
+        /// 不触发 OnEraChanged/OnDynastyChanged，避免开局从 era0 连跳四级误发军事复活/科技授予等时代切换副作用。</summary>
+        public void SnapToStartYear()
+        {
+            if (State == null || Dynasties == null || Eras == null) return;
+            State.Year = GameConstants.StartGameYear;
+            State.Day = 0;
+            State.DynastyIdx = DynastyDatabase.GetIndexByYear(State.Year, Dynasties);
+            State.Era = DynastyDatabase.GetEraByYear(State.Year, Eras);
+        }
+
         // ===== 显示换算 =====
         public DynastyDefinition CurrentDynasty =>
             Dynasties != null && State.DynastyIdx < Dynasties.Count ? Dynasties[State.DynastyIdx] : null;

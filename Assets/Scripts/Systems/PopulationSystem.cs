@@ -129,6 +129,96 @@ namespace PixelToCivilization.Systems
             S.Children*=k; S.Young*=k; S.Middle*=k; S.Old*=k;
         }
 
+        // V9.1.1 职业通勤（运行期状态，不存档；读档后按职业与建筑就近重派）
+        class WorkInfo { public bool Has; public float WX,WZ; public bool AtWork=true; public float Phase; public float Replan; public string Job=""; }
+        readonly Dictionary<AgentEntity, WorkInfo> _work = new();
+        const float WorkSeconds=42f, HomeSeconds=18f, WorkRadius=90f;
+
+        static bool WorkingAge(AgentEntity a) => a!=null && a.Age>=15 && a.Age<=64;
+
+        WorkInfo GetWork(AgentEntity a)
+        {
+            if (!_work.TryGetValue(a, out var wi)) { wi=new WorkInfo(); _work[a]=wi; }
+            if (wi.Has && wi.Job==a.Job) return wi;
+            wi.Job=a.Job??""; wi.Has=false;
+            float bd=WorkRadius*WorkRadius;
+            foreach (var b in S.Buildings)
+            {
+                if (b==null||b.Def==null) continue;
+                if (!JobMatches(wi.Job,b)) continue;
+                float dx=b.X-a.HomeX, dz=b.Z-a.HomeZ, d2=dx*dx+dz*dz;
+                if (d2<bd)
+                {   // 稳定散布：按个体哈希在工作建筑周围取固定工位，避免全挤一个点
+                    int h=(a.GetHashCode()&0xffff); float ang=(h%360)*Mathf.Deg2Rad; float rr=0.8f+(h%9)/10f;
+                    bd=d2; wi.Has=true;
+                    wi.WX=b.X+Mathf.Cos(ang)*rr; wi.WZ=b.Z+Mathf.Sin(ang)*rr;
+                }
+            }
+            wi.AtWork=true; wi.Phase=10f+UnityEngine.Random.value*30f; wi.Replan=40f+UnityEngine.Random.value*40f;
+            return wi;
+        }
+
+        // V9.1.1 职业 → 工作建筑（按类型/分类关键字）；未匹配返回 false（该个体回退为家周边活动）
+        static bool JobMatches(string job, BuildingEntity b)
+        {
+            string j=(job??"").ToLowerInvariant(), t=(b.Type??"").ToLowerInvariant(), c=b.Def.Cat??"";
+            bool T(string s)=>t.Contains(s);
+            if (j.Contains("farm")||j.Contains("农")||j.Contains("种植")||j.Contains("牧"))
+                return c=="食物"||T("farm")||T("field")||T("pasture")||T("ranch")||T("orchard");
+            if (j.Contains("wood")||j.Contains("伐木")||j.Contains("林"))
+                return T("lumber")||T("log")||T("wood")||T("forest")||T("timber");
+            if (j.Contains("quarry")||j.Contains("采石"))
+                return T("quarry")||T("stone");
+            if (j.Contains("mine")||j.Contains("矿"))
+                return T("mine")||T("quarry");
+            if (j.Contains("merchant")||j.Contains("trade")||j.Contains("商")||j.Contains("市场")||j.Contains("买卖"))
+                return c=="经济"||T("market")||T("shop")||T("mall")||T("supermarket")||T("trade")||T("bank");
+            if (j.Contains("soldier")||j.Contains("军")||j.Contains("兵"))
+                return MilitarySystem.IsMilitaryBuilding(b);
+            if (j.Contains("official")||j.Contains("官"))
+                return T("palace")||T("hall")||T("government")||T("admin")||T("townhall")||T("capital")||T("office");
+            if (j.Contains("police")||j.Contains("警")) return T("police");
+            if (j.Contains("doctor")||j.Contains("医")) return T("hospital")||T("clinic");
+            if (j.Contains("fire")||j.Contains("消防")) return T("fire_station");
+            if (j.Contains("teacher")||j.Contains("教育")||j.Contains("教")) return T("school")||T("university")||T("edu");
+            if (j.Contains("driver")||j.Contains("车")) return T("road")||T("highway")||T("garage")||T("bus")||T("station")||T("interchange");
+            if (j.Contains("sailor")||j.Contains("船")||j.Contains("渔")) return T("port")||T("harbor")||T("dock")||T("shipyard")||T("wharf")||T("fishery")||c=="海洋";
+            if (j.Contains("research")||j.Contains("科研")||j.Contains("技术")) return c=="科技"||T("lab")||T("research");
+            if (j.Contains("worker")||j.Contains("工")||j.Contains("维修"))
+                return c=="工业"||T("factory")||T("workshop")||T("plant")||T("construction")||T("apartment")||T("hut")||T("house");
+            return false;
+        }
+
+        private void SteerTo(AgentEntity a, float gx, float gz)
+        {
+            float dx=gx-a.X, dz=gz-a.Z, dl=Mathf.Sqrt(dx*dx+dz*dz);
+            if (dl>0.05f){ a.Vx=dx/dl*WalkSpeed; a.Vz=dz/dl*WalkSpeed; }
+        }
+
+        private void ChooseHomeWander(AgentEntity a, float distHome)
+        {
+            float tx=a.HomeX, tz=a.HomeZ; bool have=false;
+            if (distHome <= 20f)
+            {
+                // 绕家园选一个距当前位置 >1.4 的可行走点，最多 10 次，保证真的会走起来
+                for(int t=0;t<10;t++)
+                {
+                    float ang=UnityEngine.Random.value*Mathf.PI*2f, rr=2.5f+UnityEngine.Random.value*10.5f;
+                    float cx=a.HomeX+Mathf.Cos(ang)*rr, cz=a.HomeZ+Mathf.Sin(ang)*rr;
+                    if(Walkable(cx,cz) && (cx-a.X)*(cx-a.X)+(cz-a.Z)*(cz-a.Z)>1.96f){tx=cx;tz=cz;have=true;break;}
+                }
+                // 家园周边多水：改在当前位置附近找落点，贴着岸移动
+                if(!have) for(int t=0;t<8;t++)
+                {
+                    float ang=UnityEngine.Random.value*Mathf.PI*2f, rr=1.2f+UnityEngine.Random.value*2.5f;
+                    float cx=a.X+Mathf.Cos(ang)*rr, cz=a.Z+Mathf.Sin(ang)*rr;
+                    if(Walkable(cx,cz)){tx=cx;tz=cz;have=true;break;}
+                }
+            }
+            SteerTo(a,tx,tz);
+            a.WanderTimer = 2.0f + UnityEngine.Random.value*2.5f;
+        }
+
         private void UpdateAgents(float dt)
         {
             var agents = S.Agents;
@@ -138,32 +228,40 @@ namespace PixelToCivilization.Systems
                 if (a.Boarded) continue; // V6.3.7 已登乘车船者随载具移动，不再陆地游走
                 a.WanderTimer -= dt;
                 float distHome=Mathf.Sqrt((a.X-a.HomeX)*(a.X-a.HomeX)+(a.Z-a.HomeZ)*(a.Z-a.HomeZ));
-                // 定期在村落周边选游走点；走出活动半径则回家；速度为 0（到站/被水挡住）也立即重选，避免原地呆立
-                if (a.WanderTimer <= 0f || distHome > 20f || (a.Vx==0f && a.Vz==0f))
+
+                // ===== V9.1.1 职业通勤：有工作建筑的劳动年龄人口按“上岗⇄回家”周期往返，工作时间驻守工位 =====
+                bool workIdle=false; bool worker=false;
+                var wi=GetWork(a);
+                wi.Replan-=dt;
+                if (wi.Replan<=0f){ wi.Has=false; wi=GetWork(a); }
+                if (wi.Has && WorkingAge(a))
                 {
-                    float tx=a.HomeX, tz=a.HomeZ; bool have=false;
-                    if (distHome <= 20f)
+                    worker=true;
+                    wi.Phase-=dt;
+                    if(wi.Phase<=0f){ wi.AtWork=!wi.AtWork; wi.Phase=wi.AtWork?WorkSeconds:HomeSeconds; }
+                    if(wi.AtWork)
                     {
-                        // 绕家园选一个距当前位置 >1.4 的可行走点，最多 10 次，保证真的会走起来
-                        for(int t=0;t<10;t++)
-                        {
-                            float ang=UnityEngine.Random.value*Mathf.PI*2f, rr=2.5f+UnityEngine.Random.value*10.5f;
-                            float cx=a.HomeX+Mathf.Cos(ang)*rr, cz=a.HomeZ+Mathf.Sin(ang)*rr;
-                            if(Walkable(cx,cz) && (cx-a.X)*(cx-a.X)+(cz-a.Z)*(cz-a.Z)>1.96f){tx=cx;tz=cz;have=true;break;}
-                        }
-                        // 家园周边多水：改在当前位置附近找落点，贴着岸移动
-                        if(!have) for(int t=0;t<8;t++)
-                        {
-                            float ang=UnityEngine.Random.value*Mathf.PI*2f, rr=1.2f+UnityEngine.Random.value*2.5f;
-                            float cx=a.X+Mathf.Cos(ang)*rr, cz=a.Z+Mathf.Sin(ang)*rr;
-                            if(Walkable(cx,cz)){tx=cx;tz=cz;have=true;break;}
-                        }
+                        float dw=Mathf.Sqrt((a.X-wi.WX)*(a.X-wi.WX)+(a.Z-wi.WZ)*(a.Z-wi.WZ));
+                        if(dw<2.6f){ workIdle=true; a.Vx=0f; a.Vz=0f; }   // 到岗：驻守作业（不再聚在村中心）
+                        else if(a.WanderTimer<=0f || (a.Vx==0f&&a.Vz==0f)){ SteerTo(a,wi.WX,wi.WZ); a.WanderTimer=1.2f+UnityEngine.Random.value; }
                     }
-                    float dx=tx-a.X,dz=tz-a.Z,dl=Mathf.Sqrt(dx*dx+dz*dz);
-                    if(dl>0.05f){ a.Vx=dx/dl*WalkSpeed; a.Vz=dz/dl*WalkSpeed; }
-                    a.WanderTimer = 2.0f + UnityEngine.Random.value*2.5f;
+                    else
+                    {
+                        // 回家时段：远离家则回家，到家附近则正常休憩游走
+                        if(distHome>20f){ if(a.WanderTimer<=0f||(a.Vx==0f&&a.Vz==0f)){SteerTo(a,a.HomeX,a.HomeZ);a.WanderTimer=1.5f;} }
+                        else if(a.WanderTimer<=0f||(a.Vx==0f&&a.Vz==0f)) ChooseHomeWander(a,distHome);
+                    }
                 }
+                // 定期在村落周边选游走点；走出活动半径则回家；速度为 0（到站/被水挡住）也立即重选，避免原地呆立
+                else if (a.WanderTimer <= 0f || distHome > 20f || (a.Vx==0f && a.Vz==0f))
+                {
+                    if(distHome>20f){ SteerTo(a,a.HomeX,a.HomeZ); a.WanderTimer=1.5f; }
+                    else ChooseHomeWander(a,distHome);
+                }
+
                 bool moved=false;
+                if(!workIdle)
+                {
                 float nx=a.X+a.Vx*dt, nz=a.Z+a.Vz*dt;
                 if (Walkable(nx,nz)){ a.X=nx; a.Z=nz; moved=true; }
                 else
@@ -178,8 +276,21 @@ namespace PixelToCivilization.Systems
                         float cx=a.X+vx*dt, cz=a.Z+vz*dt;
                         if(Walkable(cx,cz)){ a.Vx=vx;a.Vz=vz;a.X=cx;a.Z=cz;moved=true;break; }
                     }
-                    if(!moved){ a.Vx=0f;a.Vz=0f;a.WanderTimer=Mathf.Min(a.WanderTimer,0.25f); }
+                    if(!moved)
+                    {
+                        // V7.0.5 被困（涨潮淹了落脚点/被水围住）：螺旋搜索最近可行走陆地并走过去，
+                        // 而不是原地反复重选目标、永久呆立；确实无陆地才停下等待。
+                        if(NearestWalkable(a.X,a.Z,18f,out float lx,out float lz))
+                        {
+                            float ddx=lx-a.X,ddz=lz-a.Z,ddl=Mathf.Sqrt(ddx*ddx+ddz*ddz);
+                            // 仅设定朝陆地的行进方向；真正迈出（相邻格可行走）由上面的贴岸滑行结算，
+                            // 隔着水面则不过水、不原地踏步，等退潮或下轮重选。
+                            if(ddl>0.05f){ a.Vx=ddx/ddl*WalkSpeed; a.Vz=ddz/ddl*WalkSpeed; a.WanderTimer=0.5f; }
+                        }
+                        else { a.Vx=0f;a.Vz=0f;a.WanderTimer=Mathf.Min(a.WanderTimer,0.25f); }
+                    }
                 }
+                } // end if(!workIdle)
                 if (a.View != null)
                 {
                     float y=_terrain!=null?_terrain.HeightAt(a.X,a.Z):0f;
@@ -201,6 +312,24 @@ namespace PixelToCivilization.Systems
             if(_terrain==null)return true;
             if(!_terrain.IsWater(x,z))return true;
             return GM.Bridge!=null && GM.Bridge.IsBridgeAt(x,z);
+        }
+
+        /// <summary>V7.0.5 由近及远螺旋搜索最近的可行走陆地（被困水中/涨潮时脱困用），找到最近一圈即返回。</summary>
+        bool NearestWalkable(float x,float z,float maxR,out float ox,out float oz)
+        {
+            ox=x; oz=z; bool found=false; float best=maxR*maxR;
+            for(float r=2f; r<=maxR; r+=2f)
+            {
+                int n=Mathf.Max(8,Mathf.RoundToInt(2f*Mathf.PI*r/2f));
+                for(int k=0;k<n;k++)
+                {
+                    float ang=k*(Mathf.PI*2f/n);
+                    float cx=x+Mathf.Cos(ang)*r, cz=z+Mathf.Sin(ang)*r;
+                    if(Walkable(cx,cz)){ float d=(cx-x)*(cx-x)+(cz-z)*(cz-z); if(d<best){best=d;ox=cx;oz=cz;found=true;} }
+                }
+                if(found) return true;
+            }
+            return false;
         }
     }
 }

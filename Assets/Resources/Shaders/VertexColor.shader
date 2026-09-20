@@ -20,6 +20,9 @@ Shader "PxC/VertexColor"
                 float3 normal : NORMAL;
                 float4 color  : COLOR;
             };
+            // V9.0.8 全局昼夜系数（EnvironmentDirector 每帧 SetGlobalFloat，1=昼 0=夜）
+            float _GlobalDay;
+
             struct v2f
             {
                 float4 pos   : SV_POSITION;
@@ -37,7 +40,14 @@ Shader "PxC/VertexColor"
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target { return i.color; }
+            fixed4 frag (v2f i) : SV_Target
+            {
+                // 夜间压暗并染冷蓝（Unlit 地形不响应灯光，必须在着色器内跟随昼夜）
+                float3 nightTint = float3(0.25, 0.32, 0.52);
+                fixed4 c = i.color;
+                c.rgb *= lerp(nightTint, float3(1.0, 1.0, 1.0), _GlobalDay);
+                return c;
+            }
             ENDCG
         }
     }

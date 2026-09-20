@@ -131,8 +131,8 @@ namespace PixelToCivilization.Systems
                 if(S.BridgeRuns[i+5]>GrandSpan)usedGrand++;else usedNormal++;
             }
             // V6.5.5 时间累积额度：每10年1普通(上限300)、每50年1跨海(上限50)；现存数低于已获额度才可建
-            int capNormal=Mathf.Min(NormalCapTotal,S.Year/NormalEveryYears);
-            int capGrand =Mathf.Min(GrandCapTotal,S.Year/GrandEveryYears);
+            int capNormal=Mathf.Min(NormalCapTotal,S.Year/NormalEveryYears,Mathf.Max(1,S.Pop/10));
+            int capGrand =Mathf.Min(GrandCapTotal,S.Year/GrandEveryYears,S.Pop/100);
             var paired=new HashSet<long>();
             for(int i=0;i+RunStride-1<S.BridgeRuns.Count;i+=RunStride)
             {
@@ -221,10 +221,10 @@ namespace PixelToCivilization.Systems
             for(int i=0;i<A.Count;i++)
                 for(int j=0;j<B.Count;j++)
                 {
-                    float dx=A[i].x-B[j].x,dz=A[i].y-B[j].y;float d=dx*dx+dz*dz;
+                    float dx=(A[i].x-B[j].x)*GameConstants.Tile,dz=(A[i].y-B[j].y)*_w.TZ;float d=dx*dx+dz*dz; // V7.0.6 X/Z 轴格距不同，按世界单位算真实跨距
                     if(d<worldDist){worldDist=d;ax=A[i].x;az=A[i].y;bx=B[j].x;bz=B[j].y;any=true;}
                 }
-            worldDist=Mathf.Sqrt(worldDist)*GameConstants.Tile;
+            worldDist=Mathf.Sqrt(worldDist);
             return any;
         }
 
@@ -262,6 +262,8 @@ namespace PixelToCivilization.Systems
                 if(gx<0||gx>=G||gz<0||gz>=G)continue;
                 int lid=LandOfCell(gx,gz);
                 if(lid>0){ if(lid!=landA&&lid!=landB){Rollback(marked);return;} continue; }
+                // V9.1.1 桥只能跨真海：中段若为淡水（内陆湖/河）则不建，杜绝“陆地上的大桥 / 跨湖桥”
+                if(_w.BiomeAt(wx,wz)==BiomeKind.FreshWater){Rollback(marked);return;}
                 int idx=Idx(gx,gz);
                 if(S.BridgeCells.Add(idx)){marked.Add(idx);_cellTier[idx]=tier;}
             }

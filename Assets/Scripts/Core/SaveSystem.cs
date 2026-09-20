@@ -28,6 +28,9 @@ namespace PixelToCivilization.Core
         public string[] Techs; public string[] Policies;
         // 运河 / 潮汐 / 电力
         public int CanalSegments; public float CanalBonus,AiBonus,ElectricGrid,PowerCoverage;
+        public float PowerSupply,PowerDemand,PowerRatio,Pollution,IndustryChainMult; // V9.0.4
+        public float CityHealth,CityEducation,CitySafety,CityEmployment; // V9.0.5 城市指标
+        public int CityTaxLevel; // V9.0.7 城市财政税率档位
         public bool CanalAutoBuild; public float CanalBuildTimer,TidePhase,TideLevel; public bool TideHigh; public int[] CanalCells;
         public int[] BridgeCells; public int[] BridgeRuns;   // V6.3.9 桥梁
     public float[] GrownLands;   // V6.5.4 运行时实时增陆（每块7浮点 cx,cz,br,kind,p1,p2,p3）
@@ -47,12 +50,14 @@ namespace PixelToCivilization.Core
         public string[] BType; public float[] BX,BZ; public int[] BLvl; public int[] BAge; public float[] BHp;
         // V6.1.3 全要素：地形种子（读档还原同一张大地图）/ 散树 / 地图延展 / 大航海·宇宙里程碑
         public int TerrainSeed;
+        public bool EarthMode;   // V9.1.0 存档地图模式（经典随机/真实地球）
         public int TreeCount; public float[] TreeX,TreeZ; public int[] TreeStage,TreeAge;
         public float WorldExpansion; public bool AgeOfSail,AgeOfSpace;
         // V6.1.3 多聚落 / 天下分合（JsonUtility 用平行数组）
         public string WorldPhase; public int PhaseYearsLeft,PlayerNationId,VilCount,NationCount;
         public float[] VilX,VilZ;
-        public int[] NId; public string[] NName,NHex; public float[] NX,NZ; public int[] NPop; public bool[] NPlayer,NAlive;
+        public int[] NId; public string[] NName,NHex; public float[] NX,NZ; public int[] NPop; public bool[] NPlayer,NAlive; public int[] NFaction;   // V9.1.1 阵营
+        public string[] NNote;   // V9.1.1 首都名
         // V6.1.3 全要素补全：诸子百家学派 / 科举 / 吏治腐败与君主 / 已触发历史事件(防重复领奖) / 船员与船血量 / 农田阶段
         public string Philosophy, MonarchName;
         public bool SchoolFounded, MonarchWise;
@@ -126,6 +131,10 @@ namespace PixelToCivilization.Core
                 Techs=s.ResearchedTechs.ToArray(),Policies=s.Policies.ToArray(),
                 CanalSegments=s.CanalSegments,CanalBonus=s.CanalBonus,AiBonus=s.AiBonus,
                 ElectricGrid=s.ElectricGrid,PowerCoverage=s.PowerCoverage,
+                PowerSupply=s.PowerSupply,PowerDemand=s.PowerDemand,PowerRatio=s.PowerRatio,
+                Pollution=s.Pollution,IndustryChainMult=s.IndustryChainMult,
+                CityHealth=s.CityHealth,CityEducation=s.CityEducation,CitySafety=s.CitySafety,CityEmployment=s.CityEmployment,
+                CityTaxLevel=s.CityTaxLevel,
                 SpElevator=s.SpElevator,SpShips=s.SpShips,SpDyson=s.SpDyson,SpLunar=s.SpLunar,SpMars=s.SpMars,
                 OceanUnlocked=s.OceanUnlocked,SpaceUnlocked=s.SpaceUnlocked,
                 OceanDiscovered=s.OceanDiscovered.ToArray(),
@@ -161,6 +170,7 @@ namespace PixelToCivilization.Core
             // V6.1.3 地形种子（保证读档回到同一张大地图）与玩家散树
             var ter=UnityEngine.Object.FindObjectOfType<PixelToCivilization.World.WorldGenerator>();
             d.TerrainSeed=ter!=null?ter.Seed:0;
+            d.EarthMode=s.EarthMode;   // V9.1.0
             d.TreeCount=s.Trees.Count;
             d.TreeX=s.Trees.Select(t=>t.X).ToArray(); d.TreeZ=s.Trees.Select(t=>t.Z).ToArray();
             d.TreeStage=s.Trees.Select(t=>t.Stage).ToArray(); d.TreeAge=s.Trees.Select(t=>t.Age).ToArray();
@@ -182,6 +192,8 @@ namespace PixelToCivilization.Core
             d.NPop=s.Nations.Select(n=>n.Pop).ToArray();
             d.NPlayer=s.Nations.Select(n=>n.IsPlayer).ToArray();
             d.NAlive=s.Nations.Select(n=>n.Alive).ToArray();
+            d.NFaction=s.Nations.Select(n=>n.Faction).ToArray();   // V9.1.1
+            d.NNote=s.Nations.Select(n=>n.Note).ToArray();   // V9.1.1
             // V6.1.4 我方步骑部队
             d.FuKind=s.FriendlyUnits.Select(u=>u.Kind).ToArray();
             d.FuX=s.FriendlyUnits.Select(u=>u.X).ToArray();
@@ -304,9 +316,10 @@ namespace PixelToCivilization.Core
             var s=_gm.State;
             // 0) V6.1.3 按存档地形种子还原同一张大地图（植被/村址/相机/小地图同步），保证建筑与单位坐标不漂移
             var ter=UnityEngine.Object.FindObjectOfType<PixelToCivilization.World.WorldGenerator>();
-            if(ter!=null && d.TerrainSeed!=0 && ter.Seed!=d.TerrainSeed)
+            s.EarthMode=d.EarthMode;   // V9.1.0 先恢复地图模式，再决定地形重建路径
+            if(ter!=null && d.TerrainSeed!=0 && (ter.Seed!=d.TerrainSeed || ter.EarthMode!=d.EarthMode))
             {
-                var village=ter.Regenerate(d.TerrainSeed);
+                var village=d.EarthMode?ter.RegenerateEarth(d.TerrainSeed):ter.Regenerate(d.TerrainSeed);
                 var veg=UnityEngine.Object.FindObjectOfType<PixelToCivilization.World.VegetationSystem>();
                 veg?.Regrow(ter,d.TerrainSeed);
                 var rig=UnityEngine.Object.FindObjectOfType<PixelToCivilization.World.CameraRig>();
@@ -344,6 +357,16 @@ namespace PixelToCivilization.Core
             if(d.SocialKeys!=null)for(int i=0;i<d.SocialKeys.Length;i++) s.SocialClasses[d.SocialKeys[i]]=d.SocialVals[i];
             s.CanalSegments=d.CanalSegments;s.CanalBonus=d.CanalBonus;s.AiBonus=d.AiBonus;
             s.ElectricGrid=d.ElectricGrid;s.PowerCoverage=d.PowerCoverage;
+            // V9.0.4 旧存档缺这些字段时反序列化为0，需安全默认（PowerRatio/产业链=1 才不会误减产）
+            s.PowerSupply=d.PowerSupply;s.PowerDemand=d.PowerDemand;
+            s.PowerRatio=d.PowerRatio<=0f?1f:d.PowerRatio;
+            s.Pollution=d.Pollution;s.IndustryChainMult=d.IndustryChainMult<=0f?1f:d.IndustryChainMult;
+            // V9.0.5 旧档缺城市指标（反序列化为0）时给安全默认，避免面板全红
+            s.CityHealth=d.CityHealth<=0f?60f:d.CityHealth;
+            s.CityEducation=d.CityEducation<=0f?40f:d.CityEducation;
+            s.CitySafety=d.CitySafety<=0f?55f:d.CitySafety;
+            s.CityEmployment=d.CityEmployment<=0f?85f:d.CityEmployment;
+            s.CityTaxLevel=(d.CityTaxLevel>=0&&d.CityTaxLevel<=2)?d.CityTaxLevel:1; // V9.0.7 旧档默认标准税
             s.SpElevator=d.SpElevator;s.SpShips=d.SpShips;s.SpDyson=d.SpDyson;s.SpLunar=d.SpLunar;s.SpMars=d.SpMars;
             s.OceanUnlocked=d.OceanUnlocked;s.SpaceUnlocked=d.SpaceUnlocked;
             s.OceanDiscovered=new List<string>(d.OceanDiscovered??Array.Empty<string>());
@@ -355,7 +378,8 @@ namespace PixelToCivilization.Core
             s.BridgeCells=new HashSet<int>(d.BridgeCells??Array.Empty<int>()); s.BridgeRuns=new List<int>(d.BridgeRuns??Array.Empty<int>());
             // V6.1.3 地图延展 + 大航海/宇宙里程碑
             s.AgeOfSail=d.AgeOfSail;s.AgeOfSpace=d.AgeOfSpace;s.WorldExpansion=Mathf.Max(1f,d.WorldExpansion);
-            ter?.SnapExpansion(s.WorldExpansion);
+            if(d.EarthMode){ s.WorldExpansion=1f; }   // V9.1.0 地球模式全球已揭示，不能被 SnapExpansion 重置回 480
+            else ter?.SnapExpansion(s.WorldExpansion);
             // V6.1.3 全要素补全：学派 / 科举 / 吏治 / 君主 / 已触发历史事件（防读档后重复发奖）
             s.Philosophy=d.Philosophy; s.SchoolFounded=d.SchoolFounded; s.Corruption=d.Corruption;
             s.MonarchWise=d.MonarchWise; s.MonarchName=string.IsNullOrEmpty(d.MonarchName)?"禅让贤者":d.MonarchName;
@@ -429,11 +453,15 @@ namespace PixelToCivilization.Core
                         Pop=(d.NPop!=null&&i<d.NPop.Length)?d.NPop[i]:0,
                         IsPlayer=d.NPlayer!=null&&i<d.NPlayer.Length&&d.NPlayer[i],
                         Alive=d.NAlive==null||i>=d.NAlive.Length||d.NAlive[i],
+                        Faction=(d.NFaction!=null&&i<d.NFaction.Length)?d.NFaction[i]:0,   // V9.1.1
+                        Note=(d.NNote!=null&&i<d.NNote.Length)?d.NNote[i]:"",   // V9.1.1
                         // V6.1.7 大陆归属由重建后的地形现算（地形按同种子确定性重生成）
                         ContinentId=ter!=null?Mathf.Max(1,ter.ContinentAt(d.NX[i],d.NZ[i])):1,
                     };
                     n.Power=n.Pop; s.Nations.Add(n);
                 }
+            if (d.EarthMode && ter!=null)
+                PixelToCivilization.World.InitialSettlementBuilder.RebuildEarthLandmarks(_gm, ter);   // V9.1.1 阵营地标读档重建
             s.WorldPhase=string.IsNullOrEmpty(d.WorldPhase)?"split":d.WorldPhase;
             s.PhaseYearsLeft=d.PhaseYearsLeft; s.PlayerNationId=d.PlayerNationId;
             // V6.1.4 恢复我方步骑部队（数据；视图由 MilitarySystem.Tick 的 RebuildAndPumpUnits 重建）

@@ -22,6 +22,10 @@ namespace PixelToCivilization.EditorTools
         [MenuItem("像素到文明/④ 打包 HTML5 网页版(WebGL)")]
         public static void Build()
         {
+            // V7.0.6 构建前强制全量导入：命令行 -batchmode 下新增脚本（如对象池/帧预算）若未被
+            // AssetDatabase 导入，BuildPlayer 会漏编译导致“类型不存在”的 CS0103/CS0234 错误。
+            AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
+
             // 1) 切换到 WebGL 平台（缺模块时这里会返回 false 并给出明确提示）
             bool switched = EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL);
             if (!switched)
@@ -82,7 +86,7 @@ namespace PixelToCivilization.EditorTools
             // 浏览器兼容：关多线程（避免需要 COOP/COEP 跨域隔离头）、压缩关闭（任意静态服务器可直接跑）
             PlayerSettings.WebGL.threadsSupport = false;
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly; // V9.0.1 Release（启动越界已修复：地形边界夹紧+降采样碰撞体）
             PlayerSettings.WebGL.debugSymbolMode = WebGLDebugSymbolMode.Off;
             PlayerSettings.WebGL.dataCaching = false;   // V6.7.1fix 关闭 IndexedDB 数据缓存：同源多版本 .data 同名会与新 wasm 偏移错位，导致 _main 阶段 memory access out of bounds
 
@@ -92,7 +96,7 @@ namespace PixelToCivilization.EditorTools
             PlayerSettings.defaultScreenWidth = 1920;
             PlayerSettings.defaultScreenHeight = 1080;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
-            PlayerSettings.productName = "从像素到文明 V7.0.2";
+            PlayerSettings.productName = "从像素到文明 V9.1.2";
             PlayerSettings.companyName = "ToFuture";
         }
 
@@ -131,7 +135,7 @@ namespace PixelToCivilization.EditorTools
             File.WriteAllBytes(Path.Combine(outDir, "start_webserver.bat"), gbk.GetBytes(bat));
         }
 
-        const string BuildVer = "7.0.2";
+        const string BuildVer = "9.1.2";
         const string IndexTemplate = @"<!doctype html>
 <html lang=""zh-CN"">
 <head>
@@ -139,7 +143,7 @@ namespace PixelToCivilization.EditorTools
 <meta name=""viewport"" content=""width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"">
 <meta http-equiv=""Cache-Control"" content=""no-store,no-cache,must-revalidate"">
 <meta http-equiv=""Pragma"" content=""no-cache"">
-<title>从像素到文明 V7.0.2 · HTML5 网页版</title>
+<title>从像素到文明 V9.1.2 · HTML5 网页版</title>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#0e72c8;overflow:hidden;font-family:'Microsoft YaHei',PingFang SC,Arial,sans-serif;}
   #game{position:fixed;inset:0;width:100%;height:100%;}
@@ -164,7 +168,7 @@ namespace PixelToCivilization.EditorTools
 <canvas id=""game""></canvas>
 <div id=""boot"">
   <h1>从 像 素 到 文 明</h1>
-  <p>V7.0.2 · HTML5 网页版 · 九智能体共治 · AI自治文明永续</p>
+  <p>V9.1.2 · HTML5 网页版 · 真实地球 · 一洲至多三国·十四主权国四大阵营 · 国际铁路(陆地邻国/窄海峡跨海)·四车道公路 · 月球太空电梯 · 开局可选地球/经典</p>
   <div id=""bar""><div id=""fill""></div></div>
   <div id=""pct"">正在加载 0%</div>
 </div>
@@ -179,7 +183,7 @@ namespace PixelToCivilization.EditorTools
   var script=document.createElement('script');
   script.src='Build/__LOADER__'+VER;
   script.onload=function(){
-    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V7.0.2',productVersion:'__VER__'};
+    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.1.2',productVersion:'__VER__'};
     createUnityInstance(document.querySelector('#game'),cfg,function(progress){
       var p=Math.round(progress*100);fill.style.width=p+'%';pct.textContent='正在加载 '+p+'%';
     }).then(function(inst){window.unityInstance=inst;boot.style.opacity='0';setTimeout(function(){boot.style.display='none';},600);})
@@ -195,7 +199,7 @@ namespace PixelToCivilization.EditorTools
 </html>";
 
         const string ReadmeText =
-            "《从像素到文明》V7.0.2 HTML5 网页版 — 运行说明\r\n" +
+            "《从像素到文明》V9.1.2 HTML5 网页版 — 运行说明\r\n" +
             "==========================================\r\n\r\n" +
             "一、为什么不能直接双击 index.html？\r\n" +
             "    Unity WebGL 出于浏览器安全策略，必须通过 http(s) 访问，直接用 file:// 双击通常会被拦截。\r\n\r\n" +
@@ -211,14 +215,14 @@ namespace PixelToCivilization.EditorTools
 
         const string StartBat = @"@echo off
 chcp 936 >nul
-title PixelToCivilization V7.0.2 Web Server
+title PixelToCivilization V9.1.2 Web Server
 cd /d ""%~dp0""
 rem V6.7.1: auto pick free port so a stale old server cannot hijack 8000
 set PORT=8000
 :findport
 netstat -ano -p tcp | findstr /R /C:"":%PORT% .*LISTENING"" >nul 2>nul && set /a PORT+=1 && goto findport
 echo ================================================
-echo   从像素到文明 V7.0.2 · 本地网页服务器
+echo   从像素到文明 V9.1.2 · 本地网页服务器
 echo   URL: http://localhost:%PORT%/
 echo   (8000 被旧版本占用时自动顺延到下一端口)
 echo   关闭本窗口即停止服务
@@ -278,13 +282,13 @@ while ($listener.IsListening) {
 ";
 
         const string StartCommand = @"#!/bin/bash
-# 从像素到文明 V7.0.2 - macOS 本地网页服务器
+# 从像素到文明 V9.1.2 - macOS 本地网页服务器
 cd ""$(dirname ""$0"")"" || exit 1
 PORT=8000
 while lsof -iTCP:$PORT -sTCP:LISTEN -nP >/dev/null 2>&1; do PORT=$((PORT+1)); done
 LANIP=""$(ipconfig getifaddr en0 2>/dev/null)""
 echo ""================================================ ""
-echo ""  从像素到文明 V7.0.2 · 本地网页服务器""
+echo ""  从像素到文明 V9.1.2 · 本地网页服务器""
 echo ""  本机浏览器: http://localhost:$PORT/""
 if [ -n ""$LANIP"" ]; then echo ""  手机同网段: http://$LANIP:$PORT/  (默认横屏全屏)""; fi
 echo ""  关闭本窗口即停止服务""
@@ -303,7 +307,7 @@ echo ""按回车关闭窗口...""; read -r
 ";
 
         // macOS 排错说明（Windows 压缩包可能丢可执行位，给出右键/chmod/终端三种兜底）
-        const string ReadmeMac = @"《从像素到文明》V7.0.2 — macOS 启动说明
+        const string ReadmeMac = @"《从像素到文明》V9.1.2 — macOS 启动说明
 ========================================
 
 ★ 如果提示“已损坏，无法打开 / 您应该将它移到废纸篓”（最常见，必看）

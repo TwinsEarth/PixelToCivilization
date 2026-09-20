@@ -4,6 +4,7 @@ using PixelToCivilization.World;
 using PixelToCivilization.Buildings;
 using PixelToCivilization.UI;
 using PixelToCivilization.Rendering;
+using PixelToCivilization.Audio;
 
 namespace PixelToCivilization.Bootstrap
 {
@@ -38,7 +39,6 @@ namespace PixelToCivilization.Bootstrap
             // 0. V6.1.1 画质自适应：手机/WebGL 或内存≤3.5GB 走性能档（贴图128、关景深/颗粒/色散）
             bool highEnd = Application.platform!=RuntimePlatform.WebGLPlayer && SystemInfo.systemMemorySize>3500;
             if (!highEnd) PixelToCivilization.Art.ProceduralTextures.Res=128;
-
             // 1. 游戏管理器（Awake加载数据库；显式再调一次以兼容 Edit 模式/冒烟测试，幂等）
             var gmGo=new GameObject("GameManager");
             var gm=gmGo.AddComponent<GameManager>();
@@ -74,9 +74,17 @@ namespace PixelToCivilization.Bootstrap
             rig.Target=target.transform;rig.Distance=108f;
 
             // 5.1 V6.1.1 环境光照（天空盒/主光/三波段环境光/雾）+ 电影级后处理
-            var envGo=new GameObject("Environment");
+            // V9.0.8fix 物体名必须唯一：EnvironmentSystem 已占用 "Environment" 作为天气实体根，
+            // 重名会让 WebGL SendMessage('Environment',...) 命中错误物体（无 receiver），导演物体改名为 EnvironmentDirector。
+            var envGo=new GameObject("EnvironmentDirector");
             envGo.AddComponent<EnvironmentDirector>();
             PostProcessDirector.Ensure(cam).SetQuality(highEnd);
+
+            // 5.2 V7.0.3 自适应每帧预算（性能神：掉帧自动降阴影/粒子/全显名额）
+            new GameObject("FrameBudget").AddComponent<PixelToCivilization.Rendering.FrameBudget>();
+
+            // 5.3 V7.1.0 环境实体声音系统（鸟鸣/船/车，3D 空间化 + 声轨预算 + WebGL 手势解锁）
+            new GameObject("AudioManager").AddComponent<PixelToCivilization.Audio.AudioManager>();
 
             // 6. 输入控制
             gmGo.AddComponent<GameInputController>();

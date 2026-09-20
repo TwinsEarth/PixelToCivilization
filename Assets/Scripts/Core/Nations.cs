@@ -18,6 +18,7 @@ namespace PixelToCivilization.Core
         public bool IsPlayer;                // 是否玩家势力
         public bool Alive = true;            // 是否仍存续（被吞并则 false，分裂时可于旧村址复国）
         public int ContinentId = 1;          // V6.1.7 国都所在大陆（1=玩家主大陆），航海前异大陆互不兼并
+        public int Faction;                  // V9.1.1 地球模式阵营 1..4（0=经典模式无阵营）
         public int Pop;                      // 人口
         public float Power;                  // 国力（人口×浮动系数）
         public string Note = "";

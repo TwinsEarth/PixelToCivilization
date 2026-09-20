@@ -46,6 +46,7 @@ namespace PixelToCivilization.UI
         // V6.1.2 开始页：继续上次游戏 + 10 秒无操作自动开新局
         private Text _startLabel;
         private Button _continueBtn;
+        private Button _mapModeBtn;   // V9.1.0 开始页地图模式切换
         private const float AutoStartSeconds=10f;
         private float _autoCd=AutoStartSeconds;
         private bool _splashArmed;
@@ -98,7 +99,7 @@ namespace PixelToCivilization.UI
             _splash.GetComponent<Image>().raycastTarget=false;
             var title=UITheme.Label("Title",_splash.transform,"从 像 素 到 文 明",64,TextAnchor.MiddleCenter,UITheme.HexA(0xffffff,1));
             Place(title.rectTransform,new Vector2(0.5f,0.68f),new Vector2(0.5f,0.68f),new Vector2(-400,-40),new Vector2(400,40));
-            var sub=UITheme.Label("Sub",_splash.transform,"V7.0.2 · 明亮卡通 · 世界奇观 · 船只永留外海",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
+            var sub=UITheme.Label("Sub",_splash.transform,"V9.1.2 · 真实地球 · 一洲至多三国·14国四大阵营 · 国际铁路 · 月球太空电梯 · 固定国界",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
             Place(sub.rectTransform,new Vector2(0.5f,0.56f),new Vector2(0.5f,0.56f),new Vector2(-400,-18),new Vector2(400,18));
             // 主按钮：开始新游戏（带 10 秒无操作自动开局倒计时）
             var start=UITheme.Btn("Start",_splash.transform,"",26,UITheme.BtnGold); // V7.0.2 橙色主按钮
@@ -112,9 +113,13 @@ namespace PixelToCivilization.UI
             _continueBtn.interactable=hasSave;
             _continueBtn.GetComponent<Image>().color = hasSave ? UITheme.HexA(0xf6f4ee,0.97f) : UITheme.HexA(0xc2c8d0,0.85f); // V7.0.2
             _continueBtn.onClick.AddListener(OnClickContinue);
+            // V9.1.0 地图模式切换：经典随机 / 真实地球
+            _mapModeBtn=UITheme.Btn("MapMode",_splash.transform,"地图：经典随机",18,UITheme.HexA(0xf6f4ee,0.97f));
+            Place(_mapModeBtn.GetComponent<RectTransform>(),new Vector2(0.5f,0.305f),new Vector2(0.5f,0.305f),new Vector2(-130,-28),new Vector2(130,28));
+            _mapModeBtn.onClick.AddListener(OnClickMapMode);
             // 自动开局倒计时武装
             ArmAutoStart();
-            var ver=UITheme.Label("Ver",_splash.transform,"v7.0.2 · Unity / Tuanjie 1.6.12 · URP 高清 · 明亮卡通+世界奇观",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
+            var ver=UITheme.Label("Ver",_splash.transform,"v9.1.2 · Unity / Tuanjie 1.6.12 · URP 高清 · 真实地球/一洲至多三国/十四主权国",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
             Place(ver.rectTransform,new Vector2(0.5f,0.22f),new Vector2(0.5f,0.22f),new Vector2(-300,-15),new Vector2(300,15));
             var hint=UITheme.Label("FullHint",_splash.transform,"提示：界面太小时，按 F11 或点底部「全屏」按钮 · 10 秒无操作将自动开新局",14,TextAnchor.MiddleCenter,UITheme.HexA(0xd0e6ff,1));
             Place(hint.rectTransform,new Vector2(0.5f,0.28f),new Vector2(0.5f,0.28f),new Vector2(-360,-12),new Vector2(360,12));
@@ -124,6 +129,12 @@ namespace PixelToCivilization.UI
             // V6.1.2：每次开始都随机重新生成大地图，并生成初始聚落/人口/飞鸟（方法内部完成重置与PopulateInitial）
             _splashArmed=false;
             GM.StartNewRandomGame();
+        }
+        private void OnClickMapMode()
+        {
+            GameManager.NextEarthMode=!GameManager.NextEarthMode;
+            var t=_mapModeBtn!=null?_mapModeBtn.GetComponentInChildren<Text>():null;
+            if(t!=null) t.text=GameManager.NextEarthMode?"地图：真实地球":"地图：经典随机";
         }
         private void OnClickContinue()
         {
@@ -340,6 +351,7 @@ namespace PixelToCivilization.UI
             UITheme.BtnIcon("tech",actions.transform,"research","科技",12).onClick.AddListener(OpenTechModal);
             UITheme.BtnIcon("policy",actions.transform,"culture","政策",12).onClick.AddListener(OpenPolicyModal);
             UITheme.BtnIcon("gods",actions.transform,"god","九神",12).onClick.AddListener(OpenGodsModal);
+            UITheme.BtnIcon("city",actions.transform,"market","城市",12).onClick.AddListener(OpenCityModal);
             UITheme.BtnIcon("philosophy",actions.transform,"culture","百家",12).onClick.AddListener(OpenPhilosophyModal);
             UITheme.BtnIcon("army",actions.transform,"military","征兵",12).onClick.AddListener(()=>GM.Military.TrainSoldiers());
             UITheme.BtnIcon("cavalry",actions.transform,"military","骑兵",12).onClick.AddListener(()=>GM.Military.TrainCavalry());
@@ -427,8 +439,7 @@ namespace PixelToCivilization.UI
         {
             GM.Tool=tool=="build"?"select":tool;   // 建造按钮只负责展开/收起左面板
             GM.State.SelectedBuildType=null;
-            if (tool=="build" && _leftPanel) _leftPanel.SetActive(!_leftPanel.activeSelf);
-            if (_leftPanel && tool!="build" && !_leftPanel.activeSelf) _leftPanel.SetActive(true);
+            if (tool=="build") ToggleLeftPanel();  // V7.0.4 走雷达式整窗收起/恢复，保证恢复钮状态同步
             foreach(var kv in _toolBtns)
             {
                 bool on=kv.Key==tool && tool!="build";
@@ -439,7 +450,9 @@ namespace PixelToCivilization.UI
         private void ToggleSound()
         {
             _muted=!_muted;
-            AudioListener.volume=_muted?0f:1f;
+            // V7.1.0 统一走 AudioManager（持久化 + 与环境声一致），无实例时回退直接控 AudioListener
+            var am=PixelToCivilization.Audio.AudioManager.I;
+            if(am!=null) am.SetMuted(_muted); else AudioListener.volume=_muted?0f:1f;
             GM.AddEvent("info",_muted?"🔇 已静音":"🔊 声音开启");
         }
         // V6.1.2 简易存档面板（快速存/读 0 号槽 + 导出 JSON）
@@ -820,7 +833,17 @@ namespace PixelToCivilization.UI
               .Append(Mathf.RoundToInt(S.Young)).Append("/").Append(Mathf.RoundToInt(S.Middle)).Append("/").Append(Mathf.RoundToInt(S.Old)).Append("\n");
             basic.Append("已研究：").Append(S.ResearchedTechs.Count).Append("项\n");
             basic.Append("建筑：").Append(S.Buildings.Count).Append("/").Append(GameConstants.MaxBuildings).Append("\n");
-            if (S.Era>=6) basic.Append("电力覆盖：").Append(Mathf.RoundToInt(S.PowerCoverage)).Append("%\n");
+            if (S.Era>=6 && S.PowerDemand>0f)
+                basic.Append("电力：").Append(Mathf.RoundToInt(S.PowerSupply)).Append("/").Append(Mathf.RoundToInt(S.PowerDemand))
+                     .Append("（").Append(Mathf.RoundToInt(S.PowerCoverage)).Append("%）\n");
+            if (S.Era>=4 && S.Pollution>1f) basic.Append("污染指数：").Append(Mathf.RoundToInt(S.Pollution)).Append("\n");
+            // V9.0.5 现代起显示就业/健康/教育/治安四项城市指标
+            if (S.Era>=5)
+                basic.Append("就业/健康/教育/治安：")
+                     .Append(Mathf.RoundToInt(S.CityEmployment)).Append("/")
+                     .Append(Mathf.RoundToInt(S.CityHealth)).Append("/")
+                     .Append(Mathf.RoundToInt(S.CityEducation)).Append("/")
+                     .Append(Mathf.RoundToInt(S.CitySafety)).Append("%\n");
             if (S.AiBonus>0) basic.Append("AI加成：+").Append(Mathf.RoundToInt(S.AiBonus*100)).Append("%\n");
             if (_statBasic) _statBasic.text=basic.ToString();
 
@@ -853,16 +876,39 @@ namespace PixelToCivilization.UI
             // V6.1.3 天下分合：大一统 / 列国并立 + 各国人口 + 变局倒计时
             if (S.Nations!=null && S.Nations.Count>0)
             {
-                bool unify=S.WorldPhase=="unify";
-                era.Append(unify?"<color=#ffd700>🏛️ 大一统王朝</color>\n":"<color=#e08a2e>⚔️ 列国并立</color>\n");
-                int shown=0;
-                foreach (var n in S.Nations)
+                if (S.EarthMode)
                 {
-                    if (!n.Alive) continue;
-                    if (shown++>=7) break;
-                    era.Append("·").Append(n.Name).Append(n.IsPlayer?"(我)":"").Append(' ').Append(n.Pop).Append('\n');
+                    era.Append("<color=#7fd0ff>🌍 地球格局 · 四大阵营</color>\n");
+                    for (int fc=1;fc<=4;fc++)
+                    {
+                        string fhex=PixelToCivilization.Core.EarthNations.FactionHex(fc);
+                        int fcCnt=0; foreach(var cn in S.Nations) if(cn.Alive&&cn.Faction==fc)fcCnt++;
+                        era.Append("<color=#").Append(fhex).Append(">●</color> ")
+                           .Append(PixelToCivilization.Core.EarthNations.FactionName(fc))
+                           .Append(' ').Append(fcCnt).Append("国\n");
+                    }
+                    int shown=0;
+                    foreach (var n in S.Nations)
+                    {
+                        if (!n.Alive) continue;
+                        if (shown++>=14) break;   // V9.1.2 十四主权国全部列出
+                        era.Append("<color=#").Append(n.ColorHex).Append(">●</color>")
+                           .Append(n.Name).Append(n.IsPlayer?"(我)":"").Append(' ').Append(n.Pop).Append('\n');
+                    }
                 }
-                era.Append("变局倒计时：").Append(S.PhaseYearsLeft).Append("年\n");
+                else
+                {
+                    bool unify=S.WorldPhase=="unify";
+                    era.Append(unify?"<color=#ffd700>🏛️ 大一统王朝</color>\n":"<color=#e08a2e>⚔️ 列国并立</color>\n");
+                    int shown=0;
+                    foreach (var n in S.Nations)
+                    {
+                        if (!n.Alive) continue;
+                        if (shown++>=7) break;
+                        era.Append("·").Append(n.Name).Append(n.IsPlayer?"(我)":"").Append(' ').Append(n.Pop).Append('\n');
+                    }
+                    era.Append("变局倒计时：").Append(S.PhaseYearsLeft).Append("年\n");
+                }
             }
             if (_statEra) _statEra.text=era.ToString();
         }
