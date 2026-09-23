@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
@@ -41,7 +41,7 @@ namespace PixelToCivilization.Systems
         private bool OnWater(float x,float z)=> _terrain==null || (_terrain.IsOceanWater(x,z) && _terrain.InsideFrontier(x,z)); // V6.8.3 船只只准在外海（排除内河+淡水湖）
         // V6.8.3 船只永留外海（每帧每船调用一次）：
         //  · 在外海：不干预；
-        //  · 退潮露出的“外海潮滩”（基准水位下本是海水、当前临时干涸、群系仍为外海 Default）：原地坐滩，随涨潮自动复浮，绝不水平拖行；
+        //  · 退潮露出的"外海潮滩"（基准水位下本是海水、当前临时干涸、群系仍为外海 Default）：原地坐滩，随涨潮自动复浮，绝不水平拖行；
         //  · 一旦出现在内河/淡水湖/陆地上（退潮被河道引入、地图扩展、强风、旧存档等任何成因）：螺旋搜索最近外海并一次性归位。
         private void KeepAtSea(ShipEntity s)
         {
@@ -59,7 +59,7 @@ namespace PixelToCivilization.Systems
                 {
                     float ang=a/24f*Mathf.PI*2f;
                     float cx=s.X+Mathf.Cos(ang)*r, cz=s.Z+Mathf.Sin(ang)*r;
-                    // V7.0.6 归位点必须是“当前确有海水”的外海连通格（掩码=1 且当下是水、在疆域内），
+                    // V7.0.6 归位点必须是"当前确有海水"的外海连通格（掩码=1 且当下是水、在疆域内），
                     // 河湖掩码为 0 被排除，退潮干滩也不会被选为归位点——杜绝把船拖进大陆湖或搁在滩上。
                     if(!_terrain.IsOceanWater(cx,cz)||!_terrain.IsWater(cx,cz)||!_terrain.InsideFrontier(cx,cz)) continue;
                     if(r<best){best=r;bx=cx;bz=cz;found=true;}
@@ -138,6 +138,7 @@ namespace PixelToCivilization.Systems
         public bool BuildShip(string typeId, float x, float z)
         {
             if (!Defs.TryGetValue(typeId,out var d)) return false;
+            if (S.Era < d.Era){ GM.AddEvent("bad","时代未到，无法建造"+d.Name); return false; }   // V9.1.3 修复：按时代门控解锁船只（原缺失导致开局即造宝船/战舰）
             if (!S.CanAfford(d.Cost)){ GM.AddEvent("bad","资源不足，无法建造"+d.Name); return false; }
             S.Pay(d.Cost);
             var s = new ShipEntity
@@ -293,7 +294,7 @@ namespace PixelToCivilization.Systems
                             // V6.1.9(i) 洋流海风：顺流顺风加速、逆流逆风减速
                             if(GM.OceanFlow!=null) sp*=GM.OceanFlow.SailFactor(s.X,s.Z,new Vector2(dir.x,dir.z));
                             float nx=s.X+dir.x*sp*30*dt, nz=s.Z+dir.z*sp*30*dt;
-                            if(OnWater(nx,nz)){ s.X=nx; s.Z=nz; } // V6.3.4：军舰也不得登上陆地
+                            if(OnWater(nx,nz)){ s.X=nx; s.Z=nz; } // V6.1.9 军舰也不得登上陆地
                         }
                         else if (fire){ DetonateOurFireShip(s); }
                         else if (s.AttackCd<=0 && AttackOf(s)>0){ OurShipHit(s,target); s.AttackCd=2f; }
