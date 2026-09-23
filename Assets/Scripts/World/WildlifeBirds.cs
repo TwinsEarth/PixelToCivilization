@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
@@ -9,10 +9,8 @@ namespace PixelToCivilization.World
 {
     /// <summary>七种编队（I字/一字/V字/S字/W字/L字/O字）</summary>
     public enum BirdFormation { I, Line, V, S, W, L, O }
-
     /// <summary>V6.1.2 飞行路线：转圈（大/中/小 × 高/中/低）、对角往返（中心↔四角）、随机游荡；每 5 分钟随机重选</summary>
     public enum BirdPath { Circle, Diagonal, Random }
-
     /// <summary>
     /// V6.1.2 飞鸟群系统：
     /// ·每只鸟随机纯色或双色混色、体型 0.5~3 倍、寿命 5~20 游戏年，全图上限 200 只；
@@ -457,7 +455,6 @@ namespace PixelToCivilization.World
             if(best!=null)
             {
                 b.Lone=false;b.Flock=best;
-                b.FormTarget=FormationOffset(best.Form,best.Birds.Count,best.Birds.Count+1);
                 best.Birds.Add(b);
             }
         }
@@ -475,7 +472,7 @@ namespace PixelToCivilization.World
         {
             if(_root!=null)Object.Destroy(_root.gameObject);
             _flocks.Clear();_all.Clear();
-            foreach(var m in _matCache.Values)if(m!=null)Object.Destroy(m);
+            // V9.1.3 修复：_matCache 持有的是 ShaderHelper 全局共享材质，此处只清本地引用，绝不 Destroy（否则全局共享材质被销毁，其他系统取到粉色/丢失材质）
             _matCache.Clear();
         }
     }
