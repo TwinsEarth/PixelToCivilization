@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -369,7 +369,7 @@ namespace PixelToCivilization.AI
         {
             var b=new StringBuilder();
             b.Append($"游戏年{year} 时代{S.Era} 人口{S.Pop}/上限{S.MaxPop} 住房{S.Housing} ");
-            b.Append($"粮{S.GetRes("food"):F0} 木{S.GetRes("wood"):F0} 石{S.GetRes("stone"):F0} 金{S.GetRes("gold"):F0} 研究{S.GetRes("research"):F0} 文化{S.GetRes("culture"):F0} ");
+            b.Append($"粮{S.GetRes(\"food\"):F0} 木{S.GetRes(\"wood\"):F0} 石{S.GetRes(\"stone\"):F0} 金{S.GetRes(\"gold\"):F0} 研究{S.GetRes(\"research\"):F0} 文化{S.GetRes(\"culture\"):F0} ");
             b.Append($"民心{S.Happiness:F0} 天命{S.DynastyMorale:F0} 腐败{S.Corruption:F0} 兵{S.MilSoldiers:F0}/火力{S.MilFirepower:F0} 战争{S.WarActive} 大航海{S.AgeOfSail}。");
             b.Append("目标：避免灭绝、允许短期倒退、稳健延续。请给下一步保守治理动作。");
             return b.ToString();
@@ -394,7 +394,7 @@ namespace PixelToCivilization.AI
                 // 白名单 + 数值钳制：LLM 只能在安全范围内微调，绝不能越界
                 switch(act)
                 {
-                    case "addRes": break; // 需指定资源，缺省按粮，走 AddCap
+                    case "addRes": AddCap("food", Mathf.Abs(amt), 1000); break;   // V9.1.3 修复：缺省按粮食落地（原空 break 导致国策提示成功但数值未变）
                     case "addHousing": S.Housing+=Mathf.Abs(amt); break;
                     case "addPop": if(S.Housing>S.Pop) S.Pop=Mathf.Min((int)S.Housing,S.Pop+Mathf.CeilToInt(Mathf.Abs(amt))); break;
                     case "happy": S.Happiness=Mathf.Clamp(S.Happiness+amt,0,100); break;
