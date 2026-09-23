@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
@@ -15,6 +15,7 @@ namespace PixelToCivilization.Systems
         public Dictionary<string, float> ProductionRate { get; } = new();
         private readonly string[] _stoneBuildings = { "market","temple","well","rich_house","noble_palace","mine","altar","wall","great_wall","watchtower","barracks","palace","pagoda","granary","bank","porcelain_kiln","arsenal","grand_hall","brick_works","factory_pre","factory_modern","power_plant","data_center","skyscraper","ai_lab","space_elevator","fusion_plant","lunar_base","mars_colony","orbital_station","dyson_swarm","subway" };
         private float _warnCd;
+        private float _starveAcc;   // V9.1.3 饥荒按 dt 累加器：修正 CeilToInt 每帧恒为 1 导致 60fps 每秒掉 60 人
 
         public override void Init(GameManager gm)
         {
@@ -168,9 +169,10 @@ namespace PixelToCivilization.Systems
             // ===== 饥荒 / 人口增长（一律按已乘速度的游戏时间 dt，禁止每帧固定 ±1 的帧率相关崩溃）=====
             if (S.GetRes("food") <= 0)
             {
-                // 1 倍速约 2 秒掉 1 人，留出补救窗口；高倍速按游戏时间快速消耗（旧实现每帧 -1，60fps 每秒掉 60 人秒崩）
-                int starve = Mathf.Max(1, Mathf.CeilToInt(dt*0.5f));
-                S.Pop = Mathf.Max(10, S.Pop-starve);
+                // V9.1.3 修复：按 dt 累加，1 倍速约 2 秒掉 1 人（0.5/秒）；旧 CeilToInt(dt*0.5) 每帧恒为 1，60fps 实际每秒掉 60 人
+                _starveAcc += dt*0.5f;
+                int starve = Mathf.FloorToInt(_starveAcc);
+                if (starve > 0) { _starveAcc -= starve; S.Pop = Mathf.Max(10, S.Pop-starve); }
                 // 民心下降统一由下方「民心」段按 dt 结算（food≤0 自然落入下降分支），此处不再重复 -1
             }
             else if (S.GetRes("food")>100 && S.Pop < S.Housing && S.Pop < GameConstants.MaxPop)
