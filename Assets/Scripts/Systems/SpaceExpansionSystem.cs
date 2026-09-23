@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 
@@ -30,6 +30,8 @@ namespace PixelToCivilization.Systems
         /// <summary>建造太空工程（对齐 buildSpaceProject）</summary>
         public bool BuildProject(string proj)
         {
+            // V9.1.3 修复：太空工程必须先进入太空时代；工程链顺序为 电梯→飞船/戴森→月球→火星
+            if (!S.SpaceUnlocked) { GM.AddEvent("bad","尚未进入太空时代，无法建造太空工程"); return false; }
             switch (proj)
             {
                 case "elevator":
@@ -49,14 +51,16 @@ namespace PixelToCivilization.Systems
                     if (S.SpDyson>=100){ GM.AddEvent("good","☀️ 戴森云建成！能源无限！"); S.AddRes("fusion",9999); }
                     return true;
                 case "lunar":
+                    if (S.SpElevator<100){ GM.AddEvent("bad","须先建成太空电梯(100%)才能登陆月球"); return false; }
                     if (S.GetRes("steel")<60||S.GetRes("fusion")<15) return Fail();
                     S.AddRes("steel",-60);S.AddRes("fusion",-15);S.SpLunar=Mathf.Min(100,S.SpLunar+25);
                     if (S.SpLunar>=100){ GM.AddEvent("good","🌙 月球基地建成！持续开采氦-3"); Bases.Add(new SpaceBase{Type="lunar"}); }
                     return true;
                 case "mars":
+                    if (S.SpLunar<100){ GM.AddEvent("bad","须先建成月球基地(100%)才能移民火星"); return false; }
                     if (S.GetRes("steel")<100||S.GetRes("fusion")<30) return Fail();
                     S.AddRes("steel",-100);S.AddRes("fusion",-30);S.SpMars=Mathf.Min(100,S.SpMars+20);
-                    if (S.SpMars>=100){ S.Victory=true; GM.AddEvent("good","🎉 火星移民成功！人类文明迈向星际！"); Bases.Add(new SpaceBase{Type="mars"}); }
+                    if (S.SpMars>=100){ Bases.Add(new SpaceBase{Type="mars"}); GM.Victory?.Win("星际","🎉 火星移民成功！人类文明迈向星际！"); }
                     return true;
             }
             return false;

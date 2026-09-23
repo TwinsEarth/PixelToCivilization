@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Data;
@@ -167,7 +167,8 @@ namespace PixelToCivilization.Core
         public float GetRes(string id) => Res.TryGetValue(id, out var v) ? v : 0f;
         public void AddRes(string id, float delta)
         {
-            Res.TryGetValue(id, out var v);
+            // V9.1.3 修复：资源键不存在且为扣减时不写入 0 值键，防止长期运行资源键只增不减
+            if (!Res.TryGetValue(id, out var v)) { if (delta <= 0f) return; v = 0f; Res[id] = 0f; }
             Res[id] = Mathf.Max(0, v + delta);
         }
         public bool CanAfford(Dictionary<string,int> cost)
@@ -213,8 +214,11 @@ namespace PixelToCivilization.Core
             Philosophy=null; FiredEvents.Clear(); SchoolFounded=false; VictoryType=null;
             MilSoldiers=MilCavalry=MilFirepower=MilDefense=0;
             WarActive=NavyBattleActive=false; BattleLog.Clear();
+            EnemyFactions.Clear();   // V9.1.3 修复：重开新局清剿上一局敌方割据势力，防残留重复初始化
             // V6.1.4-6.1.6 新增状态清理（防重开残留）
             FriendlyUnits.Clear(); FactionAnnexTimer=0;
+            // 选择/工具运行态随建筑列表一并重置，避免 UI 持有已销毁 BuildingEntity 悬空引用
+            SelectedBuilding=null; SelectedBuildType=null; Tool="select"; BuildCat="居住";
             Colonies.Clear(); ColonialAge=false;
             OceanExp=new ExpeditionState(){ MapType="ocean" };
             SpaceExp=new ExpeditionState(){ MapType="space" };

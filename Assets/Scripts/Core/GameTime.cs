@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using PixelToCivilization.Data;
 
@@ -111,6 +111,7 @@ namespace PixelToCivilization.Core
             {
                 State.Year++;
                 AdvanceYear();
+                RecomputeDynastyEra();   // V9.1.3 修复：逐年重算朝代/时代并触发时代切换事件，跳多年时中间年份不再按起始时代结算
             }
             State.Day=0;
             RecomputeDynastyEra();
