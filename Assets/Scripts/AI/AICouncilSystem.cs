@@ -155,6 +155,15 @@ namespace PixelToCivilization.AI
             switch (g.Id)
             {
                 case "pop": { // 创造生育条件：补住房 + 移民补口（受住房上限约束，不暴涨）
+                    // V9.2.2 人口周期律：过剩/崩溃期人口神不再催生育，转轻徭薄赋、劝农赈济；现代低生育率则鼓励生育
+                    var popSys = GM.Population;
+                    int cycle = popSys!=null ? popSys.Cycle : 1;
+                    if (cycle>=2)
+                    {
+                        AddCap("food", Mathf.RoundToInt((15+urg*30f)*zeal), 150);
+                        S.Corruption = Mathf.Max(0, S.Corruption-3f*zeal);
+                        return S.Era>=5 ? "人满为患·倡优生优育、完善养老" : "人地矛盾·轻徭薄赋、劝农赈济流民";
+                    }
                     int add=0;
                     if (S.Housing < S.Pop+8) { int h=Mathf.CeilToInt((8+urg*8f)*zeal); S.Housing+=h; add+=h; }
                     if (S.Pop < S.MaxPop*0.5f && S.Housing>S.Pop+2 && S.GetRes("food")>40)

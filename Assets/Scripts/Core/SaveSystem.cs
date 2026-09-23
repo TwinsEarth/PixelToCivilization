@@ -79,6 +79,8 @@ namespace PixelToCivilization.Core
         public int[] AIGodLast; public long[] AIGodAct;
         // V6.1.9 加速冷冻运行态（累计年数/是否冷冻/剩余现实秒）
         public float CryoAccum,CryoRemain; public bool CryoActive;
+        // V9.2.2 人口周期律（马尔萨斯四阶段）
+        public float LandIntegrity, PeakPop; public int DynastyAge, CyclePhase;
         // V6.8.0 世界奇观 / 文明成就（平行数组，视图读档后由 WonderSystem 自愈重建）
         public int WonderCount; public string[] WId; public int[] WYear; public float[] WX,WZ;
         public string[] Achievements; public bool WonderAuto;
@@ -224,6 +226,8 @@ namespace PixelToCivilization.Core
             }
             // V6.1.9 加速冷冻运行态
             d.CryoAccum=s.CryoAccumYears; d.CryoActive=s.CryoActive; d.CryoRemain=s.CryoRemainSec;
+            // V9.2.2 人口周期律
+            d.LandIntegrity=s.LandIntegrity; d.PeakPop=s.PeakPop; d.DynastyAge=s.DynastyAge; d.CyclePhase=s.CyclePhase;
             // V6.8.0 奇观 / 成就
             d.WonderCount=s.Wonders.Count;
             d.WId=s.Wonders.Select(w=>w.Id).ToArray();
@@ -509,6 +513,11 @@ namespace PixelToCivilization.Core
             }
             // V6.1.9 恢复加速冷冻运行态（旧存档无字段则默认不冷冻、累计0）
             s.CryoAccumYears=d.CryoAccum; s.CryoActive=d.CryoActive; s.CryoRemainSec=Mathf.Max(0,d.CryoRemain);
+            // V9.2.2 人口周期律（旧档无字段给安全默认：土地系数1.2、周期0恢复）
+            s.LandIntegrity=d.LandIntegrity<=0f?1.2f:d.LandIntegrity;
+            s.PeakPop=d.PeakPop<=0f?s.Pop:d.PeakPop;
+            s.DynastyAge=d.DynastyAge; s.CyclePhase=d.CyclePhase;
+            _gm.Population?.BindAfterLoad();   // 对齐朝代时钟，防读档首年误判新朝
             // V6.8.0 恢复奇观 / 成就（旧档无字段给空，不报错；视图由 WonderSystem.Tick 自愈）
             s.Wonders.Clear();
             if(d.WId!=null)

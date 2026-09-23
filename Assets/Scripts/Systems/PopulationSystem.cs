@@ -17,6 +17,14 @@ namespace PixelToCivilization.Systems
         private WorldGenerator _terrain;
         const float WalkSpeed=1.2f;   // 平民陆地游走速度（世界单位/秒）
 
+        // ===== V9.2.2 人口周期律 =====
+        private int _lastDynastyIdx = -1;   // 上一次所见朝代（运行态，读档后对齐）
+        public int Cycle => S.CyclePhase;    // 0恢复/1繁荣/2过剩/3崩溃
+        public int LastCapacity;             // 最近一次计算的土地承载力（供人口神决策）
+
+        /// <summary>读档后调用：把朝代时钟对齐到存档朝代，避免首年误判为新朝重置周期</summary>
+        public void BindAfterLoad(){ _lastDynastyIdx = S.DynastyIdx; }
+
         public override void Init(GameManager gm)
         {
             base.Init(gm);
@@ -47,8 +55,15 @@ namespace PixelToCivilization.Systems
 
         public override void OnYear(int year)
         {
+            // ===== V9.2.2 人口周期：先算土地承载力与压力比，决定是否压生育 =====
+            float eraMult = S.Era>=6?8f : S.Era>=5?3.5f : S.Era>=4?1.6f : 1f;
+            LastCapacity = Mathf.RoundToInt(GameConstants.StartPop*(0.9f+0.012f*S.Buildings.Count)*S.LandIntegrity*eraMult);
+            float mRatio = S.Pop/Mathf.Max(1f, LastCapacity);
+            // 过剩/崩溃期停止自然增殖；现代(工业后)若逼近上限转入低生育率陷阱，同样压生育
+            bool suppressBirth = S.CyclePhase>=2 || (S.Era>=5 && mRatio>0.9f);
+
             // ===== 出生 =====
-            if (S.GetRes("food") > 50 && S.Pop < S.Housing && S.Pop < GameConstants.MaxPop)
+            if (!suppressBirth && S.GetRes("food") > 50 && S.Pop < S.Housing && S.Pop < GameConstants.MaxPop)
             {
                 int oldPop = S.Pop;
                 int birth = 3 + Mathf.FloorToInt(UnityEngine.Random.value*4);
@@ -75,6 +90,76 @@ namespace PixelToCivilization.Systems
             }
             NormalizeAge();
             AgeAndGrow();
+            RunMalthus(year);
+        }
+
+        /// <summary>
+        /// V9.2.2 人口周期律：人口指数增长 vs 土地线性产出的剪刀差。
+        /// 恢复期(人少)→繁荣期→过剩期(土地兼并/流民/税基萎缩)→崩溃期(战乱饥荒疫病消灭30-70%)，
+        /// 新朝识别后土地系数回升、周期重启；工业时代后转入低生育率/老龄化（不爆战乱）。
+        /// </summary>
+        void RunMalthus(int year)
+        {
+            // 新朝识别：换朝则地广人稀、土地肥力重置，周期自恢复期重启
+            if (_lastDynastyIdx < 0) _lastDynastyIdx = S.DynastyIdx;
+            else if (_lastDynastyIdx != S.DynastyIdx)
+            {
+                _lastDynastyIdx = S.DynastyIdx;
+                S.LandIntegrity = 1.2f;
+                S.PeakPop = S.Pop;
+                GM.AddEvent("good","🌱 新朝肇建·地广人稀，人口周期自【恢复期】重启");
+            }
+            S.DynastyAge++;
+            if (S.Pop > S.PeakPop) S.PeakPop = S.Pop;
+            // 土地退化：每年 0.0018，约 330 年从 1.2 衰减到 0.6，下限 0.55（对应"承载力衰减到六至七成"）
+            S.LandIntegrity = Mathf.Max(0.55f, S.LandIntegrity - 0.0018f);
+
+            float eraMult = S.Era>=6?8f : S.Era>=5?3.5f : S.Era>=4?1.6f : 1f;
+            int cap = Mathf.RoundToInt(GameConstants.StartPop*(0.9f+0.012f*S.Buildings.Count)*S.LandIntegrity*eraMult);
+            float r = S.Pop/Mathf.Max(1f, cap);
+            int prev = S.CyclePhase;
+            S.CyclePhase = r<0.55f?0 : r<0.85f?1 : r<1.05f?2 : 3;
+            bool modern = S.Era>=5;
+
+            switch (S.CyclePhase)
+            {
+                case 0: // 恢复：轻徭薄赋，民心缓升、腐败缓降
+                    S.Happiness = Mathf.Min(100, S.Happiness+0.05f);
+                    S.Corruption = Mathf.Max(0, S.Corruption-0.02f);
+                    break;
+                case 1: // 繁荣：盛世，中性
+                    break;
+                case 2: // 过剩：土地兼并→民心/天命缓降、腐败升、税基(金)萎缩、概率流民
+                    S.Happiness = Mathf.Max(0, S.Happiness - 0.12f*r);
+                    S.Corruption = Mathf.Min(100, S.Corruption + 0.08f*r);
+                    S.AddRes("gold", -0.05f*r);
+                    if (UnityEngine.Random.value < (r-0.85f)*0.5f)
+                    {
+                        int lost = Mathf.Max(1, Mathf.RoundToInt(S.Pop*0.01f));
+                        S.Pop = Mathf.Max(10, S.Pop-lost);
+                        S.Happiness = Mathf.Max(0, S.Happiness-3f);
+                        GM.AddEvent("bad","🌾 人地矛盾激化·土地兼并，流民四起（-"+lost+"人）");
+                    }
+                    break;
+                case 3: // 崩溃：饥荒/瘟疫/战乱消灭过剩人口（现代低生育率则不爆战乱，仅停滞）
+                    if (modern) { S.Happiness = Mathf.Max(0, S.Happiness-0.05f); break; }
+                    float p = Mathf.Clamp01((r-1f)*0.6f);
+                    if (UnityEngine.Random.value < Mathf.Max(0.08f, p))
+                    {
+                        float frac = UnityEngine.Random.Range(0.10f,0.22f);
+                        int lost = Mathf.RoundToInt(S.Pop*frac);
+                        S.Pop = Mathf.Max(10, S.Pop-lost);
+                        S.DynastyMorale = Mathf.Max(0, S.DynastyMorale-6f);
+                        S.Happiness = Mathf.Max(0, S.Happiness-6f);
+                        GM.AddEvent("bad","☠️ 人口崩溃·战乱饥荒疫病横生，人口骤减约 "+Mathf.RoundToInt(frac*100)+"%");
+                    }
+                    break;
+            }
+            if (S.CyclePhase != prev)
+            {
+                string[] names = {"恢复期","繁荣期","过剩期","崩溃期"};
+                GM.AddEvent("info","🔄 人口周期进入【"+names[S.CyclePhase]+"】（人口 "+S.Pop+" / 土地承载力 "+cap+"，比率 "+r.ToString("F2")+"）");
+            }
         }
 
         /// <summary>V7.0.2 个体逐年成长（只更新数据）：幼→壮→老，寿尽轮回为同户新生孩童；视觉置脏，由 Tick 按需重建</summary>

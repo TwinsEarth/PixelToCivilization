@@ -154,6 +154,12 @@ namespace PixelToCivilization.Core
         public float WorldExpansion=1f;    // V6.1.3 地图自然延展倍率（每100年×1.1、每1000年×2）
         public bool EarthMode;             // V9.1.0 真实地球模式（固定七大洲，停用随机增陆）
 
+        // ---- V9.2.2 人口周期律（马尔萨斯：人口指数 vs 土地线性产出，四阶段循环）----
+        public float LandIntegrity = 1.2f; // 土地承载力系数：战后地广人稀1.2，长期耕作逐年衰减至下限0.55
+        public int DynastyAge;             // 本朝已历年数（人口周期时钟）
+        public int CyclePhase;             // 0恢复/1繁荣/2过剩/3崩溃
+        public float PeakPop;              // 本朝峰值人口
+
         // ---- 胜负/日志 ----
         public bool Victory;
         public List<LogEntry> EventLog = new();
@@ -241,6 +247,7 @@ namespace PixelToCivilization.Core
             AgeOfSail=true; OceanUnlocked=true; AgeOfSpace=false; WorldExpansion=1f; // V9.0.1 开局1700已处大航海时代（公元1000后），海洋已解锁；宇宙大开发（公元2000）未到
             Nations.Clear(); VillageX.Clear(); VillageZ.Clear();
             WorldPhase="split"; PhaseYearsLeft=0; PlayerNationId=0;
+            LandIntegrity=1.2f; DynastyAge=0; CyclePhase=0; PeakPop=Pop;   // V9.2.2 人口周期新局复位
         }
     }
 }
