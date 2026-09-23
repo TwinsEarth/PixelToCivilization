@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace PixelToCivilization.Actors
 {
@@ -24,7 +24,7 @@ namespace PixelToCivilization.Actors
             Vector3 mea=new Vector3(measured.x,0f,measured.z);
             Vector3 moveH=mea.sqrMagnitude>=ext.sqrMagnitude?mea:ext;
             float speed=moveH.magnitude;
-            float roll=speed*dt/WheelRadius*Mathf.Rad2Deg;
+            float roll=speed*dt/Mathf.Max(0.01f,WheelRadius)*Mathf.Rad2Deg;   // V9.1.3 修复：WheelRadius 可被 Inspector 置 0 导致除零 NaN
             foreach(var w in Rig.Wheels) if(w) w.Rotate(Vector3.right,roll,Space.Self);
             if(Rig.Propeller) Rig.Propeller.Rotate(Vector3.forward,dt*1400f,Space.Self);
             if(Rig.Rotor) Rig.Rotor.Rotate(Vector3.up,dt*900f,Space.Self);

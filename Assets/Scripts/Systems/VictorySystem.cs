@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
 using PixelToCivilization.UI;
@@ -46,11 +46,11 @@ namespace PixelToCivilization.Systems
             if (S.Era >= 7 && S.Happiness >= 90 && !S.WarActive && S.GetRes("culture") >= 20000)
             { Win("外交", "万国同心，地球文明联盟成立 —— 人类走向统一！"); return; }
             // 超越胜利：科技全通 + 意识形态升华
-            if (S.Era >= 7 && S.ResearchedTechs.Count >= GM.Techs.Count && S.GetRes("research") >= 30000)
+            if (S.Era >= 7 && GM.Techs != null && S.ResearchedTechs.Count >= GM.Techs.Count && S.GetRes("research") >= 30000)
             { Win("超越", "穷尽已知，文明步入数字形态 —— 超越物质世界！"); return; }
         }
 
-        private void Win(string type, string desc)
+        public void Win(string type, string desc)   // V9.1.3 改 public：供太空工程等系统直接触发完整胜利流程（定格/过场/编年）
         {
             S.Victory = true;
             S.VictoryType = type;
