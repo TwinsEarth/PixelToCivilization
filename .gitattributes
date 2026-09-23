@@ -1,0 +1,32 @@
+# 默认：文本按平台换行符规范化，仓库内统一 LF
+* text=auto
+
+# Unity 文本资产，统一 LF
+*.cs      text eol=lf
+*.shader  text eol=lf
+*.md      text eol=lf
+*.json    text eol=lf
+*.txt     text eol=lf
+*.asset   text eol=lf
+*.unity   text eol=lf
+*.mat     text eol=lf
+*.meta    text eol=lf
+*.uss     text eol=lf
+*.uxml    text eol=lf
+
+# 二进制资源，不做换行转换、不做 diff
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.psd     binary
+*.wav     binary
+*.mp3     binary
+*.ogg     binary
+*.ttf     binary
+*.otf     binary
+*.fbx     binary
+*.obj     binary
+*.blend   binary
+*.tga     binary
+*.exr     binary
+*.prefab  binary
