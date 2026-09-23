@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -281,7 +281,7 @@ namespace PixelToCivilization.UI
             var top=UITheme.Panel("cv",content,UITheme.HexA(0xffffff,0.05f));
             top.AddComponent<LayoutElement>().preferredHeight=58;
             UITheme.Label("cvn",top.transform,
-                $"文明存续健康分　{cv:F0} / 100\n人口{S.Pop}/{S.MaxPop}　粮{Mathf.FloorToInt(S.GetRes("food"))}　民心{S.Happiness:F0}　天命{S.DynastyMorale:F0}　兜底续命{cou.SafetyCount}次",
+                $"文明存续健康分　{cv:F0} / 100\n人口{S.Pop}/{S.MaxPop}　粮{Mathf.FloorToInt(S.GetRes(\"food\"))}　民心{S.Happiness:F0}　天命{S.DynastyMorale:F0}　兜底续命{cou.SafetyCount}次",
                 14,TextAnchor.MiddleLeft,cvCol).SetInset(10,0.1f);
             // —— 控制行1：开关 / 模式 / 立即议政 ——
             var r1=Row(content,38);
@@ -521,6 +521,7 @@ namespace PixelToCivilization.UI
         // ===== 建筑信息 =====
 public void ShowBuilding(BuildingEntity b)
         {
+            if (_buildingModal==null || b==null || b.Def==null) return;   // V9.1.3 防御：面板未装配或实体/定义缺失时不裸访问
             _buildingModal.SetActive(true);
             var box=_buildingModal.transform.Find("Box").GetComponent<RectTransform>();
             box.sizeDelta=new Vector2(460,620);
