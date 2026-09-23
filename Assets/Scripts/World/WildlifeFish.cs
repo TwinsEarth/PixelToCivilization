@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
@@ -222,7 +222,7 @@ namespace PixelToCivilization.World
             for(int i=0;i<2;i++){float zz=bs.z*(0.15f-i*0.35f);
                 FPart(host,PrimitiveType.Cube,new Vector3(0,bs.y*0.98f,zz),new Vector3(bs.x*1.7f,0.02f,0.03f),sm);}
             if(kind==3)FPart(host,PrimitiveType.Sphere,new Vector3(0,bs.y*1.05f,bs.z*0.55f),Vector3.one*bs.x*0.5f,fm);
-            if(kind==5)for(int i=0;i<5;i++){float a=i/5f*Mathf.PI*2f;FPart(host,PrimitiveType.Cube,new Vector3(Mathf.Cos(a)*bs.x*0.9f,bs.y*0.6f,Mathf.Sin(a)*bs.z*0.9f),Vector3.one*0.05f,dm);}
+            if(kind==5)for(int i=0;i<5;i++){float a=i/5f*Mathf.PI*2f;FPart(host,PrimitiveType.Sphere,new Vector3(Mathf.Cos(a)*bs.x*0.9f,bs.y*0.6f,Mathf.Sin(a)*bs.z*0.9f),Vector3.one*0.05f,dm);}
             return tp.transform;
         }
         GameObject FPart(Transform host,PrimitiveType pt,Vector3 pos,Vector3 scale,Material mat)
@@ -415,7 +415,7 @@ namespace PixelToCivilization.World
         {
             if(_root!=null)Object.Destroy(_root.gameObject);
             _schools.Clear();_all.Clear();_waters.Clear();
-            foreach(var m in _matCache.Values)if(m!=null)Object.Destroy(m);
+            // V9.1.3 修复：_matCache 持有的是 ShaderHelper 全局共享材质，此处只清本地引用，绝不 Destroy（否则全局共享材质被销毁，其他系统取到粉色/丢失材质）
             _matCache.Clear();
         }
     }
