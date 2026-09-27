@@ -213,30 +213,41 @@ namespace PixelToCivilization.Systems
             }
         }
 
-        /// <summary>围绕一个海岸港口，在近岸陆地上取点串成闭合沿海/环岛公路（短弧，避免跨洲长线）。</summary>
+        /// <summary>V9.2.3 沿海/环岛公路（沿沙滩·陆地边缘）：
+        /// 小岛以陆块中心为心、半径≈Br*0.82 取岸点串成可闭合环岛；
+        /// 大陆/次大陆以港口为心、半径按陆块 Br 收敛，取近岸一段（不跨洲硬连）。</summary>
         void BuildCoastalLoop(int landId, float cx, float cz, float radius)
         {
-            var ring = new List<Vector3>();
-            const int SEG = 14;
-            for (int i = 0; i < SEG; i++)
+            // 取陆块实际中心与半径，解决固定半径在小岛落空、在大陆比例失调
+            float acx=cx, acz=cz, br=radius;
+            foreach(var lm in _terrain.Landmasses)
+                if(lm.Id==landId){ acx=lm.Cx; acz=lm.Cz; br=lm.Br; break; }
+            bool island=br<=28f;
+            float ringCx, ringCz, R;
+            if(island){ ringCx=acx; ringCz=acz; R=Mathf.Max(8f,br*0.82f); }       // 全岛环
+            else { ringCx=cx; ringCz=cz; R=Mathf.Min(radius,br*0.9f); }          // 大陆近岸弧
+            int SEG=island? Mathf.Clamp(Mathf.RoundToInt(R*1.6f),16,40) : 24;
+            var ring=new List<Vector3>();
+            for(int i=0;i<SEG;i++)
             {
-                float a = (float)i / SEG * Mathf.PI * 2f;
-                float x = cx + Mathf.Cos(a) * radius, z = cz + Mathf.Sin(a) * radius * 0.7f;
-                // 取该方向上最靠海的陆地格（向海推到岸边）
-                Vector3? coast = null;
-                for (float rr = radius; rr >= 8f; rr -= 4f)
+                float a=(float)i/SEG*Mathf.PI*2f;
+                // 沿径向在 R*1.15~R*0.5 之间找"属于本陆块、干燥、靠海"的岸点（向海推到岸边）
+                Vector3? coast=null;
+                for(float rr=R*1.15f;rr>=R*0.5f;rr-=Mathf.Max(1.5f,R*0.12f))
                 {
-                    float qx = cx + Mathf.Cos(a) * rr, qz = cz + Mathf.Sin(a) * rr * 0.7f;
-                    if (_terrain.ContinentAt(qx, qz) == landId && !_terrain.IsWater(qx, qz)
-                        && EarthNationPlacement.HasSeaNeighbor(_terrain, qx, qz)) { coast = new Vector3(qx, 0, qz); break; }
+                    float qx=ringCx+Mathf.Cos(a)*rr, qz=ringCz+Mathf.Sin(a)*rr;
+                    if(_terrain.ContinentAt(qx,qz)==landId && !_terrain.IsWater(qx,qz)
+                        && EarthNationPlacement.HasSeaNeighbor(_terrain,qx,qz)){ coast=new Vector3(qx,0f,qz); break; }
                 }
-                if (coast.HasValue) ring.Add(coast.Value);
+                if(coast.HasValue) ring.Add(coast.Value);
             }
-            for (int i = 0; i < ring.Count; i++)
+            // 相邻岸点缺口阈值内才连接（岛屿按周向间距自适应，大陆为近岸段），不跨缺口硬连
+            float gapMax=island? Mathf.Min(42f,2f*Mathf.PI*R/SEG*2.2f) : 30f;
+            for(int i=0;i<ring.Count;i++)
             {
-                var a = ring[i]; var b = ring[(i + 1) % ring.Count];
-                if (Vector3.Distance(a, b) > 34f) continue;            // 缺口过大不硬连
-                if (Feasible(a, b, 999f)) { BuildRoad4View(a, b); _roads++; if (i % 2 == 0) AddCars(a, b); }
+                var a=ring[i]; var b=ring[(i+1)%ring.Count];
+                if(Vector3.Distance(a,b)>gapMax) continue;
+                if(Feasible(a,b,999f)){ BuildRoad4View(a,b); _roads++; if(i%2==0) AddCars(a,b); }
             }
         }
 

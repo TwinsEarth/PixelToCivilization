@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
@@ -29,6 +29,10 @@ namespace PixelToCivilization.Systems
         private bool _pirateEngaged;   // V6.1.5 本轮是否有敌舰/海盗，肃清后发护航赏金
         private Transform _root;
         private WorldGenerator _terrain;
+
+        // V9.2.3 军舰自主巡逻（运行时态、不进存档）：无敌舰时沿外海航点环航
+        class PatrolRoute { public readonly List<Vector2> Pts = new(); public int Idx; public bool Inited; }
+        readonly Dictionary<ShipEntity,PatrolRoute> _patrol = new();
 
         public override void Init(GameManager gm)
         {
@@ -223,8 +227,57 @@ namespace PixelToCivilization.Systems
             return null;
         }
 
+        /// <summary>V9.2.3 海战演示：确定性螺旋找最近外海放我方火炮船，再在其 6~24 内放敌炮船，立即接敌→火炮声光（Debug 强制，绕过时代）。</summary>
+        public ShipEntity DebugNavalShowcase()
+        {
+            float ox=0f,oz=0f; bool sea=false;
+            if(_terrain!=null)
+            {
+                for(float rr=10f;rr<=130f&&!sea;rr+=2.5f)
+                    for(int a=0;a<36;a++)
+                    {
+                        float ang=a/36f*Mathf.PI*2f;
+                        float cx=Mathf.Cos(ang)*rr, cz=Mathf.Sin(ang)*rr;
+                        if(_terrain.IsOceanWater(cx,cz)){ ox=cx;oz=cz;sea=true;break; }
+                    }
+            }
+            else { sea=true; }
+            if(!sea){ GM.AddEvent("warn","130内无外海，海战演示取消"); return null; }
+            ShipEntity own=SpawnInitialShip("cannon_ship",ox,oz);
+            GM.AddEvent("good","🚢 Debug 海战演示：我方火炮船就位（外海）");
+            float ex=0f,ez=0f; bool found=false;
+            for(float rr=6f;rr<=24f&&!found;rr+=1f)
+                for(int a=0;a<36;a++)
+                {
+                    float ang=a/36f*Mathf.PI*2f;
+                    float cx=own.X+Mathf.Cos(ang)*rr, cz=own.Z+Mathf.Sin(ang)*rr;
+                    if(OnWater(cx,cz)){ ex=cx;ez=cz;found=true;break; }
+                }
+            if(!found){ GM.AddEvent("warn","我方炮船24内无外海点，敌舰未生成"); return own; }
+            SpawnEnemyAt("cannon_ship",ex,ez);
+            S.NavyBattleActive=true;
+            return own;
+        }
+
+        private ShipEntity SpawnEnemyAt(string t,float ex,float ez)
+        {
+            var d=Defs[t];
+            var s=new ShipEntity{ShipTypeId=t,Name="敌"+d.Name,Side="enemy",
+                X=ex,Z=ez,Level=1,MaxHp=d.Durability,Hp=d.Durability,Housing=d.Housing,
+                BaseAttack=d.Attack,Range=d.Range,Military=true,AttackType=d.AttackType,Capacity=d.Capacity,Crew=d.Capacity};
+            s.View=ShipView(s,0xFF4500,1.6f);
+            EnemyShips.Add(s); _pirateEngaged=true;
+            return s;
+        }
+
         public override void Tick(float dt)
         {
+            try{
+            if(_patrol.Count>0) // V9.2.3 清理已移除军舰的巡逻条目（防长周期泄漏）
+                foreach(var key in new List<ShipEntity>(_patrol.Keys))
+                    if(!S.Ships.Contains(key)) _patrol.Remove(key);
+            }catch(System.Exception e){ Debug.LogError("[NAVSTAGE:A] "+e.GetType().Name+": "+e.Message); }
+            try{
             // 时代2以后、有我方战船时周期遭遇敌方舰队
             bool hasWarship=false;
             foreach (var s in S.Ships) if (s.Military) hasWarship=true;
@@ -234,8 +287,11 @@ namespace PixelToCivilization.Systems
                 _spawnCd=20f;
                 if (Random.value<0.6f){ SpawnEnemyShip(); S.NavyBattleActive=true; GM.AddEvent("bad","⚓ 敌方舰队出现！"); }
             }
-            UpdateOurShips(dt);
-            UpdateEnemyShips(dt);
+            }catch(System.Exception e){ Debug.LogError("[NAVSTAGE:B] "+e.GetType().Name+": "+e.Message); }
+            try{ UpdateOurShips(dt); }
+            catch(System.Exception e){ Debug.LogError("[NAVSTAGE:C] "+e.GetType().Name+": "+e.Message); }
+            try{ UpdateEnemyShips(dt); }
+            catch(System.Exception e){ Debug.LogError("[NAVSTAGE:D] "+e.GetType().Name+": "+e.Message); }
         }
 
         /// <summary>船龄按「游戏年」增长并到寿退役（旧实现误放在每帧 Tick 的 Age++，60fps 下约 3.3 秒即到寿 200 全部沉没）</summary>
@@ -256,17 +312,24 @@ namespace PixelToCivilization.Systems
 
         private void UpdateOurShips(float dt)
         {
-            foreach (var s in S.Ships)
+            for(int si=0; si<S.Ships.Count; si++)
             {
+                var s=S.Ships[si];
                 float lookYaw=0f; bool hasLook=false;
-                KeepAtSea(s); // V6.8.3 永留外海：退潮坐滩、误入内河/湖泊/陆地即归位最近外海
-                if(!OnWater(s.X,s.Z))
+                try{ KeepAtSea(s); } // V6.8.3 永留外海：退潮坐滩、误入内河/湖泊/陆地即归位最近外海
+                catch(System.Exception ex){ Debug.LogError("[NAV:C1 ship"+si+"/"+s.ShipTypeId+"] "+ex.GetType().Name+": "+ex.Message); }
+                bool wet=false;
+                try{ wet=OnWater(s.X,s.Z); }
+                catch(System.Exception ex){ Debug.LogError("[NAV:C2 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); wet=true; }
+                if(!wet)
                 { // 退潮坐滩：仅垂直贴合潮位/滩面，不巡航、不追击、不漂移，涨潮自动复浮
-                    if(s.View!=null) s.View.transform.position=new Vector3(s.X,ShipRestY(s),s.Z);
+                    try{ if(s.View!=null) s.View.transform.position=new Vector3(s.X,ShipRestY(s),s.Z); }
+                    catch(System.Exception ex){ Debug.LogError("[NAV:C6b ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
                     continue;
                 }
                 if (!s.Military)
                 {
+                    try{
                     // 民用船：围绕家园锚点缓慢圆周巡游，让水面"活"起来
                     float phase=(s.HomeX*0.7f+s.HomeZ*0.5f)+Time.time*0.10f;
                     float rr=9f;
@@ -279,11 +342,15 @@ namespace PixelToCivilization.Systems
                     if(OnWater(nx+dvx,nz+dvz)){ s.X=nx+dvx; s.Z=nz+dvz; }
                     float mvx=s.X-ox, mvz=s.Z-oz;
                     if (Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
+                    }catch(System.Exception ex){ Debug.LogError("[NAV:C3 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
                 }
                 else
                 {
-                    s.AttackCd-=dt;
-                    ShipEntity target=NearestEnemy(s);
+                    try{ s.AttackCd-=dt; }catch(System.Exception ex){ Debug.LogError("[NAV:C4a ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
+                    ShipEntity target=null;
+                    try{ target=NearestEnemy(s); }
+                    catch(System.Exception ex){ Debug.LogError("[NAV:C4 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
+                    try{
                     if (target!=null)
                     {
                         float d=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(target.X,target.Z));
@@ -301,13 +368,17 @@ namespace PixelToCivilization.Systems
                         float mvx=s.X-ox,mvz=s.Z-oz;
                         if (Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
                     }
+                    else { PatrolMove(s,dt,ref lookYaw,ref hasLook); } // V9.2.3 无敌舰：自主巡逻
+                    }catch(System.Exception ex){ Debug.LogError("[NAV:C5 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
                 }
+                try{
                 if (s.View!=null)
                 {
                     float bob=ShipRestY(s); // V6.8.2：随潮起伏，退潮坐滩时托在滩面
                     s.View.transform.position=new Vector3(s.X,bob,s.Z);
                     if (hasLook) s.View.transform.rotation=Quaternion.Slerp(s.View.transform.rotation,Quaternion.Euler(0,lookYaw,0),0.12f);
                 }
+                }catch(System.Exception ex){ Debug.LogError("[NAV:C6 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
             }
         }
 
@@ -316,8 +387,12 @@ namespace PixelToCivilization.Systems
             for (int i=EnemyShips.Count-1;i>=0;i--)
             {
                 var e=EnemyShips[i];
-                KeepAtSea(e); // V6.8.3 敌舰同样永留外海
-                ShipEntity target=NearestOurs(e);
+                try{ KeepAtSea(e); } // V6.8.3 敌舰同样永留外海
+                catch(System.Exception ex){ Debug.LogError("[NAV:D1 idx"+i+"] "+ex.GetType().Name+": "+ex.Message); }
+                ShipEntity target=null;
+                try{ target=NearestOurs(e); }
+                catch(System.Exception ex){ Debug.LogError("[NAV:D2 idx"+i+"] "+ex.GetType().Name+": "+ex.Message); }
+                try{
                 if (target!=null)
                 {
                     float d=Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(target.X,target.Z));
@@ -329,11 +404,18 @@ namespace PixelToCivilization.Systems
                     else if (eFire){ DetonateEnemyFireShip(e); }
                     else { e.AttackCd-=dt; if(e.AttackCd<=0){ EnemyShipHit(e,target);e.AttackCd=2.5f;} }
                 }
-                if (e.View!=null) e.View.transform.position=new Vector3(e.X,ShipRestY(e),e.Z);
+                }catch(System.Exception ex){ Debug.LogError("[NAV:D3 idx"+i+"] "+ex.GetType().Name+": "+ex.Message); }
+                try{ if (e.View!=null) e.View.transform.position=new Vector3(e.X,ShipRestY(e),e.Z); }
+                catch(System.Exception ex){ Debug.LogError("[NAV:D4 idx"+i+"] "+ex.GetType().Name+": "+ex.Message); }
+                try{
                 if (e.Hp<=0){ if(e.View!=null)Object.Destroy(e.View); EnemyShips.RemoveAt(i); GM.AddEvent("good","💥 击沉一艘敌舰！"); }
+                }catch(System.Exception ex){ Debug.LogError("[NAV:D5 idx"+i+"] "+ex.GetType().Name+": "+ex.Message); }
             }
             // 清理我方沉舰
+            try{
             S.Ships.RemoveAll(s=>{ if(s.Hp<=0){if(s.View!=null)Object.Destroy(s.View);return true;} return false; });
+            }catch(System.Exception ex){ Debug.LogError("[NAV:D6] "+ex.GetType().Name+": "+ex.Message); }
+            try{
             if (EnemyShips.Count==0)
             {
                 S.NavyBattleActive=false;
@@ -346,29 +428,103 @@ namespace PixelToCivilization.Systems
                     GM.AddEvent("good","🏴‍☠️ 肃清当前海域敌舰，护航赏金 "+gold+" 金，海疆暂宁");
                 }
             }
+            }catch(System.Exception ex){ Debug.LogError("[NAV:D7] "+ex.GetType().Name+": "+ex.Message); }
         }
 
         private ShipEntity NearestEnemy(ShipEntity s){ ShipEntity best=null;float bd=99999;foreach(var e in EnemyShips){float d=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(e.X,e.Z));if(d<bd){bd=d;best=e;}}return best; }
         private ShipEntity NearestOurs(ShipEntity e){ ShipEntity best=null;float bd=99999;foreach(var s in S.Ships){if(!s.Military)continue;float d=Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(s.X,s.Z));if(d<bd){bd=d;best=s;}}return best; }
 
+        // ===== V9.2.3 军舰自主巡逻 =====
+        private PatrolRoute GetPatrol(ShipEntity s)
+        {
+            if(!_patrol.TryGetValue(s,out var r)){ r=new PatrolRoute(); _patrol[s]=r; }
+            if(!r.Inited)
+            {
+                r.Inited=true;
+                const int K=6;
+                for(int k=0;k<K;k++)
+                {   // 每个方位在半径14~42环带找一个"当前确为外海"的航点；落陆地则该方位跳过
+                    float ang=k/(float)K*Mathf.PI*2f;
+                    for(float rr=14f;rr<=42f;rr+=4f)
+                    {
+                        float px=s.X+Mathf.Cos(ang)*rr, pz=s.Z+Mathf.Sin(ang)*rr;
+                        if(OnWater(px,pz)){ r.Pts.Add(new Vector2(px,pz)); break; }
+                    }
+                }
+            }
+            return r;
+        }
+
+        /// <summary>无敌舰时军舰沿外海航点自主巡航；到点切下一航点循环。只在外海，不触发开火。</summary>
+        private void PatrolMove(ShipEntity s, float dt, ref float lookYaw, ref bool hasLook)
+        {
+            var r=GetPatrol(s);
+            if(r.Pts.Count==0) return;
+            if(r.Idx>=r.Pts.Count) r.Idx=0;
+            var wp=r.Pts[r.Idx];
+            if(Vector2.Distance(new Vector2(s.X,s.Z),wp)<=3f){ r.Idx=(r.Idx+1)%r.Pts.Count; return; }
+            float ox=s.X, oz=s.Z;
+            Vector3 dir=(new Vector3(wp.x,0f,wp.y)-s.Pos).normalized;
+            float sp=SpeedOf(s);
+            if(sp<=0f && Defs.TryGetValue(s.ShipTypeId,out var pd)) sp=pd.Speed*0.5f; // Lv1未满员：骨架值守航速兜底
+            if(GM.OceanFlow!=null) sp*=GM.OceanFlow.SailFactor(s.X,s.Z,new Vector2(dir.x,dir.z));
+            float nx=s.X+dir.x*sp*30f*dt, nz=s.Z+dir.z*sp*30f*dt;
+            float dvx=0f, dvz=0f;
+            if(GM.OceanFlow!=null){ var dv=GM.OceanFlow.Drift(nx,nz,dt,0.8f); dvx=dv.x; dvz=dv.y; }
+            if(OnWater(nx+dvx,nz+dvz)){ s.X=nx+dvx; s.Z=nz+dvz; }
+            else if(OnWater(nx,nz)){ s.X=nx; s.Z=nz; }
+            float mvx=s.X-ox, mvz=s.Z-oz;
+            if(Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
+        }
+
+        // ===== V9.2.3 火炮声光 =====
+        private void FireFx(Vector3 from, Vector3 to, bool cannon)
+        {
+            var go=new GameObject("CannonFx");
+            go.transform.SetParent(_root,false);
+            go.AddComponent<CannonFx>().Begin(from,to,cannon);
+        }
+
+        /// <summary>两舰交火：在炮口→目标甲板间生成火炮特效（仅炮船；弓箭战船不生成）。</summary>
+        private void SpawnShotFx(ShipEntity s, ShipEntity t)
+        {
+            Vector3 dir=(t.Pos-s.Pos).normalized;
+            Vector3 a=new Vector3(s.X,ShipRestY(s)+0.9f,s.Z)+dir*1.4f;
+            Vector3 b=new(t.X,ShipRestY(t)+0.6f,t.Z);
+            FireFx(a,b,true);
+        }
+
+        /// <summary>火船自爆/大爆炸：在该点生成爆炸特效与音效。</summary>
+        private void SpawnExplosion(Vector3 at)
+        {
+            at.y+=0.8f;
+            FireFx(at,at,true);
+        }
+
         // ===== V6.1.5 海战分型：弓箭拦截 / 火炮溅射 / 火船自爆 =====
         private void OurShipHit(ShipEntity s, ShipEntity target)
         {
             int atk=AttackOf(s);
+            bool cannon=s.ShipTypeId=="cannon_ship"||s.ShipTypeId=="treasure_warship";
             if (s.ShipTypeId=="war_junk" && (target.ShipTypeId=="fire_ship"||target.ShipTypeId=="troop_boat"))
                 atk=Mathf.RoundToInt(atk*1.5f);   // 弓箭战船快速拦截火船/运兵
             target.Hp-=atk;
-            if (s.ShipTypeId=="cannon_ship"||s.ShipTypeId=="treasure_warship")
+            if (cannon)
                 foreach (var e in EnemyShips)
                     if (e!=target && Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(e.X,e.Z))<=4.5f) e.Hp-=atk*0.5f;
+            if (cannon) SpawnShotFx(s,target);   // V9.2.3 火炮声光
         }
         private void EnemyShipHit(ShipEntity e, ShipEntity target)
         {
             int atk=AttackOf(e);
             target.Hp-=atk;
-            if (e.ShipTypeId=="cannon_ship")
+            bool cannon=e.ShipTypeId=="cannon_ship"||e.ShipTypeId=="treasure_warship";
+            if (cannon)
+            {
                 foreach (var s in S.Ships)
                     if (s.Military && s!=target && Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(s.X,s.Z))<=4.5f) s.Hp-=atk*0.5f;
+                SpawnShotFx(e,target);          // V9.2.3 敌炮声光（可见来袭）
+            }
         }
         private void DetonateOurFireShip(ShipEntity s)
         {
@@ -376,6 +532,7 @@ namespace PixelToCivilization.Systems
             foreach (var e in EnemyShips)
                 if (Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(e.X,e.Z))<=5f) e.Hp-=boom;
             GM.AddEvent("bad","🔥 我军火船冲撞自爆，烈焰覆盖敌舰！");
+            SpawnExplosion(new Vector3(s.X,0f,s.Z)); // V9.2.3 爆炸声光
             s.Hp=0;
         }
         private void DetonateEnemyFireShip(ShipEntity e)
@@ -384,6 +541,7 @@ namespace PixelToCivilization.Systems
             foreach (var s in S.Ships)
                 if (s.Military && Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(s.X,s.Z))<=5f) s.Hp-=boom;
             GM.AddEvent("bad","🔥 敌方火船贴舷自爆，冲撞我舰队！");
+            SpawnExplosion(new Vector3(e.X,0f,e.Z)); // V9.2.3 爆炸声光
             e.Hp=0;
         }
 
@@ -431,5 +589,113 @@ namespace PixelToCivilization.Systems
         public ShipEntity Ship;
         public System.Action<ShipEntity> OnClicked;
         private void OnMouseDown()=>OnClicked?.Invoke(Ship);
+    }
+
+    /// <summary>
+    /// V9.2.3 火炮开火声光（自驱动、到期自毁、不进存档）：
+    /// 炮口闪光(自发光Quad+点光源0.12s) + 烟雾(上升扩大淡出~1s) + 弹丸(抛物0.4s纯视觉) + 即时音效。
+    /// 伤害仍由 NavalSystem 即时结算，本组件只做表现。
+    /// </summary>
+    public class CannonFx : MonoBehaviour
+    {
+        struct Smoke { public Transform T; public Material M; public float Age, Life; }
+        Vector3 _a, _b;
+        Transform _ball, _flash;
+        Light _light;
+        float _t, _ft;
+        bool _landed;
+        readonly List<Smoke> _smoke = new();
+        Material _smokeBase, _ballMat;
+
+        public void Begin(Vector3 a, Vector3 b, bool cannon)
+        {
+            _a=a; _b=b;
+            // 炮口闪光（自发光 Quad，到期销毁，不改共享缓存材质）
+            var fq=GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Destroy(fq.GetComponent<Collider>());
+            fq.name="muzzle"; fq.transform.SetParent(transform,false);
+            fq.transform.position=a+Vector3.up*0.1f; fq.transform.localScale=Vector3.one*1.3f;
+            fq.GetComponent<MeshRenderer>().sharedMaterial=ShaderHelper.Emissive(new Color(1f,0.85f,0.35f),new Color(3f,2f,0.6f));
+            _flash=fq.transform;
+            var lg=new GameObject("mlight"); lg.transform.SetParent(transform,false); lg.transform.position=a;
+            _light=lg.AddComponent<Light>(); _light.type=LightType.Point;
+            _light.color=new Color(1f,0.8f,0.45f); _light.intensity=7f; _light.range=16f;
+            // 弹丸
+            _ballMat=ShaderHelper.Pbr(new Color(0.08f,0.07f,0.06f),0.3f,0.4f,9091,1f,false);
+            var bq=GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Destroy(bq.GetComponent<Collider>());
+            bq.name="ball"; bq.transform.SetParent(transform,false);
+            bq.transform.localScale=Vector3.one*0.45f;
+            bq.GetComponent<MeshRenderer>().sharedMaterial=_ballMat;
+            _ball=bq.transform; _ball.position=a;
+            // 烟雾基底（每团克隆材质以独立淡出）
+            _smokeBase=ShaderHelper.Trans(new Color(0.28f,0.28f,0.28f,0.6f),0.6f);
+            AddSmoke(a);
+            // 即时音效：跨距开火播炮声；原地爆炸(a≈b)跳过炮声、只播爆炸
+            if(Vector3.Distance(a,b)>1.5f)
+                PixelToCivilization.Audio.AudioManager.I?.PlaySfx("cannon_fire",a,0.95f);
+        }
+
+        void AddSmoke(Vector3 p)
+        {
+            var s=GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Destroy(s.GetComponent<Collider>());
+            s.transform.SetParent(transform,false);
+            s.transform.position=p; s.transform.localScale=Vector3.one*0.6f;
+            var mat=new Material(_smokeBase);
+            s.GetComponent<MeshRenderer>().sharedMaterial=mat;
+            _smoke.Add(new Smoke{T=s.transform,M=mat,Age=0f,Life=Random.Range(0.9f,1.3f)});
+        }
+
+        void Update()
+        {
+            float dt=Time.deltaTime;
+            // 闪光：点光源强度骤衰，0.12s 销毁闪光
+            _ft+=dt;
+            if(_light!=null) _light.intensity=7f*Mathf.Max(0f,1f-_ft/0.12f);
+            if(_ft>=0.12f)
+            {
+                if(_light!=null){Destroy(_light.gameObject);_light=null;}
+                if(_flash!=null){Destroy(_flash.gameObject);_flash=null;}
+            }
+            else if(_flash!=null && Camera.main!=null)
+                _flash.LookAt(Camera.main.transform);
+            // 弹丸抛物
+            _t+=dt; const float DUR=0.4f;
+            float k=Mathf.Clamp01(_t/DUR);
+            if(_ball!=null)
+            {
+                Vector3 p=Vector3.Lerp(_a,_b,k); p.y+=Mathf.Sin(k*Mathf.PI)*2.2f;
+                _ball.position=p;
+            }
+            if(k>=1f && !_landed)
+            {
+                _landed=true;
+                AddSmoke(_b);
+                PixelToCivilization.Audio.AudioManager.I?.PlaySfx("cannon_explode",_b,0.8f);
+                if(_ball!=null){Destroy(_ball.gameObject);_ball=null;}
+            }
+            // 烟雾上升扩大淡出
+            for(int i=_smoke.Count-1;i>=0;i--)
+            {
+                var sm=_smoke[i];
+                sm.Age+=dt;
+                float t01=Mathf.Clamp01(sm.Age/sm.Life);
+                sm.T.position+=Vector3.up*dt*1.7f;
+                sm.T.localScale=Vector3.one*(0.6f+t01*1.9f);
+                if(sm.M!=null){ var c=sm.M.color; c.a=(1f-t01)*0.6f; sm.M.color=c; }
+                if(t01>=1f){ Destroy(sm.T.gameObject); Destroy(sm.M); _smoke.RemoveAt(i); }
+                else _smoke[i]=sm;
+            }
+            if(_landed && _light==null && _flash==null && _ball==null && _smoke.Count==0)
+            {
+                // V9.2.3 修复：_ballMat/_smokeBase 来自 ShaderHelper 全局共享缓存，绝不可 Destroy。
+                // 旧实现销毁后缓存仍返回被销毁的"假 null"材质，下一发炮 new Material(source)
+                // 即抛 ArgumentNullException: source，表现为 C5/D3 每帧报错、火炮特效永久失效。
+                // 各团烟雾是 new Material(_smokeBase) 的私有实例，已在上方淡出时自行销毁。
+                _ballMat=null; _smokeBase=null;
+                Destroy(gameObject);
+            }
+        }
     }
 }

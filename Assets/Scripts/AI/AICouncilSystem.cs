@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -377,8 +377,9 @@ namespace PixelToCivilization.AI
         string BuildSnapshot(int year)
         {
             var b=new StringBuilder();
+            float fFood=S.GetRes("food"),fWood=S.GetRes("wood"),fStone=S.GetRes("stone"),fGold=S.GetRes("gold"),fResearch=S.GetRes("research"),fCulture=S.GetRes("culture");
             b.Append($"游戏年{year} 时代{S.Era} 人口{S.Pop}/上限{S.MaxPop} 住房{S.Housing} ");
-            b.Append($"粮{S.GetRes(\"food\"):F0} 木{S.GetRes(\"wood\"):F0} 石{S.GetRes(\"stone\"):F0} 金{S.GetRes(\"gold\"):F0} 研究{S.GetRes(\"research\"):F0} 文化{S.GetRes(\"culture\"):F0} ");
+            b.Append($"粮{fFood:F0} 木{fWood:F0} 石{fStone:F0} 金{fGold:F0} 研究{fResearch:F0} 文化{fCulture:F0} ");
             b.Append($"民心{S.Happiness:F0} 天命{S.DynastyMorale:F0} 腐败{S.Corruption:F0} 兵{S.MilSoldiers:F0}/火力{S.MilFirepower:F0} 战争{S.WarActive} 大航海{S.AgeOfSail}。");
             b.Append("目标：避免灭绝、允许短期倒退、稳健延续。请给下一步保守治理动作。");
             return b.ToString();

@@ -112,14 +112,17 @@ namespace PixelToCivilization.Systems
             if (S.Buildings.Count == 0) return;
             _lines.RemoveAll(l => l.View == null);
             int tier = TierForYear(S.Year);
-            if (tier == 0) { foreach (var l in _lines) if (l.View != null) Object.Destroy(l.View); _lines.Clear(); return; }
+            // V9.2.3 陆地内部廊道封顶 tier3 电力机车；tier4 高铁/tier5 磁悬浮不作为陆地内部廊道，
+            // 仅出现在陆块之间（地球模式由 IntercityNetwork 国际线承载）。
+            int buildTier = Mathf.Min(tier, 3);
+            if (buildTier == 0) { foreach (var l in _lines) if (l.View != null) Object.Destroy(l.View); _lines.Clear(); return; }
             // 年代升级：重建全部廊道（轨道+机车形制随时代）
             foreach (var l in _lines)
-                if (l.Tier != tier) { if (l.View != null) Object.Destroy(l.View); l.View = null; }
+                if (l.Tier != buildTier) { if (l.View != null) Object.Destroy(l.View); l.View = null; }
             _lines.RemoveAll(l => l.View == null);
-            int want = TargetLines(tier);
+            int want = TargetLines(buildTier);
             int guard = 0;
-            while (_lines.Count < want && guard++ < 6) { if (!TryCreateLine(tier)) break; }
+            while (_lines.Count < want && guard++ < 6) { if (!TryCreateLine(buildTier)) break; }
         }
 
         private bool TryCreateLine(int tier)
@@ -181,7 +184,7 @@ namespace PixelToCivilization.Systems
         public string Diagnose()
         {
             if (_terrain == null) return "terrain=null";
-            int tier = TierForYear(S.Year); float maxBand = tier >= 4 ? 5f : 1.4f;
+            int tier = Mathf.Min(TierForYear(S.Year), 3); float maxBand = 1.4f; // V9.2.3 诊断同样封顶 tier3
             float best = 0f; int ok = 0, waterBlock = 0, bandBlock = 0;
             foreach (var b in S.Buildings)
                 foreach (bool axisX in new[]{true,false})

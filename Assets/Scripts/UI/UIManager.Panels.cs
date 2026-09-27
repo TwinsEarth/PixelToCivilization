@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -280,8 +280,9 @@ namespace PixelToCivilization.UI
             Color cvCol = cv>=70?UITheme.Good : cv>=40?UITheme.Gold : UITheme.Bad;
             var top=UITheme.Panel("cv",content,UITheme.HexA(0xffffff,0.05f));
             top.AddComponent<LayoutElement>().preferredHeight=58;
+            int foodAmt=Mathf.FloorToInt(S.GetRes("food"));   // V9.2.3 C#9 插值孔洞不可嵌套引号，提取局部
             UITheme.Label("cvn",top.transform,
-                $"文明存续健康分　{cv:F0} / 100\n人口{S.Pop}/{S.MaxPop}　粮{Mathf.FloorToInt(S.GetRes(\"food\"))}　民心{S.Happiness:F0}　天命{S.DynastyMorale:F0}　兜底续命{cou.SafetyCount}次",
+                $"文明存续健康分　{cv:F0} / 100\n人口{S.Pop}/{S.MaxPop}　粮{foodAmt}　民心{S.Happiness:F0}　天命{S.DynastyMorale:F0}　兜底续命{cou.SafetyCount}次",
                 14,TextAnchor.MiddleLeft,cvCol).SetInset(10,0.1f);
             // —— 控制行1：开关 / 模式 / 立即议政 ——
             var r1=Row(content,38);

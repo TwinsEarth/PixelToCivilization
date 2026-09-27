@@ -160,6 +160,26 @@ namespace PixelToCivilization.Audio
             return null;
         }
 
+        /// <summary>V9.2.3 即时一次性音效（火炮开火/爆炸）：取空闲声轨在 worldPos 立即播放，
+        /// 不依赖 EntitySound 的 0.25s 扫描；受静音开关与 WebGL 手势解锁约束。</summary>
+        public void PlaySfx(string res, Vector3 worldPos, float volume = 1f, float maxDistance = 130f)
+        {
+            if (_muted || !_unlocked) return;
+            var clip = Clip(res);
+            if (clip == null) return;
+            var v = FreeVoice();
+            if (v == null) return;
+            v.Busy = true; v.Cat = SoundCat.Ship;
+            v.Src.transform.position = worldPos;
+            v.Src.clip = clip;
+            v.Src.minDistance = 10f;
+            v.Src.maxDistance = maxDistance;
+            v.Src.volume = Mathf.Clamp(volume, 0.05f, 1f);
+            v.Src.pitch = Random.Range(0.94f, 1.06f);
+            v.Src.loop = false;
+            v.Src.Play();
+        }
+
         void PlayOne(Voice v, SoundCat cat, EntitySound e, Vector3 cp)
         {
             var clip = Clip(e.Res);

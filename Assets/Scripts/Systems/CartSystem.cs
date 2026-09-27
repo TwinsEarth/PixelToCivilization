@@ -101,6 +101,8 @@ namespace PixelToCivilization.Systems
         private void MoveCart(CartEntity c,float dt)
         {
             if(!Defs.TryGetValue(c.CartTypeId,out var d)) return;
+            int cont=_terrain!=null?_terrain.ContinentAt(c.X,c.Z):0;
+            bool roadMode=AnyRoadOnContinent(cont); // V9.2.3 有路即道路模式
             float dx=c.TargetX-c.X, dz=c.TargetZ-c.Z;
             float dist=Mathf.Sqrt(dx*dx+dz*dz);
             if(dist<1.5f)
@@ -140,6 +142,12 @@ namespace PixelToCivilization.Systems
                 }
                 if(!slid){ PickNextTarget(c); return; } // 三面环水：重选同大陆目标，绝不下水
             }
+            if(roadMode) // V9.2.3 沿路行驶：除接近目标建筑可短距下路外，偏离道路即投影回中线
+            {
+                float ddx=nx-c.TargetX,ddz=nz-c.TargetZ; bool nearDest=ddx*ddx+ddz*ddz<36f;
+                bool onBridgeNow=GM.Bridge!=null&&GM.Bridge.IsBridgeAt(nx,nz);
+                if(!nearDest && !onBridgeNow && !IsOnRoad(nx,nz) && NearestRoadPoint(nx,nz,6f,out float px,out float pz)){ nx=px;nz=pz; }
+            }
             c.X=nx; c.Z=nz;
             bool onBridge=GM.Bridge!=null && GM.Bridge.IsBridgeAt(c.X,c.Z); // V6.3.9 桥面可越水通行
             if(onBridge) c.H=GM.Bridge.DeckHeightAt(c.X,c.Z); else if(_terrain!=null) c.H=_terrain.HeightAt(c.X,c.Z);
@@ -155,6 +163,7 @@ namespace PixelToCivilization.Systems
         {
             var bs=S.Buildings;
             int homeCont=_terrain!=null?_terrain.ContinentAt(c.X,c.Z):0;   // V7.0.6 只在同一大陆内派目标，不隔海指建筑
+            if(AnyRoadOnContinent(homeCont)){ PickRoadTarget(c); return; } // V9.2.3 有路：道路目标/巡航
             if(bs.Count==0){ PickLandWander(c); return; }
             // 找同大陆、与当前目标不同的最近建筑；同大陆没有则陆地游走，绝不把目标指向水里/海外
             BuildingEntity best=null;float bd=99999;
@@ -181,6 +190,61 @@ namespace PixelToCivilization.Systems
                 if(_terrain==null || bridge || (!_terrain.IsWater(tx,tz)&&_terrain.InsideFrontier(tx,tz)))
                 { c.TargetX=tx;c.TargetZ=tz; return; }
             }
+        }
+
+        // ===== V9.2.3 车辆道路约束（有路即上路、沿路行驶，无路时陆地自由走，永不下水）=====
+        static bool IsRoadType(string t)=>ModernTrafficSystem.IsRoad(t);
+
+        /// <summary>本大陆是否存在任意道路（建筑道路块 / 城际公路）；桥面在 IsOnRoad 单独计入。</summary>
+        bool AnyRoadOnContinent(int cont)
+        {
+            foreach(var b in S.Buildings)
+                if(IsRoadType(b.Type) && (_terrain==null||_terrain.ContinentAt(b.X,b.Z)==cont)) return true;
+            return GM.Intercity!=null && GM.Intercity.HasRoads;
+        }
+
+        /// <summary>(x,z) 是否在道路/桥面附近（宽约2.5的走廊）。</summary>
+        bool IsOnRoad(float x,float z)
+        {
+            if(GM.Bridge!=null && GM.Bridge.IsBridgeAt(x,z)) return true;
+            foreach(var b in S.Buildings)
+                if(IsRoadType(b.Type)){ float dx=b.X-x,dz=b.Z-z; if(dx*dx+dz*dz<6.25f) return true; }
+            return GM.Intercity!=null && GM.Intercity.NearestRoadPoint(new Vector3(x,0f,z),3.2f,out _);
+        }
+
+        /// <summary>搜索半径 maxR 内最近的道路中线点（建筑道路块 + 城际公路段）。</summary>
+        bool NearestRoadPoint(float x,float z,float maxR,out float rx,out float rz)
+        {
+            rx=x;rz=z;bool found=false;float best=maxR*maxR;
+            foreach(var b in S.Buildings) if(IsRoadType(b.Type)){
+                float dx=b.X-x,dz=b.Z-z,d=dx*dx+dz*dz;
+                if(d<best){best=d;rx=b.X;rz=b.Z;found=true;}
+            }
+            if(GM.Intercity!=null && GM.Intercity.NearestRoadPoint(new Vector3(x,0f,z),maxR,out var pt)){
+                float dx=pt.x-x,dz=pt.z-z,d=dx*dx+dz*dz;
+                if(d<best){best=d;rx=pt.x;rz=pt.z;found=true;}
+            }
+            return found;
+        }
+
+        /// <summary>道路模式下选目标：车不在路上先吸附最近道路；否则在"沿路可达建筑/道路巡航点"间选择。</summary>
+        private void PickRoadTarget(CartEntity c)
+        {
+            if(!IsOnRoad(c.X,c.Z) && NearestRoadPoint(c.X,c.Z,60f,out float sx,out float sz))
+            { c.TargetX=sx;c.TargetZ=sz;c.HasDriver=true; return; }
+            if(Random.value<0.45f && GM.Intercity!=null && GM.Intercity.RandomRoadPoint(out var rp))
+            { c.TargetX=rp.x;c.TargetZ=rp.z;c.HasDriver=true; return; }
+            int homeCont=_terrain!=null?_terrain.ContinentAt(c.X,c.Z):0;
+            BuildingEntity best=null;float bd=99999;
+            foreach(var b in S.Buildings)
+            {
+                if(_terrain!=null && _terrain.ContinentAt(b.X,b.Z)!=homeCont) continue;
+                if(!IsRoadType(b.Type) && !IsOnRoad(b.X,b.Z)) continue; // 只选道路可达建筑
+                float dd=(b.X-c.X)*(b.X-c.X)+(b.Z-c.Z)*(b.Z-c.Z);
+                if(dd>4&&dd<bd){bd=dd;best=b;}
+            }
+            if(best!=null){c.TargetX=best.X;c.TargetZ=best.Z;c.HasDriver=true;}
+            else if(NearestRoadPoint(c.X,c.Z,80f,out float px,out float pz)){ c.TargetX=px;c.TargetZ=pz; }
         }
 
         /// <summary>V7.0.6 由近及远螺旋搜索最近陆地/桥面（车上水后的归位点）。</summary>

@@ -338,8 +338,13 @@ namespace PixelToCivilization.Core
             TickCryo(UnityEngine.Time.unscaledDeltaTime); // V6.1.9 冷冻冷却按现实秒走，暂停也计时
             if (StateType != GameStateType.Playing || State.Paused) return;
             float scaled = UnityEngine.Time.deltaTime * EffectiveSpeed; // 冷冻期实际倍速封顶10
-            Time.Tick(scaled); // 年份推进（内部按游戏年份换算朝代/时代/公历）
-            foreach (var s in _systems) s.Tick(scaled);
+            try { Time.Tick(scaled); } // 年份推进（内部按游戏年份换算朝代/时代/公历）
+            catch(System.Exception e){ Debug.LogError("[SYSERR:GameTime] "+e.GetType().Name+": "+e.Message); }
+            foreach (var s in _systems)
+            {
+                try { s.Tick(scaled); }
+                catch(System.Exception e){ Debug.LogError("[SYSERR:"+s.GetType().Name+"] "+e.GetType().Name+": "+e.Message); }
+            }
           }
           catch(System.Exception e){ Debug.LogError("[MARK_GM] "+e.GetType().Name+": "+e.Message+"\n"+e.StackTrace); }
         }
@@ -947,6 +952,7 @@ namespace PixelToCivilization.Core
         public void WebNextDynasty(){ bool ok=Time!=null && Time.DebugNextDynasty(); Debug.Log("[Web] NextDynasty "+(ok?"OK":"FAIL")); }
         public void WebProbeBridges(){ Bridge?.DebugProbe(); }
         public void WebForceBridge(){ bool ok=Bridge!=null&&Bridge.ForceNearest(); Debug.Log("[Web] ForceBridge "+(ok?"OK":"FAIL")); }
+        public void WebV923Naval(){ Naval?.DebugNavalShowcase(); }   // V9.2.3 海战演示：炮船巡逻→接敌→火炮声光
         public void WebToggleLeftPanel(){ UIManager.Instance?.WebToggleLeft(); }
         public void WebToggleRightPanel(){ UIManager.Instance?.WebToggleRight(); }
 
