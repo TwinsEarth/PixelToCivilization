@@ -24,6 +24,8 @@ namespace PixelToCivilization.UI
         private readonly Dictionary<string,Text>_resTexts=new();
         private Transform _buildList;
         private GameObject _leftPanel;
+        // V9.3.6 左建造面板是否展开（世界对象点击守卫用：面板展开时屏蔽 OnMouseDown 弹属性栏）
+        public bool LeftPanelOpen => _leftPanel!=null && _leftPanel.activeSelf;
         private readonly Dictionary<string,Button> _toolBtns=new();
         private bool _muted;
         // V6.1.2 存档面板

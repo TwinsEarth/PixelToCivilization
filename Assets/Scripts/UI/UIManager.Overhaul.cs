@@ -280,6 +280,8 @@ private void BuildTopBarV2(Transform parent)
             if(_leftPanel)_leftPanel.SetActive(!_leftCollapsed);
             if(_leftRestore)_leftRestore.SetActive(_leftCollapsed);
             if(!_leftCollapsed && _leftBody)_leftBody.SetActive(true);
+            // V9.3.6 展开时置顶：保证建造面板位于 UI 顶层（不被其他浮窗/属性栏盖住）
+            if(!_leftCollapsed && _leftPanel) _leftPanel.transform.SetAsLastSibling();
         }
         private void ToggleRightPanel()
         {
@@ -658,6 +660,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             Section("军事与群雄争霸","可征兵、训练骑兵（需马厩）；箭塔/火塔/炮塔/碉堡自动索敌防御，骑兵克步兵、防御塔克骑兵。地图上随机 2~5 股割据势力，每 20 游戏年相互攻伐兼并，进入分裂期（3~7 国）或大一统王朝；可出师讨伐、兼并势力获得金粮与人口。");
             Section("海洋 · 殖民 · 太空","公元 1000 年大航海时代开启，此前各大陆被海洋隔绝、无法跨洋作战；之后可造风帆战舰、建立 贸易站→殖民地→领地 三级海外领地并获得上贡。海洋 / 太空为 9×9 迷雾探索副本，逐格探索、获取资源、建港口与月球/火星前哨，补给耗尽自动返航。");
             Section("自然系统","月度潮汐（1-15 涨潮、16-30 退潮）；雨/雪/晴/多云/雾/晚霞/雷电/龙卷风天气；洋流与海风为帆船提供动力、引导鱼群洄游。地图每 100 年自然延展 10%、每 1000 年翻倍；植被分乔木/灌木/草本/地被四层，村落大榕树随年代生长，鸟群鱼群按 LOD 按需渲染。");
+            Section("铁路系统","公元 1800 年起聚落旁铺设铁路廊道，红色标志的蒸汽机车（黑锅炉+红饰驾驶室+绿客车编组）在廊道上往返行驶；随年代自动升级：1900 内燃机车（橙）、1950 电力机车（银蓝）、1990 高速列车（白）、2010 磁悬浮（悬浮无轮）。列车为装饰性往返行驶，仅在陆地/疆域内铺设。");
             Section("加速冷冻","加速累计推进满 100 游戏年后，强制进入 300 现实秒冷冻冷却，期间倍速封顶 10；收到解冻指令后重新累计。画面中顶显示倒计时。");
             Section("快捷键 / 存档","空格 暂停，+/- 调整倍速，F11 或 Alt+Enter 全屏；游戏每 5 分钟自动存档，也可在左下角手动存/读 5 个手动槽、导出导入 JSON 跨设备迁移。");
             var row=UITheme.Panel("hb",c,new Color(0,0,0,0));row.AddComponent<LayoutElement>().preferredHeight=40;

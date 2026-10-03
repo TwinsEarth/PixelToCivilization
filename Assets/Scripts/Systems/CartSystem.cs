@@ -314,6 +314,12 @@ namespace PixelToCivilization.Systems
     {
         public CartEntity Cart;
         public System.Action<CartEntity> OnClicked;
-        private void OnMouseDown()=>OnClicked?.Invoke(Cart);
+        // V9.3.6 点击守卫：与建筑一致，UI/建造面板/放置模式不弹车辆信息
+        private void OnMouseDown()
+        {
+            var gm=GameManager.Instance;
+            if (gm!=null && gm.BlocksWorldClick()) return;
+            OnClicked?.Invoke(Cart);
+        }
     }
 }

@@ -11,7 +11,13 @@ namespace PixelToCivilization.Buildings
     {
         public BuildingEntity Entity;
         public System.Action<BuildingEntity> OnClicked;
-        private void OnMouseDown() => OnClicked?.Invoke(Entity);
+        // V9.3.6 点击守卫：OnMouseDown 不经 EventSystem UI 射线，建造面板/放置模式/指针在UI上时不得弹属性栏
+        private void OnMouseDown()
+        {
+            var gm=GameManager.Instance;
+            if (gm!=null && gm.BlocksWorldClick()) return;
+            OnClicked?.Invoke(Entity);
+        }
     }
 
     /// <summary>

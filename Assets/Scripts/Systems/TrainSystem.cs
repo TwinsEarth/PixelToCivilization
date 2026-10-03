@@ -295,11 +295,12 @@ namespace PixelToCivilization.Systems
 
         private void BuildSteam(Transform p)
         {
-            // 机车（车头朝 +Z）
+            // 机车（车头朝 +Z）；V9.3.6 驾驶室黑底红饰（传统蒸汽机车涂装，避免"红色方块"观感，便于辨识为列车）
             Cyl("Boiler", new Vector3(0, 1.0f, 0.15f), new Vector3(0.56f, 1.55f, 0.56f), _black, p, Quaternion.Euler(90, 0, 0));
             Cyl("SmokeBox", new Vector3(0, 1.0f, 0.95f), new Vector3(0.58f, 0.25f, 0.58f), _dark, p, Quaternion.Euler(90, 0, 0));
             Cyl("Stack", new Vector3(0, 1.55f, 0.72f), new Vector3(0.13f, 0.5f, 0.13f), _black, p);
-            Box("Cab", new Vector3(0, 1.0f, -0.62f), new Vector3(0.98f, 0.95f, 0.78f), _red, p);
+            Box("Cab", new Vector3(0, 1.0f, -0.62f), new Vector3(0.98f, 0.95f, 0.78f), _black, p);
+            Box("CabStripe", new Vector3(0, 1.24f, -0.62f), new Vector3(1.0f, 0.2f, 0.8f), _red, p);
             Box("CabRoof", new Vector3(0, 1.52f, -0.62f), new Vector3(1.04f, 0.12f, 0.84f), _black, p);
             Box("Headlamp", new Vector3(0, 1.05f, 1.06f), new Vector3(0.18f, 0.18f, 0.1f), ShaderHelper.Emissive(new Color(0.2f, 0.18f, 0.1f), new Color(1f, 0.9f, 0.5f)), p);
             foreach (float wz in new[] { 0.62f, 0f, -0.62f }) { Wheel(p, -0.58f, wz, 0.34f); Wheel(p, 0.58f, wz, 0.34f); }

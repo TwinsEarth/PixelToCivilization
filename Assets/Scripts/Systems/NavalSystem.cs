@@ -752,7 +752,13 @@ namespace PixelToCivilization.Systems
     {
         public ShipEntity Ship;
         public System.Action<ShipEntity> OnClicked;
-        private void OnMouseDown()=>OnClicked?.Invoke(Ship);
+        // V9.3.6 点击守卫：与建筑一致，UI/建造面板/放置模式不弹船只信息
+        private void OnMouseDown()
+        {
+            var gm=GameManager.Instance;
+            if (gm!=null && gm.BlocksWorldClick()) return;
+            OnClicked?.Invoke(Ship);
+        }
     }
 
     /// <summary>

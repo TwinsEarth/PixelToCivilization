@@ -956,6 +956,18 @@ namespace PixelToCivilization.Core
             if(Time==null){ Debug.Log("[Web] YearProbe Time=null"); return; }
             Debug.Log($"[Web] YearProbe Year={State.Year} Day={State.Day:F2} Era={State.Era} Paused={State.Paused} Speed={State.Speed} Eff={EffectiveSpeed:F0} Greg={Time.GregorianText}");
         }
+        // V9.3.6 世界对象点击守卫：建筑/车/船的 OnMouseDown 由 Unity 独立派发、不经 EventSystem UI 射线，
+        // 建造面板展开/建造放置中/指针落在任意 UI 上时，点击背后的建筑仍会弹属性栏。此守卫统一拦截：
+        // 修复"建造界面不是顶层、经常点中背后的建筑弹出属性栏影响操作"。
+        public bool BlocksWorldClick()
+        {
+            if (State!=null && !string.IsNullOrEmpty(State.SelectedBuildType)) return true;   // 建造放置模式（虚影摆放中）
+            var ui=UIManager.Instance;
+            if (ui!=null && ui.LeftPanelOpen) return true;                                     // 左侧建造面板展开
+            if (UnityEngine.EventSystems.EventSystem.current!=null &&
+                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) return true; // 指针在任意 UI 上
+            return false;
+        }
         public void WebNextDynasty(){ bool ok=Time!=null && Time.DebugNextDynasty(); Debug.Log("[Web] NextDynasty "+(ok?"OK":"FAIL")); }
         public void WebProbeBridges(){ Bridge?.DebugProbe(); }
         public void WebForceBridge(){ bool ok=Bridge!=null&&Bridge.ForceNearest(); Debug.Log("[Web] ForceBridge "+(ok?"OK":"FAIL")); }
