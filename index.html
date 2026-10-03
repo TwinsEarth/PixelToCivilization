@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-store,no-cache,must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="ai-key" content="">
+<title>从像素到文明 V9.3.10 · HTML5 网页版 · 九神AI·DeepSeek直连</title>
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100%;background:#0e72c8;overflow:hidden;font-family:'Microsoft YaHei',PingFang SC,Arial,sans-serif;}
+  #game{position:fixed;inset:0;width:100%;height:100%;}
+  canvas{width:100%!important;height:100%!important;display:block;touch-action:none;}
+  #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+        background:radial-gradient(circle at 50% 35%,#34aef0 0%,#0e72c8 72%);color:#f2f8ff;z-index:10;transition:opacity .6s;}
+  #boot h1{font-size:30px;letter-spacing:8px;margin:0 0 6px;color:#ffffff;text-shadow:0 2px 12px rgba(0,40,90,.35);}
+  #boot p{margin:0 0 26px;font-size:14px;color:#eaf6ff;letter-spacing:2px;}
+  #bar{width:min(560px,72vw);height:10px;border:1px solid rgba(255,255,255,.55);border-radius:8px;overflow:hidden;background:rgba(0,40,90,.18);}
+  #fill{height:100%;width:0%;background:linear-gradient(90deg,#ffb347,#ffd76b);box-shadow:0 0 14px rgba(255,200,90,.8);transition:width .2s;}
+  #pct{margin-top:12px;font-size:13px;color:#eaf6ff;}
+  #fs{position:fixed;right:12px;bottom:10px;z-index:20;width:40px;height:40px;padding:0;font-size:19px;line-height:1;cursor:pointer;
+      color:#21303f;background:rgba(250,250,246,.94);border:1px solid rgba(255,138,30,.60);border-radius:9px;box-shadow:0 2px 8px rgba(0,30,70,.25);backdrop-filter:blur(4px);
+      display:flex;align-items:center;justify-content:center;}
+  #fs:hover{background:rgba(255,138,30,.92);color:#fff;}
+  #fs:active{transform:scale(.96);}
+  #err{position:fixed;inset:auto 5% 8% 5%;z-index:30;display:none;color:#ffb4b4;font-size:13px;line-height:1.7;
+       background:rgba(40,10,14,.85);border:1px solid #c05050;border-radius:8px;padding:12px;white-space:pre-wrap;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="boot">
+  <h1>从 像 素 到 文 明</h1>
+  <p>V9.3.10 · HTML5 网页版 · 九神AI接入 DeepSeek-V4.1-Flash（deepseek-flash）· 联网议政 / 离线规则兜底永不灭绝 / 保留 V9.3.8 全部玩法</p>
+  <div id="bar"><div id="fill"></div></div>
+  <div id="pct">正在加载 0%</div>
+</div>
+<button id="fs" title="全屏（F11）">⛶</button>
+<div id="err"></div>
+<script>
+  var fill=document.getElementById('fill'),pct=document.getElementById('pct'),boot=document.getElementById('boot'),err=document.getElementById('err');
+  function showErr(m){err.style.display='block';err.textContent=m;}
+  // V6.7.1fix 版本变化时清掉同源旧 Unity IndexedDB 缓存，杜绝旧 .data 与新 wasm 错位导致 memory access out of bounds
+  (function(){try{var K='pxc_build_ver',V='9.3.10';if(localStorage.getItem(K)!==V){localStorage.setItem(K,V);if(window.indexedDB&&indexedDB.deleteDatabase){indexedDB.deleteDatabase('UnityCache');}}}catch(e){}})();
+  var VER='?v=9.3.10';
+  var script=document.createElement('script');
+  script.src='Build/BuildWebGL.loader.js'+VER;
+  script.onload=function(){
+    var cfg={dataUrl:'Build/BuildWebGL.data'+VER,frameworkUrl:'Build/BuildWebGL.framework.js'+VER,codeUrl:'Build/BuildWebGL.wasm'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.3.10',productVersion:'9.3.10'};
+    createUnityInstance(document.querySelector('#game'),cfg,function(progress){
+      var p=Math.round(progress*100);fill.style.width=p+'%';pct.textContent='正在加载 '+p+'%';
+    }).then(function(inst){window.unityInstance=inst;var _mk=document.querySelector('meta[name="ai-key"]');if(_mk&&_mk.getAttribute('content')){inst.SendMessage('GameManager','WebAISetKey',_mk.getAttribute('content'));}
+      // V9.3.10 WebGL 输入焦点兜底：点击画布/任何按键都确保 canvas 拿到浏览器键盘焦点（否则 UGUI InputField 点击后敲键无响应）
+      // 注意：Unity 2022.3.61 loader 把 canvas 建在 body 顶层且 id 即 game（#game div 为空壳），故用 querySelector('canvas')
+      var _cv=document.querySelector('canvas');if(_cv){_cv.setAttribute('tabindex','0');document.addEventListener('mousedown',function(e){var c=document.querySelector('canvas');if(c&&(e.target===c||c.contains(e.target))){c.focus();}});document.addEventListener('keydown',function(e){var c=document.querySelector('canvas');if(c&&document.activeElement!==c){c.focus();}});}
+      boot.style.opacity='0';setTimeout(function(){boot.style.display='none';},600);})
+      .catch(function(e){showErr('启动失败：'+e+'\n若直接双击打不开，请用附带的本地服务器脚本（start_webserver）通过 http 方式打开。');});
+  };
+  script.onerror=function(){showErr('加载器脚本丢失，请确认 Build 目录完整，并通过本地 http 服务器访问。');};
+  document.body.appendChild(script);
+  document.getElementById('fs').addEventListener('click',function(){
+    var el=document.documentElement;if(!document.fullscreenElement){(el.requestFullscreen||el.webkitRequestFullscreen||function(){}).call(el);}else{document.exitFullscreen&&document.exitFullscreen();}
+  });
+</script>
+</body>
+</html>
