@@ -13,7 +13,9 @@ namespace PixelToCivilization.Systems
     /// </summary>
     public class EmbarkSystem : GameSystemBase
     {
-        private const float CatchRadius = 14f;     // 吸附半径（世界单位）
+        private const float CatchRadius = 14f;     // 吸附半径（世界单位，车辆/兜底）
+        private const float LoadCatch = 400f;      // V9.3.5 载人态船吸附半径=100格（4×100）
+        private const float BattleCatch = 120f;    // V9.3.5 战斗态船吸附半径=30格（4×30）
         private const float TickEvery = 2.5f;      // 节流秒
         private const int MaxVisualRiders = 14;    // 单个载具最多画出的乘员小人（再多只计数）
         private const float RideRatio = 0.4f;      // 最多带走四成人口，保留市井活力
@@ -40,7 +42,9 @@ namespace PixelToCivilization.Systems
                 {
                     if (sh==null) continue;
                     _lastPos[sh]=new Vector3(sh.X,0,sh.Z);
-                    if (sh.Side=="ours" && sh.Level>=2) { alive.Add(sh); BoardShip(sh); SyncRiders(sh.View, ShipOccupied(sh), 0.9f, 1.1f); }
+                    // V9.3.5 放开门槛：全部我方船(Lv>=1)可载人（原Lv>=2——新船Lv1空员会0速死锁）；
+                    // 吸附半径随任务态：战斗态30格、载人态100格（用户条款：低员载人半径加倍/高员战斗半径加倍）
+                    if (sh.Side=="ours" && sh.Level>=1) { alive.Add(sh); BoardShip(sh, GM.Naval.BattlePriority(sh)?BattleCatch:LoadCatch); SyncRiders(sh.View, ShipOccupied(sh), 0.9f, 1.1f); }
                     else ReleaseOf(sh);
                 }
             // 2) 车辆
@@ -63,12 +67,12 @@ namespace PixelToCivilization.Systems
         private int ShipOccupied(ShipEntity s) => s.Military ? s.Crew : s.Passengers;
         private int ShipCap(ShipEntity s) => s.Military ? GM.Naval.Capacity(s) : s.EffectiveHousing;
 
-        private void BoardShip(ShipEntity s)
+        private void BoardShip(ShipEntity s, float radius)
         {
             int occ=ShipOccupied(s), cap=ShipCap(s), budget=GlobalBudget();
             while (occ<cap && budget>0)
             {
-                var a=NearestFree(s.X,s.Z); if(a==null) break;
+                var a=NearestFree(s.X,s.Z,radius); if(a==null) break;
                 Embark(a,s);
                 if(s.Military) s.Crew++; else s.Passengers++;
                 occ++; budget--;
@@ -79,7 +83,7 @@ namespace PixelToCivilization.Systems
             int budget=GlobalBudget();
             while (c.Passengers<c.Capacity && budget>0)
             {
-                var a=NearestFree(c.X,c.Z); if(a==null) break;
+                var a=NearestFree(c.X,c.Z,CatchRadius); if(a==null) break;
                 Embark(a,c); c.Passengers++; budget--;
             }
         }
@@ -92,9 +96,9 @@ namespace PixelToCivilization.Systems
             return Mathf.Max(0, maxRide-_riding.Count);
         }
 
-        private AgentEntity NearestFree(float x,float z)
+        private AgentEntity NearestFree(float x,float z,float radius)
         {
-            AgentEntity best=null; float bd=CatchRadius*CatchRadius;
+            AgentEntity best=null; float bd=radius*radius;
             foreach(var a in S.Agents)
             {
                 if(a.Boarded) continue;

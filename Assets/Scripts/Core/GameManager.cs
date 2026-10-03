@@ -385,6 +385,8 @@ namespace PixelToCivilization.Core
             State.Paused = !State.Paused;
             StateType = State.Paused ? GameStateType.Paused : GameStateType.Playing;
             OnStateChanged?.Invoke(StateType);
+            // V9.3.5 暂停防呆：Toast 显著提示（此前仅速度按钮文字"暂停"，玩家误触空格易误判时间卡死）
+            if (UIManager.Instance!=null) UIManager.Instance.Toast(State.Paused ? "⏸ 已暂停（空格恢复）" : "▶ 已恢复", !State.Paused);
         }
 
         // ===== 全屏/窗口切换（F11、Alt+Enter 或底部栏按钮），偏好持久化 =====
@@ -949,6 +951,11 @@ namespace PixelToCivilization.Core
         }
         public void WebQuickLoad(){ bool ok=SaveSystem!=null && SaveSystem.LoadFromSlot(1); Debug.Log("[Web] QuickLoad "+(ok?"OK":"FAIL")); }
         public void WebAdvanceEra(){ bool ok=Time!=null && Time.DebugAdvanceEra(); Debug.Log("[Web] AdvanceEra "+(ok?"OK":"FAIL")); }
+        // V9.3.5 时间推进探针：无参 Web 入口（SendMessage 可绑），回归直接读 Year/Day/Era/Paused/Speed/有效倍速
+        public void WebYearProbe(){
+            if(Time==null){ Debug.Log("[Web] YearProbe Time=null"); return; }
+            Debug.Log($"[Web] YearProbe Year={State.Year} Day={State.Day:F2} Era={State.Era} Paused={State.Paused} Speed={State.Speed} Eff={EffectiveSpeed:F0} Greg={Time.GregorianText}");
+        }
         public void WebNextDynasty(){ bool ok=Time!=null && Time.DebugNextDynasty(); Debug.Log("[Web] NextDynasty "+(ok?"OK":"FAIL")); }
         public void WebProbeBridges(){ Bridge?.DebugProbe(); }
         public void WebForceBridge(){ bool ok=Bridge!=null&&Bridge.ForceNearest(); Debug.Log("[Web] ForceBridge "+(ok?"OK":"FAIL")); }

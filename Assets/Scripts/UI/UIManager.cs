@@ -765,7 +765,7 @@ namespace PixelToCivilization.UI
             _eraTag.text=GM.Time.EraName;
             if(_lastBuildEra!=S.Era){_lastBuildEra=S.Era;RebuildBuildListV2();}
             _dynastyTag.text=GM.Time.DynastyName;
-            _timeText.text="第"+S.Year+"年";
+            _timeText.text=S.Paused?"⏸ 第"+S.Year+"年":"第"+S.Year+"年";   // V9.3.5 暂停时顶部时间加⏸防呆标记
             _gregText.text=GM.Time.GregorianText;
             _popText.text="人口"+S.Pop+"/"+Mathf.RoundToInt(S.Housing);
             // V6.1.9(i) 天气 / 月度潮汐 / 海风

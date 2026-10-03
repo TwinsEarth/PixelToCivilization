@@ -34,6 +34,9 @@ namespace PixelToCivilization.Systems
         // V9.2.3 军舰自主巡逻（运行时态、不进存档）：无敌舰时沿外海航点环航
         class PatrolRoute { public readonly List<Vector2> Pts = new(); public int Idx; public bool Inited; }
         readonly Dictionary<ShipEntity,PatrolRoute> _patrol = new();
+        // V9.3.5 主动载人（运行时态）：载人态船的目标闲人航点（0.5s 节流刷新；沉舰/退役同步清理）
+        readonly Dictionary<ShipEntity,Vector2> _loadGoal = new();
+        private float _loadCd;
 
         // ===== V9.3.3 海上帝阵营（3-5 个敌对阵营，敌舰按阵营着色/命名；运行时随机启用）=====
         static readonly (string name,long color)[] FactionDefs =
@@ -174,10 +177,14 @@ namespace PixelToCivilization.Systems
         }
         // V9.3.4 等级成长：发现范围/自动搜敌雷达随等级 +15%/级（Lv1=50、Lv2=57.5、Lv3=65）
         public float DetectRangeOf(ShipEntity s) => DetectRange*(1f+(s.Level-1)*0.15f);
+        // V9.3.5 任务态：军用船满编率>=50%=战斗态；低员军用+民用=载人态（用户条款：50%载量为分界）
+        public bool BattlePriority(ShipEntity s) => s.Military && s.Crew >= Capacity(s)*0.5f;
+        /// <summary>V9.3.5 战斗发现/搜索半径：战斗态=50格加倍100格、载人态=30格（等级成长保留：Lv1=100/30，Lv2=115/34.5，Lv3=130/39）</summary>
+        public float CombatDetectRangeOf(ShipEntity s) => (BattlePriority(s)?DetectRange*2f:30f)*(1f+(s.Level-1)*0.15f);
         public float SpeedOf(ShipEntity s)
         {
             if (!Defs.TryGetValue(s.ShipTypeId,out var d)) return 0;
-            if (s.Crew==0) return 0;
+            if (s.Crew==0) return d.Speed*0.4f; // V9.3.5 空船0.4倍速巡航去载人，避免低员船0速死锁（原 return 0）
             float ratio=Mathf.Min(1,s.Crew/(float)Capacity(s));
             return d.Speed*(0.5f+ratio*0.5f)*(1+(s.Level-1)*0.1f);
         }
@@ -391,6 +398,7 @@ namespace PixelToCivilization.Systems
                 s.Age++;
                 if (s.Age>s.MaxAge)
                 {
+                    _loadGoal.Remove(s);
                     if(s.View!=null)Object.Destroy(s.View);
                     S.Ships.RemoveAt(i);
                     GM.AddEvent("bad","一艘"+s.Name+"超期服役，已退役（船龄 "+s.Age+" 年）");
@@ -418,18 +426,21 @@ namespace PixelToCivilization.Systems
                 if (!s.Military)
                 {
                     try{
-                    // 民用船：围绕家园锚点缓慢圆周巡游，让水面"活"起来
-                    float phase=(s.HomeX*0.7f+s.HomeZ*0.5f)+Time.time*0.10f;
-                    float rr=9f;
-                    float tx=s.HomeX+Mathf.Cos(phase)*rr, tz=s.HomeZ+Mathf.Sin(phase)*rr;
                     float ox=s.X, oz=s.Z;
-                    float nx=Mathf.Lerp(s.X,tx,dt*0.6f), nz=Mathf.Lerp(s.Z,tz,dt*0.6f);
-                    float dvx=0f,dvz=0f;
-                    if(GM.OceanFlow!=null){var dv=GM.OceanFlow.Drift(nx,nz,dt,1.2f);dvx=dv.x;dvz=dv.y;} // 洋流/海风漂流
-                    // V6.3.4：巡游目标与洋流叠加后必须仍在水面，否则本帧不移动，杜绝被吹上陆地
-                    if(OnWater(nx+dvx,nz+dvz)){ s.X=nx+dvx; s.Z=nz+dvz; }
-                    float mvx=s.X-ox, mvz=s.Z-oz;
-                    if (Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
+                    // V9.3.5 民用船恒载人态：100格内有闲人优先驶向载人，无则围绕家园锚点缓慢圆周巡游
+                    if(!MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz))
+                    {
+                        float phase=(s.HomeX*0.7f+s.HomeZ*0.5f)+Time.time*0.10f;
+                        float rr=9f;
+                        float tx=s.HomeX+Mathf.Cos(phase)*rr, tz=s.HomeZ+Mathf.Sin(phase)*rr;
+                        float nx=Mathf.Lerp(s.X,tx,dt*0.6f), nz=Mathf.Lerp(s.Z,tz,dt*0.6f);
+                        float dvx=0f,dvz=0f;
+                        if(GM.OceanFlow!=null){var dv=GM.OceanFlow.Drift(nx,nz,dt,1.2f);dvx=dv.x;dvz=dv.y;} // 洋流/海风漂流
+                        // V6.3.4：巡游目标与洋流叠加后必须仍在水面，否则本帧不移动，杜绝被吹上陆地
+                        if(OnWater(nx+dvx,nz+dvz)){ s.X=nx+dvx; s.Z=nz+dvz; }
+                        float mvx=s.X-ox, mvz=s.Z-oz;
+                        if (Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
+                    }
                     }catch(System.Exception ex){ Debug.LogError("[NAV:C3 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
                 }
                 else
@@ -444,7 +455,9 @@ namespace PixelToCivilization.Systems
                         float d=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(target.X,target.Z));
                         float ox=s.X,oz=s.Z;
                         bool fire=s.ShipTypeId=="fire_ship";
-                        float engage=fire?3.2f:RangeOf(s);   // V9.3.4 火船贴舷自爆；其他军舰在自身射程内开火（射程随等级成长）
+                        // V9.3.5 单位修正：射程(格)×Tile(4)=世界单位；载人态战斗半径封顶30格(120世界单位)
+                        float engage=fire?3.2f:RangeOf(s)*GameConstants.Tile;
+                        if(!BattlePriority(s)) engage=Mathf.Min(engage,30f*GameConstants.Tile);
                         if (d>engage){ Vector3 dir=(target.Pos-s.Pos).normalized; float sp=SpeedOf(s);
                             // V6.1.9(i) 洋流海风：顺流顺风加速、逆流逆风减速
                             if(GM.OceanFlow!=null) sp*=GM.OceanFlow.SailFactor(s.X,s.Z,new Vector2(dir.x,dir.z));
@@ -456,7 +469,11 @@ namespace PixelToCivilization.Systems
                         float mvx=s.X-ox,mvz=s.Z-oz;
                         if (Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
                     }
-                    else { PatrolMove(s,dt,ref lookYaw,ref hasLook); } // V9.2.3 无敌舰：自主巡逻
+                    else {
+                        // V9.3.5 军用载人态：30格内无敌舰时，100格内有闲人优先驶向载人；否则自主巡逻
+                        float ox=s.X,oz=s.Z;
+                        if(!MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz)) PatrolMove(s,dt,ref lookYaw,ref hasLook);
+                    } // V9.2.3 无敌舰：自主巡逻
                     }catch(System.Exception ex){ Debug.LogError("[NAV:C5 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
                 }
                 try{
@@ -485,7 +502,7 @@ namespace PixelToCivilization.Systems
                 {
                     float d=Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(target.X,target.Z));
                     bool eFire=e.ShipTypeId=="fire_ship";
-                    float engage=eFire?3.2f:RangeOf(e);   // V9.3.4 敌舰同样：射程内开火（射程随等级成长）、距离衰减
+                    float engage=eFire?3.2f:RangeOf(e)*GameConstants.Tile;   // V9.3.5 射程(格)→世界单位；敌舰生成满员=战斗态
                     if (d>engage){ Vector3 dir=(target.Pos-e.Pos).normalized;
                         float nx=e.X+dir.x*1.2f*dt, nz=e.Z+dir.z*1.2f*dt;
                         if(OnWater(nx,nz)){e.X=nx;e.Z=nz;} } // V6.8.3：敌舰只在外海移动
@@ -501,7 +518,7 @@ namespace PixelToCivilization.Systems
             }
             // 清理我方沉舰
             try{
-            S.Ships.RemoveAll(s=>{ if(s.Hp<=0){if(s.View!=null)Object.Destroy(s.View);return true;} return false; });
+            S.Ships.RemoveAll(s=>{ if(s.Hp<=0){_loadGoal.Remove(s); if(s.View!=null)Object.Destroy(s.View);return true;} return false; });
             }catch(System.Exception ex){ Debug.LogError("[NAV:D6] "+ex.GetType().Name+": "+ex.Message); }
             try{
             if (EnemyShips.Count==0)
@@ -527,8 +544,8 @@ namespace PixelToCivilization.Systems
             if (range<=0f) return 1f;
             return Mathf.Clamp01((range-dist)/(range*0.5f));
         }
-        private ShipEntity NearestEnemy(ShipEntity s){ ShipEntity best=null;float bd=DetectRangeOf(s);foreach(var e in EnemyShips){float d=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(e.X,e.Z));if(d<bd){bd=d;best=e;}}return best; }
-        private ShipEntity NearestOurs(ShipEntity e){ ShipEntity best=null;float bd=DetectRangeOf(e);foreach(var s in S.Ships){if(!s.Military)continue;float d=Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(s.X,s.Z));if(d<bd){bd=d;best=s;}}return best; }
+        private ShipEntity NearestEnemy(ShipEntity s){ ShipEntity best=null;float bd=CombatDetectRangeOf(s);foreach(var e in EnemyShips){float d=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(e.X,e.Z));if(d<bd){bd=d;best=e;}}return best; }
+        private ShipEntity NearestOurs(ShipEntity e){ ShipEntity best=null;float bd=CombatDetectRangeOf(e);foreach(var s in S.Ships){if(!s.Military)continue;float d=Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(s.X,s.Z));if(d<bd){bd=d;best=s;}}return best; }
 
         // ===== V9.2.3 军舰自主巡逻 =====
         private PatrolRoute GetPatrol(ShipEntity s)
@@ -573,6 +590,46 @@ namespace PixelToCivilization.Systems
             if(Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
         }
 
+        // ===== V9.3.5 主动载人：载人态船驶向最近空闲平民（100格=400世界单位内），到14世界单位内停靠交由EmbarkSystem吸附 =====
+        /// <summary>100格内最近未登乘平民（平方距离裁剪；0.5s节流刷新目标）</summary>
+        private Vector2? NearestIdleAgent(float x,float z,float rangeWorld)
+        {
+            Vector2? best=null; float bd=rangeWorld*rangeWorld;
+            if(S.Agents==null) return null;
+            for(int i=0;i<S.Agents.Count;i++)
+            {
+                var a=S.Agents[i];
+                if(a==null||a.Boarded) continue;
+                float dx=a.X-x,dz=a.Z-z,d=dx*dx+dz*dz;
+                if(d<bd){ bd=d; best=new Vector2(a.X,a.Z); }
+            }
+            return best;
+        }
+        /// <summary>载人态船驶向目标闲人；无闲人/已到达/不在载人态返回 false（调用方回退巡逻或巡游）</summary>
+        private bool MoveToLoad(ShipEntity s,float dt,ref float lookYaw,ref bool hasLook,float ox,float oz)
+        {
+            if(BattlePriority(s)){ _loadGoal.Remove(s); return false; }
+            if(_loadCd<=0f)
+            {
+                _loadCd=0.5f;
+                var near=NearestIdleAgent(s.X,s.Z,100f*GameConstants.Tile);
+                if(near.HasValue) _loadGoal[s]=near.Value; else _loadGoal.Remove(s);
+            }
+            if(!_loadGoal.TryGetValue(s,out var g)) return false;
+            if(Vector2.Distance(new Vector2(s.X,s.Z),g)<=14f){ _loadGoal.Remove(s); return false; }
+            Vector3 dir=(new Vector3(g.x,0f,g.y)-s.Pos).normalized;
+            float sp=SpeedOf(s)*0.8f;
+            if(GM.OceanFlow!=null) sp*=GM.OceanFlow.SailFactor(s.X,s.Z,new Vector2(dir.x,dir.z));
+            float nx=s.X+dir.x*sp*30f*dt, nz=s.Z+dir.z*sp*30f*dt;
+            float dvx=0f,dvz=0f;
+            if(GM.OceanFlow!=null){ var dv=GM.OceanFlow.Drift(nx,nz,dt,0.6f); dvx=dv.x; dvz=dv.y; }
+            if(OnWater(nx+dvx,nz+dvz)){ s.X=nx+dvx; s.Z=nz+dvz; }
+            else if(OnWater(nx,nz)){ s.X=nx; s.Z=nz; }
+            float mvx=s.X-ox, mvz=s.Z-oz;
+            if(Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
+            return true;
+        }
+
         // ===== V9.2.3 火炮声光 =====
         private void FireFx(Vector3 from, Vector3 to, bool cannon)
         {
@@ -601,7 +658,7 @@ namespace PixelToCivilization.Systems
         // V9.3.3 我方开火：按距离衰减后伤害结算（d≤R 内调用）
         private void OurShipHit(ShipEntity s, ShipEntity target, float dist)
         {
-            int atk=Mathf.RoundToInt(AttackOf(s)*DamageEff(RangeOf(s),dist));
+            int atk=Mathf.RoundToInt(AttackOf(s)*DamageEff(RangeOf(s),dist/GameConstants.Tile)); // V9.3.5 世界单位→格口径（20格0%/15格50%/10格100%）
             bool cannon=s.ShipTypeId=="cannon_ship"||s.ShipTypeId=="treasure_warship"
                 ||s.ShipTypeId=="destroyer"||s.ShipTypeId=="missile_ship"||s.ShipTypeId=="aircraft_carrier";
             if (s.ShipTypeId=="war_junk" && (target.ShipTypeId=="fire_ship"||target.ShipTypeId=="troop_boat"))
@@ -614,7 +671,7 @@ namespace PixelToCivilization.Systems
         }
         private void EnemyShipHit(ShipEntity e, ShipEntity target, float dist)
         {
-            int atk=Mathf.RoundToInt(AttackOf(e)*DamageEff(RangeOf(e),dist));
+            int atk=Mathf.RoundToInt(AttackOf(e)*DamageEff(RangeOf(e),dist/GameConstants.Tile)); // V9.3.5 世界单位→格口径
             target.Hp-=atk;
             bool cannon=e.ShipTypeId=="cannon_ship"||e.ShipTypeId=="treasure_warship"
                 ||e.ShipTypeId=="destroyer"||e.ShipTypeId=="missile_ship"||e.ShipTypeId=="aircraft_carrier";
