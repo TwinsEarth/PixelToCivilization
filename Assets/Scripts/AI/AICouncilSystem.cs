@@ -440,7 +440,8 @@ namespace PixelToCivilization.AI
         {
             key=(key??"").Trim();
             if(key.Length>0){ ApiKey=key; UnityEngine.PlayerPrefs.SetString("PXC_AI_KEY",key); Online=true; NetOk=true; LastNetError=""; }
-            else { ApiKey=""; Online=false; LastNetError="密钥已清空·离线规则自治（不耗Token）"; }
+            else { ApiKey=""; Online=false; LastNetError="密钥已清空·离线规则自治（不耗Token）"; UnityEngine.PlayerPrefs.SetString("PXC_AI_KEY",""); }
+            UnityEngine.PlayerPrefs.Save(); // V9.3.9：立即持久化（WebGL 下不 Save 不落 localStorage，清空/填写后刷新会回读旧值）
             Debug.Log("[AICouncil] V9.3.9 密钥已"+(key.Length>0?"配置·切换 DeepSeek 联网":"清空·离线自治")+" model="+Model);
         }
         public void CouncilNow(){ Council(S.Year); SafetyNet(); Continuity=ComputeContinuity(); }
