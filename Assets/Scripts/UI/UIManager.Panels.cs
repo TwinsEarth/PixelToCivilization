@@ -20,6 +20,7 @@ namespace PixelToCivilization.UI
         private ShipEntity _selectedShip;
         private CartEntity _selectedCart;
         private TreeRecord _selectedTree;
+        private InputField _aiKeyField;                 // V9.3.9 AI 密钥输入（九神面板）
         private Transform _modalLayer;
 
         private void BuildModals(Transform parent)
@@ -294,7 +295,7 @@ namespace PixelToCivilization.UI
             // —— 控制行1：开关 / 模式 / 立即议政 ——
             var r1=Row(content,38);
             UITheme.Btn("en",r1.transform,cou.Enabled?"◉ 共治开启（自动）":"○ 共治已停（手动）",12).onClick.AddListener(()=>{cou.ToggleEnabled();FillGods(modal);});
-            UITheme.Btn("mode",r1.transform,cou.Online?"🌐 联网·ARK大模型":"💾 离线·规则自治",12).onClick.AddListener(()=>{cou.SetOnline(!cou.Online);FillGods(modal);});
+            UITheme.Btn("mode",r1.transform,cou.Online?"🌐 联网·DeepSeek":"💾 离线·规则自治",12).onClick.AddListener(()=>{cou.SetOnline(!cou.Online);FillGods(modal);});
             UITheme.Btn("now",r1.transform,"⚡ 立即议政",12).onClick.AddListener(()=>{cou.CouncilNow();FillGods(modal);});
             // —— 控制行2：Token / 间隔 / 联网状态 ——
             string net = cou.Online ? (cou.NetOk?"联网正常":("联网失败→已自动离线："+cou.LastNetError)) : "离线自治（不耗Token，保证不断绝）";
@@ -303,6 +304,20 @@ namespace PixelToCivilization.UI
                 11,TextAnchor.MiddleLeft,UITheme.Sky).gameObject.AddComponent<LayoutElement>().preferredHeight=30;
             UITheme.Label("tip",content,"九位职能AI自主决策、神庭仲裁：允许饥荒/灾难/动乱让文明倒退，但人口/粮/住房/民心/军力触红线即强制托底并注入恢复条件，保证5000~10000年兴衰而不断绝。",
                 11,TextAnchor.UpperLeft,UITheme.Text).gameObject.AddComponent<LayoutElement>().preferredHeight=42;
+            // —— V9.3.9：AI 密钥行（DeepSeek 官方直连；留空=读包内注入/环境变量；填写即存本机并即时联网） ——
+            string keyShow = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
+            UITheme.Label("ais",content,"AI 密钥："+keyShow+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://",""),11,TextAnchor.MiddleLeft,UITheme.Sky)
+                .gameObject.AddComponent<LayoutElement>().preferredHeight=24;
+            var rk=Row(content,32);
+            var inp=UITheme.Panel("aiin",rk.transform,new Color(0.93f,0.96f,0.98f,1f));
+            inp.AddComponent<LayoutElement>().flexibleWidth=1;
+            _aiKeyField=inp.AddComponent<InputField>();
+            var kt=UITheme.Label("kt",inp.transform,"",11,TextAnchor.MiddleLeft);
+            kt.rectTransform.offsetMin=new Vector2(8,2);kt.rectTransform.offsetMax=new Vector2(-8,-2);
+            _aiKeyField.textComponent=kt;_aiKeyField.lineType=InputField.LineType.SingleLine;_aiKeyField.text="";
+            var sb=UITheme.Btn("aisave",rk.transform,"保存",11);
+            sb.AddComponent<LayoutElement>().preferredWidth=70;
+            sb.onClick.AddListener(()=>{cou.SetApiKey(_aiKeyField.text);_aiKeyField.text="";FillGods(modal);});
             // —— 九智能体 ——
             foreach (var g in cou.Gods)
             {

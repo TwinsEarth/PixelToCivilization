@@ -1061,6 +1061,8 @@ namespace PixelToCivilization.Core
         public void WebCouncilToggle(){ Council?.ToggleEnabled(); Debug.Log("[Web] Council enabled="+(Council!=null&&Council.Enabled)); }
         public void WebCouncilOnline(){ Council?.SetOnline(true); Debug.Log("[Web] Council online"); }
         public void WebCouncilOffline(){ Council?.SetOnline(false); Debug.Log("[Web] Council offline"); }
+        /// <summary>V9.3.9 Web 桥接：浏览器 SendMessage 传 string 设置 AI 密钥（日志只记长度，不落明文）</summary>
+        public void WebAISetKey(string key){ Council?.SetApiKey(key); Debug.Log("[Web] AISetKey len="+(key==null?0:key.Length)); }
         /// <summary>V6.1.9 立即触发一次九神议政（含联网请求），用于浏览器验证 ARK 连通/CORS</summary>
         public void WebCouncilOnce(){ if(Council==null){Debug.Log("[Web] Council null");return;} Council.SetOnline(true); Council.CouncilNow(); Debug.Log("[Web] CouncilOnce online model="+Council.Model+" requesting, 请观察后续联网结果"); }
         // ---- V6.1.9 加速冷冻 Web 回归入口 ----

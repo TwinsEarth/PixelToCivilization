@@ -14,7 +14,7 @@ namespace PixelToCivilization.AI
     /// <summary>
     /// V6.1.8 九智能体共治（AI 多智能体 / AI Council）。
     /// 九位职能"神灵"各管一域、自主决策，由神庭按紧迫度仲裁后执行白名单动作；
-    /// 【离线规则引擎永远在线】是文明不灭绝的硬保证；【联网 ARK 大模型】仅作可选增强：
+    /// 【离线规则引擎永远在线】是文明不灭绝的硬保证；【联网 DeepSeek 大模型（默认·官方直连支持浏览器 CORS；方舟可手动配置）】仅作可选增强：
     /// 大模型只能在同一动作白名单内选择/加权，任何失败、跨域、超时都静默回退离线，绝不阻塞游戏、绝不越界改数。
     /// 设计目标：无人工干预下，允许大饥荒/灾难/动乱让文明倒退，但 SafetyNet 把人口/粮食/住房/民心/军力钳在存续线之上并注入恢复条件，使文明 5000~10000 年兴衰而不断绝。
     /// </summary>
@@ -30,9 +30,9 @@ namespace PixelToCivilization.AI
         public string ApiKey = ""; // 开源版不内置任何密钥；启动时从环境变量 PXC_ARK_API_KEY 读取，留空则离线规则引擎兜底
         public string KeyId = "";   // 方舟控制台凭证ID（仅本地标识，不参与HTTP鉴权；开源版留空）
         public string KeyName = "";      // 方舟控制台凭证名称（仅本地标识；开源版留空）
-        public string Endpoint = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
-        // V6.1.9：原 doubao-seed-1-6-250615 该账号无权限(Retiring/NotFound)，经 /models 枚举与实测，此Key当前唯一可直连的在线文本模型
-        public string Model = "deepseek-v4-flash-ga-260731";
+        public string Endpoint = "https://api.deepseek.com/chat/completions"; // V9.3.9 DeepSeek 官方直连（实测 CORS 预检 200）；方舟通道可手动改回 ark.cn-beijing.volces.com/api/v3/chat/completions
+        // V9.3.9：用户指定 DeepSeek-V4.1-Flash；官方 API 实测（2026-10-03）支持模型 ID：deepseek-flash / deepseek-v4-pro，故默认 deepseek-flash（即 V4.1-Flash 在线档）
+        public string Model = "deepseek-flash";
         public bool NetOk = true;                   // 最近一次联网是否成功（失败自动离线降级）
         public string LastNetError = "";
 
@@ -49,11 +49,33 @@ namespace PixelToCivilization.AI
         public override void Init(GameManager gm)
         {
             base.Init(gm);
-            // 开源版：密钥仅来自环境变量，不入库不入包；未配置则自动离线（规则引擎永久兜底）
+            // V9.3.9 密钥三级读取（源码/仓库不含任何密钥）：① 游戏内 PlayerPrefs（九神面板可填）② WebGL index.html meta 注入（构建时环境变量 PXC_AI_KEY）③ 环境变量（PXC_AI_KEY，兼容旧 PXC_ARK_API_KEY）；全空则离线规则自治兜底
             if(string.IsNullOrEmpty(ApiKey))
-                ApiKey = System.Environment.GetEnvironmentVariable("PXC_ARK_API_KEY") ?? "";
+            {
+                string pp = UnityEngine.PlayerPrefs.GetString("PXC_AI_KEY","");
+                if(!string.IsNullOrEmpty(pp)) ApiKey = pp;
+                else if(IsWebGLMeta("ai-key", out string mk) && !string.IsNullOrEmpty(mk)) ApiKey = mk;
+                else ApiKey = System.Environment.GetEnvironmentVariable("PXC_AI_KEY")
+                        ?? System.Environment.GetEnvironmentVariable("PXC_ARK_API_KEY") ?? "";
+            }
             Online = Online && !string.IsNullOrEmpty(ApiKey);
+            Debug.Log("[AICouncil] V9.3.9 AI 神通道："+(string.IsNullOrEmpty(ApiKey)?"离线规则自治（未配置密钥）":"DeepSeek 联网就绪 model="+Model+" endpoint="+Endpoint));
             BuildGods();
+        }
+
+        /// <summary>WebGL 下读取 index.html 注入的 meta（构建产物带 key，源码无 key）；桌面/编辑器走环境变量</summary>
+        static bool IsWebGLMeta(string name, out string val)
+        {
+            val="";
+#if UNITY_WEBGL && !UNITY_EDITOR
+            try {
+                string js="(function(){var m=document.querySelector('meta[name=\""+name+"\"]');return m?(m.getAttribute('content')||''):'';})()";
+#pragma warning disable CS0618
+                val = Application.ExternalEval(js) ?? "";
+#pragma warning restore CS0618
+            } catch(Exception) { val=""; }
+#endif
+            return val.Length>0;
         }
 
         void BuildGods()
@@ -341,7 +363,7 @@ namespace PixelToCivilization.AI
             string snapshot=BuildSnapshot(year);
             string sys="你是文明模拟中的AI执政官之一。只能从动作白名单选择，不得发明动作、不得使文明灭绝。"+
                        "输出紧凑JSON数组，每个元素 {\"god\":\"pop|farm|tech|time|res|edu|org|mil\",\"act\":\"addRes|addHousing|addPop|happy|morale|research|culture|defend|peace\",\"amt\":数字,\"note\":\"20字内中文短评\"}。最多6条，amt保守。";
-            // V6.1.9：thinking.type=disabled 关闭推理模型的隐藏思考链，省Token、1~2秒返回（实测 reasoning=0）
+            // V9.3.9 实测（2026-10-03）：deepseek-flash 带可见思考链，必须 thinking.type=disabled 才能拿到 JSON 正文（禁用后≈259 tokens 返回6条动作；不传则思考链耗尽 max_tokens，content 恒空）
             var payload="{\"model\":\""+Model+"\",\"messages\":[{\"role\":\"system\",\"content\":\""+Esc(sys)+"\"},{\"role\":\"user\",\"content\":\""+Esc(snapshot)+"\"}],\"temperature\":0.6,\"max_tokens\":400,\"thinking\":{\"type\":\"disabled\"}}";
             using var req=new UnityWebRequest(Endpoint,"POST");
             byte[] body=Encoding.UTF8.GetBytes(payload);
@@ -427,6 +449,15 @@ namespace PixelToCivilization.AI
         // ===================== UI / Web / 存档接口 =====================
         public void ToggleEnabled(){ Enabled=!Enabled; foreach(var g in Gods) g.Status=Enabled?"治理":"休眠"; }
         public void SetOnline(bool on){ Online=on; LastNetError=on?"":LastNetError; }
+
+        /// <summary>V9.3.9 设置 AI 密钥（游戏内/Web 桥接调用）：写入本机 PlayerPrefs，不入存档不入仓库；空值=切回离线规则自治</summary>
+        public void SetApiKey(string key)
+        {
+            key=(key??"").Trim();
+            if(key.Length>0){ ApiKey=key; UnityEngine.PlayerPrefs.SetString("PXC_AI_KEY",key); Online=true; NetOk=true; LastNetError=""; }
+            else { ApiKey=""; Online=false; LastNetError="密钥已清空·离线规则自治（不耗Token）"; }
+            Debug.Log("[AICouncil] V9.3.9 密钥已"+(key.Length>0?"配置·切换 DeepSeek 联网":"清空·离线自治")+" model="+Model);
+        }
         public void CouncilNow(){ Council(S.Year); SafetyNet(); Continuity=ComputeContinuity(); }
     }
 
