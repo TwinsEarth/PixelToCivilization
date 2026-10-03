@@ -159,9 +159,21 @@ namespace PixelToCivilization.Systems
         public int AttackOf(ShipEntity s)
         {
             if (!Defs.TryGetValue(s.ShipTypeId,out var d)) return 0;
-            float crewBonus = 1+s.Crew*0.1f, lvlBonus = 1+(s.Level-1)*0.25f;
-            return Mathf.FloorToInt(d.Attack*crewBonus*lvlBonus);
+            // V9.3.4 满编战斗力：0人=50%、每多1%人员+0.6%、满员=110%（crewEff=0.5+min(1,Crew/Capacity)*0.6）
+            float cap=Mathf.Max(1,Capacity(s));
+            float ratio=Mathf.Clamp01(s.Crew/cap);
+            float crewEff=0.5f+ratio*0.6f;
+            float lvlBonus = 1+(s.Level-1)*0.25f;
+            return Mathf.FloorToInt(d.Attack*crewEff*lvlBonus);
         }
+        // V9.3.4 等级成长：攻击距离随等级 +15%/级（Lv1=基准、Lv2=1.15×、Lv3=1.3×）
+        public float RangeOf(ShipEntity s)
+        {
+            if (!Defs.TryGetValue(s.ShipTypeId,out var d)) return 10f;
+            return d.Range*(1f+(s.Level-1)*0.15f);
+        }
+        // V9.3.4 等级成长：发现范围/自动搜敌雷达随等级 +15%/级（Lv1=50、Lv2=57.5、Lv3=65）
+        public float DetectRangeOf(ShipEntity s) => DetectRange*(1f+(s.Level-1)*0.15f);
         public float SpeedOf(ShipEntity s)
         {
             if (!Defs.TryGetValue(s.ShipTypeId,out var d)) return 0;
@@ -432,7 +444,7 @@ namespace PixelToCivilization.Systems
                         float d=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(target.X,target.Z));
                         float ox=s.X,oz=s.Z;
                         bool fire=s.ShipTypeId=="fire_ship";
-                        float engage=fire?3.2f:s.Range;   // V9.3.3 火船贴舷自爆；其他军舰在自身射程内开火（20格内开始攻击由R=20基准复现）
+                        float engage=fire?3.2f:RangeOf(s);   // V9.3.4 火船贴舷自爆；其他军舰在自身射程内开火（射程随等级成长）
                         if (d>engage){ Vector3 dir=(target.Pos-s.Pos).normalized; float sp=SpeedOf(s);
                             // V6.1.9(i) 洋流海风：顺流顺风加速、逆流逆风减速
                             if(GM.OceanFlow!=null) sp*=GM.OceanFlow.SailFactor(s.X,s.Z,new Vector2(dir.x,dir.z));
@@ -473,7 +485,7 @@ namespace PixelToCivilization.Systems
                 {
                     float d=Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(target.X,target.Z));
                     bool eFire=e.ShipTypeId=="fire_ship";
-                    float engage=eFire?3.2f:e.Range;   // V9.3.3 敌舰同样：射程内开火、距离衰减
+                    float engage=eFire?3.2f:RangeOf(e);   // V9.3.4 敌舰同样：射程内开火（射程随等级成长）、距离衰减
                     if (d>engage){ Vector3 dir=(target.Pos-e.Pos).normalized;
                         float nx=e.X+dir.x*1.2f*dt, nz=e.Z+dir.z*1.2f*dt;
                         if(OnWater(nx,nz)){e.X=nx;e.Z=nz;} } // V6.8.3：敌舰只在外海移动
@@ -515,8 +527,8 @@ namespace PixelToCivilization.Systems
             if (range<=0f) return 1f;
             return Mathf.Clamp01((range-dist)/(range*0.5f));
         }
-        private ShipEntity NearestEnemy(ShipEntity s){ ShipEntity best=null;float bd=DetectRange;foreach(var e in EnemyShips){float d=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(e.X,e.Z));if(d<bd){bd=d;best=e;}}return best; }
-        private ShipEntity NearestOurs(ShipEntity e){ ShipEntity best=null;float bd=DetectRange;foreach(var s in S.Ships){if(!s.Military)continue;float d=Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(s.X,s.Z));if(d<bd){bd=d;best=s;}}return best; }
+        private ShipEntity NearestEnemy(ShipEntity s){ ShipEntity best=null;float bd=DetectRangeOf(s);foreach(var e in EnemyShips){float d=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(e.X,e.Z));if(d<bd){bd=d;best=e;}}return best; }
+        private ShipEntity NearestOurs(ShipEntity e){ ShipEntity best=null;float bd=DetectRangeOf(e);foreach(var s in S.Ships){if(!s.Military)continue;float d=Vector2.Distance(new Vector2(e.X,e.Z),new Vector2(s.X,s.Z));if(d<bd){bd=d;best=s;}}return best; }
 
         // ===== V9.2.3 军舰自主巡逻 =====
         private PatrolRoute GetPatrol(ShipEntity s)
@@ -589,7 +601,7 @@ namespace PixelToCivilization.Systems
         // V9.3.3 我方开火：按距离衰减后伤害结算（d≤R 内调用）
         private void OurShipHit(ShipEntity s, ShipEntity target, float dist)
         {
-            int atk=Mathf.RoundToInt(AttackOf(s)*DamageEff(s.Range,dist));
+            int atk=Mathf.RoundToInt(AttackOf(s)*DamageEff(RangeOf(s),dist));
             bool cannon=s.ShipTypeId=="cannon_ship"||s.ShipTypeId=="treasure_warship"
                 ||s.ShipTypeId=="destroyer"||s.ShipTypeId=="missile_ship"||s.ShipTypeId=="aircraft_carrier";
             if (s.ShipTypeId=="war_junk" && (target.ShipTypeId=="fire_ship"||target.ShipTypeId=="troop_boat"))
@@ -602,7 +614,7 @@ namespace PixelToCivilization.Systems
         }
         private void EnemyShipHit(ShipEntity e, ShipEntity target, float dist)
         {
-            int atk=Mathf.RoundToInt(AttackOf(e)*DamageEff(e.Range,dist));
+            int atk=Mathf.RoundToInt(AttackOf(e)*DamageEff(RangeOf(e),dist));
             target.Hp-=atk;
             bool cannon=e.ShipTypeId=="cannon_ship"||e.ShipTypeId=="treasure_warship"
                 ||e.ShipTypeId=="destroyer"||e.ShipTypeId=="missile_ship"||e.ShipTypeId=="aircraft_carrier";

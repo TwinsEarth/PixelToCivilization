@@ -587,7 +587,7 @@ public void ShowBuilding(BuildingEntity b)
             if(s.Level>=2){ if(s.Military) sb.Append("<color=#8be9fd>⚔ 作战载人：").Append(s.Crew).Append("/").Append(naval.Capacity(s)).Append("（Lv2已激活）</color>\n");
                 else sb.Append("<color=#8be9fd>👥 载客：").Append(s.Passengers).Append("/").Append(s.EffectiveHousing).Append("（Lv2已激活，附近居民自动登船）</color>\n"); }
             sb.Append("耐久：").Append(Mathf.Max(0,Mathf.RoundToInt(s.Hp))).Append("/").Append(Mathf.RoundToInt(s.MaxHp)).Append('\n');
-            if (s.Military) sb.Append("攻击：").Append(naval.AttackOf(s)).Append("  射程：").Append(Mathf.RoundToInt(s.Range)).Append('\n');
+            if (s.Military) sb.Append("攻击：").Append(naval.AttackOf(s)).Append("  射程：").Append(Mathf.RoundToInt(naval.RangeOf(s))).Append("  发现：").Append(Mathf.RoundToInt(naval.DetectRangeOf(s))).Append("格\n");   // V9.3.4 射程/发现随等级成长
             sb.Append("速度：").Append(naval.SpeedOf(s).ToString("0.00")).Append('\n');
             if(s.ShipTypeId=="aircraft_carrier") sb.Append("<color=#8be9fd>🛫 挂载舰载机/直升机/喷气机 ").Append(s.CarrierAir).Append(" 架</color>\n");   // V9.3.3 航母载机
             if(s.FactionId.Length>0) sb.Append("<color=#ff7a45>⛵ 敌对阵营：").Append(s.FactionId).Append("</color>\n");   // V9.3.3 敌舰阵营
