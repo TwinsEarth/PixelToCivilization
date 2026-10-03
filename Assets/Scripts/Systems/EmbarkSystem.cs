@@ -9,7 +9,8 @@ namespace PixelToCivilization.Systems
     /// V6.3.7 载具登乘系统：船只/车辆升级到 Lv2 起激活载人——自动吸附附近闲人登乘，
     /// 民用船按 EffectiveHousing（居住人数）限载、战船按 Capacity（作战人数，计入 Crew）、
     /// 车辆按 Capacity（不含驾驶员）限载；登乘者停止陆地游走并在甲板/车厢生成乘员小人随载具移动；
-    /// 载具损毁/降级时在其旁就近下船、恢复活动。为不抽空街景，全局登乘上限=总人口的 40%。
+    /// 载具损毁/降级时在其旁就近下船、恢复活动。为不抽空街景，车辆登乘上限=总人口的 40%；
+    /// 船只自 V9.3.9 起豁免该上限（军/民船都可正常载人；军用低员触发战时征兵令 30 格强制登船）。
     /// </summary>
     public class EmbarkSystem : GameSystemBase
     {
@@ -43,11 +44,20 @@ namespace PixelToCivilization.Systems
                     if (sh==null) continue;
                     _lastPos[sh]=new Vector3(sh.X,0,sh.Z);
                     // V9.3.5 放开门槛：全部我方船(Lv>=1)可载人（原Lv>=2——新船Lv1空员会0速死锁）；
-                    // 吸附半径随任务态：战斗态30格、载人态100格（用户条款：低员载人半径加倍/高员战斗半径加倍）
-                    if (sh.Side=="ours" && sh.Level>=1) { alive.Add(sh); BoardShip(sh, GM.Naval.BattlePriority(sh)?BattleCatch:LoadCatch); SyncRiders(sh.View, ShipOccupied(sh), 0.9f, 1.1f); }
+                    // V9.3.9 修复：船只登船不再受全局40%登乘上限阻塞（民用船/军用船都能正常载人，否则人多后budget=0全员不上船）；
+                    // V9.3.9 战时征兵令：军用船人员<50%容量时，30格内所有人员强制登船（不限军人），装到50%或范围内无人为止。
+                    if (sh.Side=="ours" && sh.Level>=1)
+                    {
+                        alive.Add(sh);
+                        float capF=GM.Naval.Capacity(sh);
+                        bool lowCrew = sh.Military && sh.Crew < capF*0.5f;
+                        if (lowCrew) BoardShip(sh, BattleCatch, true, Mathf.FloorToInt(capF*0.5f));   // 战时征兵令：30格强制装到50%
+                        else BoardShip(sh, GM.Naval.BattlePriority(sh)?BattleCatch:LoadCatch);          // 战斗态30格 / 载人态100格
+                        SyncRiders(sh.View, ShipOccupied(sh), 0.9f, 1.1f);
+                    }
                     else ReleaseOf(sh);
                 }
-            // 2) 车辆
+            // 2) 车辆（保留全局40%登乘上限，防抽空街景）
             foreach (var c in S.Carts)
             {
                 if (c==null) continue;
@@ -67,15 +77,22 @@ namespace PixelToCivilization.Systems
         private int ShipOccupied(ShipEntity s) => s.Military ? s.Crew : s.Passengers;
         private int ShipCap(ShipEntity s) => s.Military ? GM.Naval.Capacity(s) : s.EffectiveHousing;
 
-        private void BoardShip(ShipEntity s, float radius)
+        // 船只登船：不受全局40%上限约束（V9.3.9 修复"附近有人不上船"）。
+        // force=true 为战时征兵令：无视剩余名额，在 radius 内循环抓最近未登船人员，直到达到 forceTarget 或范围内无人。
+        private void BoardShip(ShipEntity s, float radius, bool force=false, int forceTarget=0)
         {
-            int occ=ShipOccupied(s), cap=ShipCap(s), budget=GlobalBudget();
-            while (occ<cap && budget>0)
+            int occ=ShipOccupied(s), cap=ShipCap(s);
+            if (force)
+            {
+                if (forceTarget>occ) cap=Mathf.Min(cap,forceTarget);
+                else cap=occ;
+            }
+            while (occ<cap)
             {
                 var a=NearestFree(s.X,s.Z,radius); if(a==null) break;
                 Embark(a,s);
                 if(s.Military) s.Crew++; else s.Passengers++;
-                occ++; budget--;
+                occ++;
             }
         }
         private void BoardCart(CartEntity c)
