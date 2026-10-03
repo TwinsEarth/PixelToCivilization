@@ -18,13 +18,20 @@ namespace PixelToCivilization.Systems
         private const float LoadCatch = 400f;      // V9.3.5 载人态船吸附半径=100格（4×100）
         private const float BattleCatch = 120f;    // V9.3.5 战斗态船吸附半径=30格（4×30）
         private const float TickEvery = 2.5f;      // 节流秒
-        private const int MaxVisualRiders = 14;    // 单个载具最多画出的乘员小人（再多只计数）
+        private const int MaxVisualRiders = 28;    // V9.3.9 单个载具最多画出的乘员小人（原14——人上船后视觉上"消失"的主要诱因）
         private const float RideRatio = 0.4f;      // 最多带走四成人口，保留市井活力
         private float _cd;
+        private WorldGenerator _terrain;
         private readonly Dictionary<AgentEntity, object> _riding = new();
         private readonly Dictionary<object, Vector3> _lastPos = new();
         private Material _riderMat;
         private Material RiderMat => _riderMat ??= ShaderHelper.Mat(new Color(0.32f,0.36f,0.46f));
+
+        public override void Init(GameManager gm)
+        {
+            base.Init(gm);
+            _terrain = UnityEngine.Object.FindObjectOfType<WorldGenerator>();
+        }
 
         public override void Tick(float dt)
         {
@@ -71,6 +78,15 @@ namespace PixelToCivilization.Systems
                 var gone=new List<AgentEntity>();
                 foreach(var kv in _riding) if(!alive.Contains(kv.Value)) gone.Add(kv.Key);
                 foreach(var a in gone) Disembark(a);
+            }
+            // 4) V9.3.9 登船者位置跟随载具（船/车开走后，登船者不再停留在原地上——否则"人消失但没上船"）
+            if (_riding.Count>0)
+            {
+                foreach(var kv in _riding)
+                {
+                    if(kv.Value is ShipEntity sh){ kv.Key.X=sh.X; kv.Key.Z=sh.Z; }
+                    else if(kv.Value is CartEntity cc){ kv.Key.X=cc.X; kv.Key.Z=cc.Z; }
+                }
             }
         }
 
@@ -146,7 +162,23 @@ namespace PixelToCivilization.Systems
             Vector3 p=Vector3.zero; if(v!=null && _lastPos.TryGetValue(v,out var lp)) p=lp;
             if(v is ShipEntity sh){ if(sh.Military) sh.Crew=Mathf.Max(0,sh.Crew-1); else sh.Passengers=Mathf.Max(0,sh.Passengers-1); }
             else if(v is CartEntity cc){ cc.Passengers=Mathf.Max(0,cc.Passengers-1); }
-            a.X=p.x+Random.Range(-1.2f,1.2f); a.Z=p.z+Random.Range(-1.2f,1.2f);
+            // V9.3.9 下船点=载具最后位置附近的最近陆地（避免船在海上退役/沉没时人员在海上"复活消失"）
+            float lx=p.x,lz=p.z;
+            if(_terrain!=null)
+            {
+                bool found=false;
+                for(int ring=1; ring<=16 && !found; ring++)
+                {
+                    float r=ring*1f;
+                    for(int k=0;k<24;k++)
+                    {
+                        float ang=k/24f*Mathf.PI*2f;
+                        float cx=p.x+Mathf.Cos(ang)*r, cz=p.z+Mathf.Sin(ang)*r;
+                        if(!_terrain.IsOceanWater(cx,cz)){ lx=cx; lz=cz; found=true; break; }
+                    }
+                }
+            }
+            a.X=lx+Random.Range(-1.2f,1.2f); a.Z=lz+Random.Range(-1.2f,1.2f);
             a.Boarded=false; a.WanderTimer=0f;
             if(a.View!=null) a.View.SetActive(true);
             _riding.Remove(a);

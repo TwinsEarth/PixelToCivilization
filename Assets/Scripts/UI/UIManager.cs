@@ -595,55 +595,50 @@ namespace PixelToCivilization.UI
         private void OpenDebugModal()
         {
             var modal=CreateModal("Debug 控制台（Lv"+S.DebugLevel+" 全权限 · 最高 "+GM.MaxSpeed+" 倍速）");
-            modal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(780,680);
+            modal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(740,640);   // V9.3.10 780×680→740×640
             var outer=ModalBody(modal);Clear(outer);
-            var ol=outer.AddComponent<VerticalLayoutGroup>();ol.spacing=6;ol.padding=new RectOffset(2,2,2,2);
+            var ol=outer.AddComponent<VerticalLayoutGroup>();ol.spacing=4;ol.padding=new RectOffset(2,2,2,2);   // V9.3.10 6→4
             ol.childControlWidth=true;ol.childForceExpandWidth=true;ol.childControlHeight=true;ol.childForceExpandHeight=false;
 
-            var st=UITheme.Surface("DbgStat",outer.transform,UITheme.HexA(0x232e50,0.9f));st.AddComponent<LayoutElement>().preferredHeight=58;
-            var sv=st.AddComponent<VerticalLayoutGroup>();sv.spacing=2;sv.padding=new RectOffset(12,12,6,6);
+            var st=UITheme.Surface("DbgStat",outer.transform,UITheme.HexA(0x232e50,0.9f));st.AddComponent<LayoutElement>().preferredHeight=50;   // V9.3.10 58→50
+            var sv=st.AddComponent<VerticalLayoutGroup>();sv.spacing=2;sv.padding=new RectOffset(10,10,4,4);
             sv.childControlWidth=true;sv.childForceExpandWidth=true;sv.childControlHeight=false;sv.childForceExpandHeight=false;
-            UITheme.Label("l1",st.transform,"第"+S.Year+"年 · "+GM.Time.DynastyName+" · "+GM.Time.EraName+"　地图："+(S.CurrentMap=="home"?"母大陆":S.CurrentMap),13,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold);
-            UITheme.Label("l2",st.transform,"人口 "+S.Pop+"/"+Mathf.RoundToInt(S.Housing)+"　建筑 "+S.Buildings.Count+"　状态 "+(S.WarActive?"战争中":"和平")+"　倍速 x"+(int)S.Speed+"　航海 "+(S.AgeOfSail?"已开":"未开"),12,TextAnchor.MiddleLeft,UITheme.Sub);
+            UITheme.Label("l1",st.transform,"第"+S.Year+"年 · "+GM.Time.DynastyName+" · "+GM.Time.EraName+"　地图："+(S.CurrentMap=="home"?"母大陆":S.CurrentMap),12,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold);
+            UITheme.Label("l2",st.transform,"人口 "+S.Pop+"/"+Mathf.RoundToInt(S.Housing)+"　建筑 "+S.Buildings.Count+"　状态 "+(S.WarActive?"战争中":"和平")+"　倍速 x"+(int)S.Speed+"　航海 "+(S.AgeOfSail?"已开":"未开"),11,TextAnchor.MiddleLeft,UITheme.Sub);
 
-            // —— V9.3.9：AI 密钥（DeepSeek 官方直连；填写即存本机并即时联网，清空即离线自治） ——
+            // —— V9.3.10：AI 密钥入口（按钮弹窗输入，仿 Debug 密码门——弹窗出现即聚焦） ——
             {
                 var cou=GM.Council;
                 string keyShow = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
                 var keyLbl=UITheme.Label("aiS",outer.transform,"AI 密钥："+keyShow+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://",""),11,TextAnchor.MiddleLeft,UITheme.Sky);
-                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=22;
-                var rk=Row(outer.transform,32);
-                var inp=UITheme.Panel("aiin",rk.transform,new Color(0.93f,0.96f,0.98f,1f));
-                inp.AddComponent<LayoutElement>().flexibleWidth=1;
-                var kt=UITheme.Label("kt",inp.transform,"",11,TextAnchor.MiddleLeft);
-                kt.rectTransform.offsetMin=new Vector2(8,2);kt.rectTransform.offsetMax=new Vector2(-8,-2);
-                var akf=inp.AddComponent<InputField>();
-                akf.textComponent=kt;akf.lineType=InputField.LineType.SingleLine;akf.text="";
-                var sb=UITheme.Btn("aisave",rk.transform,"保存",11);
-                sb.AddComponent<LayoutElement>().preferredWidth=70;
-                sb.onClick.AddListener(()=>{cou.SetApiKey(akf.text);akf.text="";Toast("AI 密钥已"+(string.IsNullOrEmpty(cou.ApiKey)?"清空·离线自治":"保存·即时联网"));keyLbl.text="AI 密钥："+(string.IsNullOrEmpty(cou.ApiKey)?"未配置·离线规则自治":"已配置 "+cou.ApiKey.Substring(0,Mathf.Min(5,cou.ApiKey.Length))+"…")+"｜模型 "+cou.Model;});
+                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=18;
+                var rk=Row(outer.transform,28);
+                var kbtn=UITheme.Btn("aikey",rk.transform,"设置 AI 密钥（弹窗输入）",12);
+                kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
+                kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{},_hud!=null?_hud.transform:null); });
             }
 
-            var dbgSr=UITheme.VerticalScroll("DbgScroll",outer.transform,out var content,6);dbgSr.gameObject.AddComponent<LayoutElement>().flexibleHeight=1;
+            var dbgSr=UITheme.VerticalScroll("DbgScroll",outer.transform,out var content,4);dbgSr.gameObject.AddComponent<LayoutElement>().flexibleHeight=1;
             var cvlg=content.GetComponent<VerticalLayoutGroup>();
             cvlg.childControlWidth=true;cvlg.childForceExpandWidth=true;cvlg.childControlHeight=true;cvlg.childForceExpandHeight=false;
-            cvlg.padding=new RectOffset(2,12,12,6);
+            cvlg.padding=new RectOffset(2,10,10,4);
             dbgSr.movementType=ScrollRect.MovementType.Clamped;dbgSr.scrollSensitivity=30f;
             Transform grid=null;
-            void Section(string t){ var p=UITheme.Panel("sec",content,new Color(0,0,0,0));p.AddComponent<LayoutElement>().preferredHeight=30; UITheme.Label("s",p.transform,t,14,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold); }
-            void BeginGrid(int count){ var g=UITheme.Panel("g",content,new Color(0,0,0,0));int rows=Mathf.CeilToInt(count/3f);var gle=g.AddComponent<LayoutElement>();gle.preferredHeight=rows*34+(rows-1)*6+6;var gl=g.AddComponent<GridLayoutGroup>();gl.constraint=GridLayoutGroup.Constraint.FixedColumnCount;gl.constraintCount=3;gl.cellSize=new Vector2(236,34);gl.spacing=new Vector2(6,6);grid=g.transform; }
-            void DBtn(string t,System.Action act){ var b=UITheme.Btn("d",grid,t,12);b.onClick.AddListener(()=>{try{act();Toast("已执行："+t);Refresh();}catch(System.Exception e){Toast("执行失败："+t+"："+e.Message,false);Debug.LogError("[DEBUG-BTN] "+e);}}); AddHover(b.gameObject,t); }
+            void Section(string t){ var p=UITheme.Panel("sec",content,new Color(0,0,0,0));p.AddComponent<LayoutElement>().preferredHeight=24; UITheme.Label("s",p.transform,t,13,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold); }   // V9.3.10 30→24 / 14→13
+            void BeginGrid(int count){ var g=UITheme.Panel("g",content,new Color(0,0,0,0));int rows=Mathf.CeilToInt(count/3f);var gle=g.AddComponent<LayoutElement>();gle.preferredHeight=rows*28+(rows-1)*4+4;var gl=g.AddComponent<GridLayoutGroup>();gl.constraint=GridLayoutGroup.Constraint.FixedColumnCount;gl.constraintCount=3;gl.cellSize=new Vector2(248,28);gl.spacing=new Vector2(4,4);grid=g.transform; }   // V9.3.10 34→28 / 236→248 / 6→4
+            void DBtn(string t,System.Action act){ var b=UITheme.Btn("d",grid,t,11);b.onClick.AddListener(()=>{try{act();Toast("已执行："+t);Refresh();}catch(System.Exception e){Toast("执行失败："+t+"："+e.Message,false);Debug.LogError("[DEBUG-BTN] "+e);}}); AddHover(b.gameObject,t); }
             void SpeedV(int v){ DBtn("x"+v+" 倍速",()=>{S.Speed=Mathf.Min(v,GM.MaxSpeed);SyncSlider();}); }
 
             // —— 资源修改：覆盖全部 15 种资源 ——
-            Section("资源修改（全部 "+ResourceDatabase.Order.Length+" 种，各 +1000）");
-            BeginGrid(ResourceDatabase.Order.Length+3);
+            Section("资源修改（全部 "+ResourceDatabase.Order.Length+" 种）");
+            BeginGrid(ResourceDatabase.Order.Length+4);
             foreach(var k in ResourceDatabase.Order)
             {
                 string key=k; string rn=ResourceDatabase.Names.TryGetValue(key,out var nm)?nm:key;
                 DBtn("+1000 "+rn,()=>S.AddRes(key,1000));
             }
             DBtn("全部资源 +10000",()=>{foreach(var k in ResourceDatabase.Order)S.AddRes(k,10000);});
+            DBtn("全部资源 +100万",()=>{foreach(var k in ResourceDatabase.Order)S.AddRes(k,1000000);});   // V9.3.11
             DBtn("全部资源清零",()=>{foreach(var k in ResourceDatabase.Order){float gv=S.GetRes(k);if(gv>0)S.AddRes(k,-gv);}});
             DBtn("研究点 +5000",()=>S.AddRes("research",5000));
 

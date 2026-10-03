@@ -42,6 +42,7 @@ namespace PixelToCivilization.UI
         private Sprite _badgeSprite;
         // —— 帮助 / 日志 ——
         private GameObject _helpModal, _logModal;
+        // V9.3.10：帮助界面 AI 密钥改弹窗输入（ApiKeyPrompt），行内输入字段已移除
 
         // 用户指定的 10 个建造分类（显示顺序）
         private static readonly string[] BuildTabsV2 =
@@ -631,9 +632,20 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             var lb=_logModal.transform.Find("Box").GetComponent<RectTransform>();lb.sizeDelta=new Vector2(680,620);
         }
         private void OpenHelp(){ FillHelp();_helpModal.SetActive(true); }
+        /// <summary>V9.3.9 WebGL 无参入口：打开帮助界面（浏览器 SendMessage 回归用）</summary>
+        public void WebOpenHelp(){ OpenHelp(); }
+        /// <summary>V9.3.10 程序化输入链验证：弹出 AI 密钥弹窗并赋值（触发 onValueChanged→[AIKey] 探针日志），
+        /// 证明 WebGL 构建内 InputField 组件完整可用（弹窗出现即聚焦，配合浏览器焦点兜底=实体键盘可输入）</summary>
+        public void WebKeyTest()
+        {
+            var pr=gameObject.AddComponent<ApiKeyPrompt>();
+            pr.Show(GM,_=>{},_hud!=null?_hud.transform:null);
+            pr.SetText("test");
+            Debug.Log("[AIKey] focused+set done");
+        }
         private void FillHelp()
         {
-            var hb=_helpModal.transform.Find("Box").GetComponent<RectTransform>();hb.sizeDelta=new Vector2(760,660);
+            var hb=_helpModal.transform.Find("Box").GetComponent<RectTransform>();hb.sizeDelta=new Vector2(720,600);   // V9.3.10 760×660→720×600
             var body=ModalBody(_helpModal);Clear(body);
             var helpSr=UITheme.VerticalScroll("HelpScroll",body.transform,out var c,6);
             c.GetComponent<VerticalLayoutGroup>().childControlHeight=true;
@@ -641,10 +653,10 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             void Section(string e,string t)
             {
                 // 固定行高（按字数预算行数），避免嵌套 ContentSizeFitter/动态 preferred 高度形成每帧布局反馈环导致卡帧
-                int cpl=54; // 每行约容纳字符数（正文 12 号、内容宽约 700）
+                int cpl=64; // 每行约容纳字符数（正文 11 号、内容宽约 690）V9.3.10 54→64 减少换行留白
                 int lines=0; foreach(var seg in t.Split('\n')){ lines+=Math.Max(1,Mathf.CeilToInt(seg.Length/(float)cpl)); }
-                int bodyH=lines*18;
-                int secH=18+22+4+bodyH;
+                int bodyH=lines*15;   // V9.3.10 18→15
+                int secH=14+18+3+bodyH;   // V9.3.10 18+22+4→14+18+3
                 var row=UITheme.Surface("hs",c,UITheme.HexA(0x232e50,0.9f));
                 var hrle=row.AddComponent<LayoutElement>();hrle.flexibleWidth=1;hrle.preferredHeight=secH;
                 var vg=row.AddComponent<VerticalLayoutGroup>();vg.spacing=4;vg.padding=new RectOffset(12,12,9,9);
@@ -653,6 +665,21 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
                 var tx=UITheme.Label("t",row.transform,t,12,TextAnchor.UpperLeft);
                 tx.horizontalOverflow=HorizontalWrapMode.Wrap;
                 tx.gameObject.AddComponent<LayoutElement>().preferredHeight=bodyH;
+            }
+            // —— V9.3.10：AI 密钥卡片（按钮弹窗输入，仿 Debug 密码门；顶部置顶） ——
+            {
+                var cou=GM.Council;
+                string keyShow2 = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
+                var aiCard=UITheme.Surface("hs",c,UITheme.HexA(0x232e50,0.9f));
+                var al2=aiCard.AddComponent<LayoutElement>();al2.flexibleWidth=1;al2.preferredHeight=92;   // V9.3.10 112→92
+                var avg=aiCard.AddComponent<VerticalLayoutGroup>();avg.spacing=4;avg.padding=new RectOffset(9,9,7,7);   // V9.3.10 6→4 / (12,12,9,9)→(9,9,7,7)
+                avg.childControlWidth=true;avg.childForceExpandWidth=true;avg.childControlHeight=true;avg.childForceExpandHeight=false;avg.childAlignment=TextAnchor.UpperCenter;
+                UITheme.Label("e",aiCard.transform,"AI 密钥设置 · 九神联网议政",14,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=18;   // V9.3.10 15→14 / 22→18
+                UITheme.Label("k",aiCard.transform,"状态："+keyShow2+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://","")+"；点击下方按钮弹窗粘贴 DeepSeek API Key，保存即联网议政，清空即离线规则自治",10,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=24;   // V9.3.10 11→10 / 28→24
+                var hr=Row(aiCard.transform,28);   // V9.3.10 32→28
+                var kbtn=UITheme.Btn("aikey",hr.transform,"设置 AI 密钥（弹窗输入）",12);
+                kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
+                kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{ if(_helpModal!=null && _helpModal.activeSelf) FillHelp(); },_hud!=null?_hud.transform:null); });
             }
             Section("游戏目标","从三皇五帝起步，历经 16 朝代、8 大时代发展到地球联盟；建设、科研、军事、航海、太空多线并进。九位 AI 神灵共治，允许饥荒、灾难、动乱与倒退，但保证文明 5000~10000 年不断绝。");
             Section("基本操作","左键：选择 / 放置建筑、种树、招民（先用底栏切换工具）；右键或 Esc：取消工具、关闭浮窗；拖拽：旋转 / 平移视角；滚轮：缩放。底栏从左到右为 暂停·减速·倍速·加速·速度滑条·选择·建造·种树·招民·常用·军事·副本·全屏，鼠标悬停图标显示说明。左下角为 存档·中心视角·Debug·帮助·声音。");
@@ -663,27 +690,6 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             Section("铁路系统","公元 1800 年起聚落旁铺设铁路廊道，红色标志的蒸汽机车（黑锅炉+红饰驾驶室+绿客车编组）在廊道上往返行驶；随年代自动升级：1900 内燃机车（橙）、1950 电力机车（银蓝）、1990 高速列车（白）、2010 磁悬浮（悬浮无轮）。列车为装饰性往返行驶，仅在陆地/疆域内铺设。");
             Section("加速冷冻","加速累计推进满 100 游戏年后，强制进入 300 现实秒冷冻冷却，期间倍速封顶 10；收到解冻指令后重新累计。画面中顶显示倒计时。");
             Section("快捷键 / 存档","空格 暂停，+/- 调整倍速，F11 或 Alt+Enter 全屏；游戏每 5 分钟自动存档，也可在左下角手动存/读 5 个手动槽、导出导入 JSON 跨设备迁移。");
-            // —— V9.3.9：AI 密钥设置（DeepSeek 直连；填写即存本机并即时联网，清空即离线自治） ——
-            {
-                var cou=GM.Council;
-                string keyShow2 = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
-                var aiCard=UITheme.Surface("hs",c,UITheme.HexA(0x232e50,0.9f));
-                var al2=aiCard.AddComponent<LayoutElement>();al2.flexibleWidth=1;al2.preferredHeight=112;
-                var avg=aiCard.AddComponent<VerticalLayoutGroup>();avg.spacing=6;avg.padding=new RectOffset(12,12,9,9);
-                avg.childControlWidth=true;avg.childForceExpandWidth=true;avg.childControlHeight=true;avg.childForceExpandHeight=false;avg.childAlignment=TextAnchor.UpperCenter;
-                UITheme.Label("e",aiCard.transform,"AI 密钥设置 · 九神联网议政",15,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=22;
-                UITheme.Label("k",aiCard.transform,"状态："+keyShow2+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://","")+"；下方粘贴 DeepSeek API Key 保存即联网议政；留空保存即离线规则自治（不耗Token）",11,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=28;
-                var hr=Row(aiCard.transform,32);
-                var hip=UITheme.Panel("aiin",hr.transform,new Color(0.93f,0.96f,0.98f,1f));
-                hip.AddComponent<LayoutElement>().flexibleWidth=1;
-                var hkt=UITheme.Label("kt",hip.transform,"",11,TextAnchor.MiddleLeft);
-                hkt.rectTransform.offsetMin=new Vector2(8,2);hkt.rectTransform.offsetMax=new Vector2(-8,-2);
-                var hkf=hip.AddComponent<InputField>();
-                hkf.textComponent=hkt;hkf.lineType=InputField.LineType.SingleLine;hkf.text="";
-                var hsb=UITheme.Btn("aisave",hr.transform,"保存",11);
-                hsb.AddComponent<LayoutElement>().preferredWidth=70;
-                hsb.onClick.AddListener(()=>{cou.SetApiKey(hkf.text);hkf.text="";Toast("AI 密钥已"+(string.IsNullOrEmpty(cou.ApiKey)?"清空·离线自治":"保存·即时联网"));FillHelp();});
-            }
             var row=UITheme.Panel("hb",c,new Color(0,0,0,0));row.AddComponent<LayoutElement>().preferredHeight=40;
             var hg=row.AddComponent<HorizontalLayoutGroup>();hg.spacing=8;hg.childForceExpandWidth=true;
             UITheme.Btn("debug",row.transform,"Debug 高级解锁",12).onClick.AddListener(()=>{_helpModal.SetActive(false);OnClickDebug();});

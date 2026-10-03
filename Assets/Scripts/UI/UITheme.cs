@@ -134,7 +134,7 @@ namespace PixelToCivilization.UI
             var colors=btn.colors;
             colors.highlightedColor=new Color(1,1,1,0.14f);colors.pressedColor=new Color(1f,0.54f,0.12f,0.80f);  // V7.0.1
             colors.fadeDuration=0.08f; btn.colors=colors;
-            var le=go.AddComponent<LayoutElement>(); le.preferredHeight=32;le.preferredWidth=84;
+            var le=go.AddComponent<LayoutElement>(); le.preferredHeight=28;le.preferredWidth=84;   // V9.3.10 高32→28 减少留白
             var txt=Label("Text",go.transform,content,size,TextAnchor.MiddleCenter,Text,FontStyle.Bold);
             txt.rectTransform.anchorMin=Vector2.zero;txt.rectTransform.anchorMax=Vector2.one;
             txt.rectTransform.offsetMin=Vector2.zero;txt.rectTransform.offsetMax=Vector2.zero;
@@ -150,7 +150,7 @@ namespace PixelToCivilization.UI
             var colors=btn.colors;
             colors.highlightedColor=new Color(1,1,1,0.14f);colors.pressedColor=new Color(1f,0.54f,0.12f,0.80f);  // V7.0.1
             colors.fadeDuration=0.08f;btn.colors=colors;
-            var le=go.AddComponent<LayoutElement>();le.preferredHeight=36;le.preferredWidth=Mathf.Max(96,content.Length*(size+2)+(size+6)*2+24);
+            var le=go.AddComponent<LayoutElement>();le.preferredHeight=30;le.preferredWidth=Mathf.Max(96,content.Length*(size+2)+(size+6)*2+24);   // V9.3.10 高36→30
             var h=go.AddComponent<HorizontalLayoutGroup>();
             h.childAlignment=TextAnchor.MiddleCenter;h.spacing=5;h.padding=new RectOffset(6,8,2,2);
             h.childControlWidth=true;h.childControlHeight=true;h.childForceExpandWidth=false;h.childForceExpandHeight=true;
@@ -173,7 +173,7 @@ namespace PixelToCivilization.UI
             content=cGo.GetComponent<RectTransform>();
             content.anchorMin=new Vector2(0,1);content.anchorMax=new Vector2(1,1);content.pivot=new Vector2(0.5f,1);
             var vlg=cGo.AddComponent<VerticalLayoutGroup>();
-            vlg.spacing=spacing;vlg.childAlignment=TextAnchor.UpperCenter;vlg.padding=new RectOffset(2,10,2,2);
+            vlg.spacing=spacing;vlg.childAlignment=TextAnchor.UpperCenter;vlg.padding=new RectOffset(1,6,1,1);   // V9.3.10 (2,10,2,2)→(1,6,1,1) 减少留白
             vlg.childControlWidth=true;vlg.childControlHeight=false;
             vlg.childForceExpandWidth=true;vlg.childForceExpandHeight=false;
             var f=cGo.AddComponent<ContentSizeFitter>();f.verticalFit=ContentSizeFitter.FitMode.PreferredSize;

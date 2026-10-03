@@ -437,6 +437,13 @@ namespace PixelToCivilization.Core
         // ===== WebGL / SendMessage 友好入口（无参，供浏览器深链、外部页面与自动化回归调用；UI 按钮逻辑不受影响）=====
         public void WebQuickSave(){ SaveSystem?.SaveToSlot(1); }
 
+        // V9.3.11 Debug：全部资源 +100 万（无参，供浏览器 SendMessage 回归与 Debug 控制台按钮）
+        public void WebAddResources1M(){
+            foreach(var k in ResourceDatabase.Order) State.AddRes(k,1000000);
+            AddEvent("good","[DEBUG] 全部资源 +100 万");
+            Debug.Log("[WEB] AddResources1M done food="+State.GetRes("food")+" gold="+State.GetRes("gold"));
+        }
+
         // ===== V6.8.0 世界奇观：浏览器回归入口（SendMessage 可绑 string） =====
         public void WebBuildWonder(string id){
             if(Wonder==null){Debug.Log("[WEB] Wonder system null");return;}
@@ -1030,6 +1037,10 @@ namespace PixelToCivilization.Core
         }
         public void WebToggleLeftPanel(){ UIManager.Instance?.WebToggleLeft(); }
         public void WebToggleRightPanel(){ UIManager.Instance?.WebToggleRight(); }
+        /// <summary>V9.3.9 WebGL 无参入口：打开帮助界面（浏览器回归密钥输入框用）</summary>
+        public void WebOpenHelp(){ if(UIManager.Instance!=null){ UIManager.Instance.WebOpenHelp(); Debug.Log("[Web] OpenHelp"); } }
+        /// <summary>V9.3.9 WebGL 无参入口：程序化验证密钥输入链（聚焦+赋值→探针日志）</summary>
+        public void WebKeyTest(){ if(UIManager.Instance!=null) UIManager.Instance.WebKeyTest(); }
 
         // ===== V6.1.9(i) 天气/军事 Web 回归入口（无参）=====
         public void WebNextWeather(){ Weather?.ForceNext(); Debug.Log("[Web] NextWeather kind="+(Weather!=null?(int)Weather.Current:-1)); }

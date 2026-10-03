@@ -40,13 +40,31 @@ namespace PixelToCivilization.Systems
         // V9.3.8 靠岸等待（运行时态）：载人态船到点停泊 _dockWait 秒，期间不动，等 EmbarkSystem 吸附岸边人员
         readonly Dictionary<ShipEntity,float> _dockWait = new();
         // V9.3.8 自动编队巡航（运行时态）：满员军用船无敌舰时分桶 3-7 艘成队，领队巡航、成员跟随；三模式每 10 现实分钟切换
-        class CruiseFormation { public readonly List<ShipEntity> Members=new(); public int Mode; public readonly List<Vector2> Waypoints=new(); public int WpIdx; public bool Inited; }
+        // V9.3.9 编队阵型：随模式同步轮换 5 种阵型（0倒V / 1V / 2纵列 / 3横排 / 4半圆包围），成员按领队航向相对排布
+        class CruiseFormation { public readonly List<ShipEntity> Members=new(); public int Mode; public int Formation; public float LeadYaw; public readonly List<Vector2> Waypoints=new(); public int WpIdx; public bool Inited; }
         readonly Dictionary<ShipEntity,CruiseFormation> _formation = new();
+        private static readonly string[] FormationNames={"倒V","V字","纵列","横排","半圆"};
         private float _cruiseSwitchCd;
         private const float CruiseSwitchInterval=600f;   // 现实 10 分钟切换巡航模式（unscaled，不受倍速影响）
         private static readonly Vector2[] FollowOffsets={
             new(0f,0f),new(2.5f,0f),new(-2.5f,0f),new(0f,2.5f),new(0f,-2.5f),new(5f,3f),new(-5f,3f)};
         private static readonly string[] CruiseModeNames={"绕大陆","岛间巡逻","随机坐标"};
+        // V9.3.9 编队阵型偏移（成员编号 mi、阵型 Formation；间距 8 世界单位；前进方向为 +Z、右舷 +X，运行时按领队航向旋转）
+        private static Vector2 FormationOffset(int mi,CruiseFormation f)
+        {
+            int n=f.Members.Count; if(n<2) return Vector2.zero;
+            const float S=8f;
+            int half=mi/2; int side=(mi%2==0)?1:-1;
+            switch(f.Formation)
+            {
+                case 0: return new Vector2(side*(S*0.5f+half*S), -S*(1+half));              // 倒V：两翼向后展开
+                case 1: return new Vector2(side*(S*0.5f+half*S), S*(1+half));               // V字：两翼向前张开
+                case 2: return new Vector2(0f, -S*mi);                                      // 纵列：1字
+                case 3: return new Vector2(side*(S*0.5f+half*S), 0f);                       // 横排：一字
+                default: { float ang=Mathf.Deg2Rad*(150f-120f*mi/(n-1)); float r=10f+6f*half; // 半圆包围：领队后方扇形
+                           return new Vector2(Mathf.Cos(ang)*r, Mathf.Sin(ang)*r*0.6f); }
+            }
+        }
 
         // ===== V9.3.3 海上帝阵营（3-5 个敌对阵营，敌舰按阵营着色/命名；运行时随机启用）=====
         static readonly (string name,long color)[] FactionDefs =
@@ -189,8 +207,8 @@ namespace PixelToCivilization.Systems
         public float DetectRangeOf(ShipEntity s) => DetectRange*(1f+(s.Level-1)*0.15f);
         // V9.3.5 任务态：军用船满编率>=50%=战斗态；低员军用+民用=载人态（用户条款：50%载量为分界）
         public bool BattlePriority(ShipEntity s) => s.Military && s.Crew >= Capacity(s)*0.5f;
-        /// <summary>V9.3.5 战斗发现/搜索半径：战斗态=50格加倍100格、载人态=30格（等级成长保留：Lv1=100/30，Lv2=115/34.5，Lv3=130/39）</summary>
-        public float CombatDetectRangeOf(ShipEntity s) => (BattlePriority(s)?DetectRange*2f:30f)*(1f+(s.Level-1)*0.15f);
+        // V9.3.11 战斗优先：100 格内自动搜索/锁定/追击敌船（不再按载量分态；等级成长保留：Lv1=100、Lv2=115、Lv3=130）
+        public float CombatDetectRangeOf(ShipEntity s) => (DetectRange*2f)*(1f+(s.Level-1)*0.15f);
         public float SpeedOf(ShipEntity s)
         {
             if (!Defs.TryGetValue(s.ShipTypeId,out var d)) return 0;
@@ -456,10 +474,13 @@ namespace PixelToCivilization.Systems
                         float d=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(target.X,target.Z));
                         float ox=s.X,oz=s.Z;
                         bool fire=s.ShipTypeId=="fire_ship";
-                        // V9.3.5 单位修正：射程(格)×Tile(4)=世界单位；载人态战斗半径封顶30格(120世界单位)
+                        // V9.3.5 单位修正：射程(格)×Tile(4)=世界单位
+                        // V9.3.11 战斗优先：100格内锁定即全力追击，射程不再按载量封顶
                         float engage=fire?3.2f:RangeOf(s)*GameConstants.Tile;
-                        if(!BattlePriority(s)) engage=Mathf.Min(engage,30f*GameConstants.Tile);
                         if (d>engage){ Vector3 dir=(target.Pos-s.Pos).normalized; float sp=SpeedOf(s);
+                            // V9.3.9 战斗航速：巡航正常；追击阶段 +50%；30 格内近距离格斗&盾击加速 100% 但船只严重损毁（耐久掉至 50% 为止）
+                            if(d<=30f*GameConstants.Tile){ sp*=2.0f; s.Hp=Mathf.Max(s.MaxHp*0.5f, s.Hp-s.MaxHp*0.08f*dt); }
+                            else sp*=1.5f;
                             // V6.1.9(i) 洋流海风：顺流顺风加速、逆流逆风减速
                             if(GM.OceanFlow!=null) sp*=GM.OceanFlow.SailFactor(s.X,s.Z,new Vector2(dir.x,dir.z));
                             float nx=s.X+dir.x*sp*30*dt, nz=s.Z+dir.z*sp*30*dt;
@@ -471,14 +492,10 @@ namespace PixelToCivilization.Systems
                         if (Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
                     }
                     else {
-                        // V9.3.5 军用载人态：30格内无敌舰时，100格内有闲人优先驶向载人；否则自主巡逻
-                        // V9.3.8 修复登船：载人态到点停靠等待6s、无闲人驶向聚落海岸停靠点；满员(≥50%)无敌舰时自动编队巡航(3-7艘/队、三模式每10分钟切换)
+                        // V9.3.11 船队优先级：战斗(100格) > 招人(50格) > 巡航——无敌船时先载人；无人可招再组队巡航
                         float ox=s.X,oz=s.Z;
-                        if(!BattlePriority(s))
-                        {
-                            if(IsDocked(s)) { }
-                            else if(!MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz)) CoastGoal(s,dt,ref lookYaw,ref hasLook,ox,oz);
-                        }
+                        if(IsDocked(s)) { }
+                        else if(MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz)) { }
                         else if(!CruiseMove(s,dt,ref lookYaw,ref hasLook)) PatrolMove(s,dt,ref lookYaw,ref hasLook);
                     } // V9.2.3 无敌舰：自主巡逻
                     }catch(System.Exception ex){ Debug.LogError("[NAV:C5 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
@@ -612,14 +629,22 @@ namespace PixelToCivilization.Systems
             }
             return best;
         }
-        /// <summary>载人态船驶向目标闲人；无闲人/已到达/不在载人态返回 false（调用方回退巡逻或巡游）</summary>
+        /// <summary>V9.3.9 载人优先判据：半径内未登船闲人数≥minCount（高员军船近岸大量人员时也先靠岸载人）</summary>
+        private bool ManyIdleNear(ShipEntity s,float radius,int minCount)
+        {
+            if(S.Agents==null) return false;
+            int cnt=0; float rr=radius*radius;
+            for(int i=0;i<S.Agents.Count;i++){ var a=S.Agents[i]; if(a==null||a.Boarded) continue;
+                float dx=a.X-s.X,dz=a.Z-s.Z; if(dx*dx+dz*dz<rr){ if(++cnt>=minCount) return true; } }
+            return false;
+        }
+        /// <summary>载人态船驶向目标闲人；无闲人/已到达返回 false（调用方回退巡航或巡逻）。V9.3.11 招人次之：搜索半径 50 格，不设载量门槛</summary>
         private bool MoveToLoad(ShipEntity s,float dt,ref float lookYaw,ref bool hasLook,float ox,float oz)
         {
-            if(BattlePriority(s)){ _loadGoal.Remove(s); return false; }
             if(_loadCd<=0f)
             {
                 _loadCd=0.5f;
-                var near=NearestIdleAgent(s.X,s.Z,100f*GameConstants.Tile);
+                var near=NearestIdleAgent(s.X,s.Z,50f*GameConstants.Tile);   // V9.3.11 50格内有人才去载人
                 if(near.HasValue) _loadGoal[s]=near.Value; else _loadGoal.Remove(s);
             }
             if(!_loadGoal.TryGetValue(s,out var g)) return false;
@@ -703,7 +728,8 @@ namespace PixelToCivilization.Systems
         {
             _formation.Clear();
             var eligible=new List<ShipEntity>();
-            for(int i=0;i<S.Ships.Count;i++){ var s=S.Ships[i]; if(s.Military&&BattlePriority(s)) eligible.Add(s); }
+            // V9.3.11 巡航最次：所有军用船皆可入队（仅在"无敌船且无人可招"的巡航态被调用，故无需再判载量）
+            for(int i=0;i<S.Ships.Count;i++){ var s=S.Ships[i]; if(s.Military) eligible.Add(s); }
             if(eligible.Count<3) return;   // 少于 3 艘不编队（单船由 PatrolMove 巡逻兜底）
             int idx=0;
             while(idx<eligible.Count)
@@ -718,7 +744,7 @@ namespace PixelToCivilization.Systems
             var f=GetFormation(s);
             if(f==null) return false;   // 未入编队 → 单船巡逻
             _cruiseSwitchCd-=dt;
-            if(_cruiseSwitchCd<=0f){ _cruiseSwitchCd=CruiseSwitchInterval; f.Mode=(f.Mode+1)%3; f.Inited=false; }
+            if(_cruiseSwitchCd<=0f){ _cruiseSwitchCd=CruiseSwitchInterval; f.Mode=(f.Mode+1)%3; f.Formation=(f.Formation+1)%5; f.Inited=false; }   // V9.3.9 阵型随模式轮换
             if(!f.Inited){ f.Inited=true; f.WpIdx=0; GenCruiseWaypoints(f,s); }
             if(f.Members[0]==s)   // 领队：沿航点巡航
             {
@@ -726,14 +752,16 @@ namespace PixelToCivilization.Systems
                 if(f.WpIdx>=f.Waypoints.Count) f.WpIdx=0;
                 var wp=f.Waypoints[f.WpIdx];
                 if(Vector2.Distance(new Vector2(s.X,s.Z),wp)<=3f){ f.WpIdx=(f.WpIdx+1)%f.Waypoints.Count; return true; }
+                if(s.View!=null) f.LeadYaw=s.View.transform.rotation.eulerAngles.y;   // V9.3.9 领队航向供成员排阵
                 MoveToward(s,wp.x,wp.y,dt,ref lookYaw,ref hasLook);
                 return true;
             }
-            // 成员跟随领队（菱形偏移；落队>30 直奔领队归位）
+            // V9.3.9 成员按阵型相对领队排布（倒V/V/纵列/横排/半圆；落队>30 直奔领队归位）
             var lead=f.Members[0];
             int mi=f.Members.IndexOf(s);
-            var off=FollowOffsets[mi%FollowOffsets.Length];
-            var target=new Vector2(lead.X+off.x,lead.Z+off.y);
+            var off=FormationOffset(mi,f);
+            float cyaw=-f.LeadYaw*Mathf.Deg2Rad, ca=Mathf.Cos(cyaw), sa=Mathf.Sin(cyaw);
+            var target=new Vector2(lead.X+off.x*ca-off.y*sa, lead.Z+off.x*sa+off.y*ca);
             if(Vector2.Distance(new Vector2(s.X,s.Z),target)>30f) target=new Vector2(lead.X,lead.Z);
             MoveToward(s,target.x,target.y,dt,ref lookYaw,ref hasLook);
             return true;
