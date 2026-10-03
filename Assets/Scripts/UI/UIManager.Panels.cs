@@ -589,6 +589,8 @@ public void ShowBuilding(BuildingEntity b)
             sb.Append("耐久：").Append(Mathf.Max(0,Mathf.RoundToInt(s.Hp))).Append("/").Append(Mathf.RoundToInt(s.MaxHp)).Append('\n');
             if (s.Military) sb.Append("攻击：").Append(naval.AttackOf(s)).Append("  射程：").Append(Mathf.RoundToInt(s.Range)).Append('\n');
             sb.Append("速度：").Append(naval.SpeedOf(s).ToString("0.00")).Append('\n');
+            if(s.ShipTypeId=="aircraft_carrier") sb.Append("<color=#8be9fd>🛫 挂载舰载机/直升机/喷气机 ").Append(s.CarrierAir).Append(" 架</color>\n");   // V9.3.3 航母载机
+            if(s.FactionId.Length>0) sb.Append("<color=#ff7a45>⛵ 敌对阵营：").Append(s.FactionId).Append("</color>\n");   // V9.3.3 敌舰阵营
             sb.Append("<color=#8be9fd>🏠 居住 ").Append(s.EffectiveHousing).Append(" 人</color>");
             UITheme.Label("meta",body.transform,sb.ToString(),13,TextAnchor.UpperLeft);
             var row=UITheme.Panel("row",body.transform,new Color(0,0,0,0));

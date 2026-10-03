@@ -164,40 +164,67 @@ namespace PixelToCivilization.Actors
 
         // ================= V6.3.4 船只三级 LOD =================
         // LV1=6.3.1 旧模型（屏幕占比<0.01% 远景）；LV2=新简化低模（0.01%~0.1%）；LV3=新增高精（>0.1%，同屏≤30）
+        // V9.3.3 现代舰船（轮船/油轮/邮轮/驱逐舰/导弹舰/航母/潜艇）：程序化铁壳现代建模，不套用 CC0 木质帆船模型
+        static bool IsModernShip(string sub) =>
+            sub=="steamship"||sub=="oil_tanker"||sub=="cruise_liner"||sub=="destroyer"||sub=="submarine"||sub=="missile_ship"||sub=="aircraft_carrier";
         static void BuildShipTiers(GameObject root,VehicleRig rig,bool war,string sub)
         {
-            // LV1：旧精模整体下沉为远景层
+            // LV1：旧精模整体下沉为远景层（V9.3.3 现代船用现代舰船建模）
             var lv1=new GameObject("LV1"); lv1.transform.SetParent(root.transform,false);
-            if(war) BuildWarship(lv1,rig,sub); else BuildSailBoat(lv1,rig,sub);
+            if(war) { if(IsModernShip(sub)) BuildModernWarship(lv1,rig,sub); else BuildWarship(lv1,rig,sub); }
+            else { if(IsModernShip(sub)) BuildModernCivil(lv1,rig,sub); else BuildSailBoat(lv1,rig,sub); }
             // LV2：简化低模（单船体 + 单帆），中景省算力
             var lv2=new GameObject("LV2"); lv2.transform.SetParent(root.transform,false);
             BuildSimpleShip(lv2,war,sub);
-            // LV3：V6.7.0 优先用 CC0 真实船模（按船型映射），缺失再回退"克隆精模+细节"
+            // LV3：V6.7.0 优先用 CC0 真实船模（按船型映射），缺失再回退"克隆精模+细节"；现代船直接克隆现代精模
             var lv3=new GameObject("LV3"); lv3.transform.SetParent(root.transform,false);
-            string shipRes=RealShipModel(war,sub);
-            int sCls=ShipSizeClass(sub,war);
-            float sW=new[]{0.9f,1.3f,1.7f,2.2f}[sCls], sLen=new[]{2.2f,3.4f,4.6f,6f}[sCls];
-            var realShip=PixelToCivilization.Art.AssetModelLibrary.PlaceReal(lv3.transform,shipRes,sW,sLen,0f,false,0f,"RealShip");
-            if(realShip==null)
+            if(!IsModernShip(sub))
             {
-                var clone=Object.Instantiate(lv1,lv3.transform); clone.name="Base";
-                AddShipDetail(lv3,war,sub);
+                string shipRes=RealShipModel(war,sub);
+                int sCls=ShipSizeClass(sub,war);
+                float sW=new[]{0.9f,1.3f,1.7f,2.2f,2.8f}[sCls], sLen=new[]{2.2f,3.4f,4.6f,6f,7.6f}[sCls];
+                var realShip=PixelToCivilization.Art.AssetModelLibrary.PlaceReal(lv3.transform,shipRes,sW,sLen,0f,false,0f,"RealShip");
+                if(realShip==null)
+                {
+                    var clone=Object.Instantiate(lv1,lv3.transform); clone.name="Base";
+                    AddShipDetail(lv3,war,sub);
+                }
             }
+            else { var clone=Object.Instantiate(lv1,lv3.transform); clone.name="Base"; } // 现代精模本身即 LV3 高精
         }
-        // 尺寸档：0 小 / 1 中 / 2 大 / 3 巨（宝船级）
+        // 尺寸档：0 小 / 1 中 / 2 大 / 3 巨 / 4 航母级（V9.3.3 现代船：潜艇1、驱逐/轮船/油轮2、邮轮/导弹舰3、航母4）
         static int ShipSizeClass(string sub,bool war)
         {
             switch(sub){
                 case "small_boat": case "fire_ship": return 0;
-                case "treasure_ship": case "treasure_warship": return 3;
-                case "large_boat": case "cannon_ship": return 2;
+                case "submarine": return 1;
+                case "treasure_ship": case "treasure_warship": case "cruise_liner": case "missile_ship": return 3;
+                case "large_boat": case "cannon_ship": case "steamship": case "oil_tanker": case "destroyer": return 2;
+                case "aircraft_carrier": return 4;
                 default: return 1;
             }
         }
         static void BuildSimpleShip(GameObject t,bool war,string sub)
         {
             int cls=ShipSizeClass(sub,war);
-            float w=new[]{0.9f,1.3f,1.7f,2.2f}[cls], h=new[]{0.4f,0.55f,0.7f,0.9f}[cls], len=new[]{2.2f,3.4f,4.6f,6f}[cls];
+            float w=new[]{0.9f,1.3f,1.7f,2.2f,2.8f}[cls], h=new[]{0.4f,0.55f,0.7f,0.9f,1.1f}[cls], len=new[]{2.2f,3.4f,4.6f,6f,7.6f}[cls];
+            if(IsModernShip(sub))
+            {   // V9.3.3 现代船 LV2 简化：铁壳细长 + 烟囱/炮塔块（潜艇为细长圆柱）
+                if(sub=="submarine")
+                {
+                    var body=Part(t,"SubHull",PrimitiveType.Cylinder,Metal,new Vector3(0,0.28f,0),new Vector3(0.5f,len*0.9f,0.5f));
+                    body.transform.localRotation=Quaternion.Euler(90,0,0);
+                    Part(t,"Sail",PrimitiveType.Cube,Dark,new Vector3(0,0.6f,0.2f),new Vector3(0.45f,0.4f,0.6f));
+                }
+                else
+                {
+                    Part(t,"Hull",PrimitiveType.Cube,Metal,new Vector3(0,0.32f,0),new Vector3(w,0.5f,len));
+                    Part(t,"Deck",PrimitiveType.Cube,_hull,new Vector3(0,0.58f,0),new Vector3(w*0.9f,0.08f,len*0.92f));
+                    if(war) Part(t,"Turret",PrimitiveType.Cube,Dark,new Vector3(0,0.82f,0.3f),new Vector3(w*0.5f,0.4f,0.9f));
+                    Part(t,"Funnel",PrimitiveType.Cube,Dark,new Vector3(0,0.95f,0.4f),new Vector3(0.3f,0.5f,0.3f));
+                }
+                return;
+            }
             HullBase(t,w,h,len,_hull,cls>=1);
             if(cls>=1) MakeMastSail(t,0f,len*0.62f,len*0.42f,war?RedSail:Sail); // 单帆
             else Part(t,"Oar",PrimitiveType.Cube,Dark,new Vector3(0.5f,0.5f,0),new Vector3(0.05f,0.05f,1.4f));
@@ -205,8 +232,9 @@ namespace PixelToCivilization.Actors
         // LV3 高精细节：栏杆立柱、舷窗/炮门、甲板货桶、斜缆、船首像、阵营旗饰
         static void AddShipDetail(GameObject t,bool war,string sub)
         {
+            if(IsModernShip(sub)) return;   // V9.3.3 现代船：LV3=现代精模 clone，不叠加古代帆船细节
             int cls=ShipSizeClass(sub,war);
-            float len=new[]{2.2f,3.4f,4.6f,6f}[cls], w=new[]{0.9f,1.3f,1.7f,2.2f}[cls], h=new[]{0.4f,0.55f,0.7f,0.9f}[cls];
+            float len=new[]{2.2f,3.4f,4.6f,6f,7.6f}[cls], w=new[]{0.9f,1.3f,1.7f,2.2f,2.8f}[cls], h=new[]{0.4f,0.55f,0.7f,0.9f,1.1f}[cls];
             int posts=cls==0?3:cls==1?5:cls==2?7:9;
             // 两舷栏杆立柱 + 横栏
             for(int i=0;i<posts;i++){ float zz=-len*0.42f+i*(len*0.84f/Mathf.Max(1,posts-1));
@@ -340,6 +368,98 @@ namespace PixelToCivilization.Actors
             Part(t,"Faggot",PrimitiveType.Cube,Dark,new Vector3(0,0.85f,0),new Vector3(1.0f,0.7f,1.6f));
             for(int i=0;i<3;i++){var f=Part(t,"Flame",PrimitiveType.Sphere,Fire,new Vector3((i-1)*0.35f,1.3f+(i%2)*0.2f,0),Vector3.one*(0.4f+i*0.05f));}
             MakeMastSail(t,0f,1.8f,1.0f,RedSail);
+        }
+
+        // ================= V9.3.3 现代舰船（轮船/油轮/邮轮/驱逐舰/导弹舰/航母/潜艇）=================
+        // 铁壳 + 上层建筑 + 烟囱/炮塔/甲板/舰岛；船体主色=_hull(阵营色/船型色)，铁甲=Metal、舰桥=Sail
+        static void BuildModernCivil(GameObject t,VehicleRig rig,string sub)
+        {
+            float len=sub=="cruise_liner"?6.0f:(sub=="oil_tanker"?5.2f:4.6f);
+            float w=sub=="cruise_liner"?2.2f:1.7f;
+            ModernHull(t,w,0.75f,len);
+            if(sub=="oil_tanker")
+            {   // 油轮：长甲板油罐区 + 尾部舰桥 + 单烟囱
+                Part(t,"TankDeck",PrimitiveType.Cube,Metal,new Vector3(0,1.05f,-0.8f),new Vector3(w*0.82f,0.45f,len*0.55f));
+                Part(t,"Bridge",PrimitiveType.Cube,Sail,new Vector3(0,1.05f,len*0.28f),new Vector3(w*0.8f,0.85f,0.9f));
+                ModernFunnel(t,w,1,0.95f);
+            }
+            else
+            {   // 轮船/邮轮：舰桥 + 客舱层 + 舷窗带 + 烟囱
+                Part(t,"Bridge",PrimitiveType.Cube,Sail,new Vector3(0,1.1f,0.4f),new Vector3(w*0.82f,0.8f,len*0.4f));
+                if(sub=="cruise_liner")
+                {
+                    Part(t,"Cabins",PrimitiveType.Cube,Sail,new Vector3(0,1.75f,0.2f),new Vector3(w*0.72f,0.85f,len*0.5f));
+                    Part(t,"DeckRail",PrimitiveType.Cube,Glass,new Vector3(0,1.95f,0.2f),new Vector3(w*0.78f,0.07f,len*0.52f));
+                    Part(t,"SternStack",PrimitiveType.Cube,_hull,new Vector3(0,0.85f,len*0.42f),new Vector3(w*0.7f,0.5f,0.6f));
+                }
+                else Part(t,"Super",PrimitiveType.Cube,_hull,new Vector3(0,1.15f,0.1f),new Vector3(w*0.7f,0.4f,len*0.45f));
+                ModernFunnel(t,w,sub=="cruise_liner"?2:1,1.0f);
+            }
+            Part(t,"HullBand",PrimitiveType.Cube,Gold,new Vector3(0,0.72f,0),new Vector3(w*1.02f,0.06f,len)); // 水线金边
+        }
+        static void BuildModernWarship(GameObject t,VehicleRig rig,string sub)
+        {
+            if(sub=="submarine")
+            {   // 潜艇：细长圆柱艇体 + 指挥塔 + 潜望镜 + 尾舵
+                var body=Part(t,"SubHull",PrimitiveType.Cylinder,Metal,new Vector3(0,0.3f,0),new Vector3(0.55f,3.4f,0.55f));
+                body.transform.localRotation=Quaternion.Euler(90,0,0);
+                Part(t,"Sail",PrimitiveType.Cube,Dark,new Vector3(0,0.8f,0.2f),new Vector3(0.55f,0.55f,0.8f));
+                Part(t,"Periscope",PrimitiveType.Cylinder,Dark,new Vector3(0,1.2f,0.2f),new Vector3(0.05f,0.5f,0.05f));
+                Part(t,"Rudder",PrimitiveType.Cube,Dark,new Vector3(0,0.3f,1.85f),new Vector3(1.3f,0.28f,0.25f));
+                return;
+            }
+            float len=sub=="aircraft_carrier"?7.6f:(sub=="missile_ship"?6.0f:4.6f);
+            float w=sub=="aircraft_carrier"?2.8f:(sub=="missile_ship"?2.2f:1.7f);
+            ModernHull(t,w,0.8f,len);
+            if(sub=="aircraft_carrier")
+            {   // 航母：全通斜角甲板 + 舰岛 + 甲板舰载机列 + 岛烟囱
+                Part(t,"FlightDeck",PrimitiveType.Cube,Metal,new Vector3(0,1.08f,0),new Vector3(w*0.96f,0.15f,len*0.95f));
+                Part(t,"Island",PrimitiveType.Cube,_hull,new Vector3(w*0.3f,1.65f,len*0.16f),new Vector3(0.6f,1.05f,2.0f));
+                for(int i=0;i<4;i++)
+                {
+                    float zz=-len*0.3f+i*(len*0.55f/3f);
+                    Part(t,"Jet"+i,PrimitiveType.Cube,Glass,new Vector3(-w*0.18f,1.2f,zz),new Vector3(0.22f,0.16f,0.95f));
+                    Part(t,"JetWing"+i,PrimitiveType.Cube,Metal,new Vector3(-w*0.18f,1.24f,zz+0.15f),new Vector3(0.95f,0.05f,0.32f));
+                }
+                ModernFunnel(t,w,1,1.15f);
+            }
+            else if(sub=="missile_ship")
+            {   // 导弹舰：舰桥 + 主炮 + 导弹发射箱 + 烟囱
+                Part(t,"Bridge",PrimitiveType.Cube,_hull,new Vector3(0,1.25f,0.6f),new Vector3(w*0.6f,0.75f,1.7f));
+                ModernGun(t,w,1.05f,0.35f);
+                for(int i=0;i<3;i++) Part(t,"MissileBox"+i,PrimitiveType.Cube,Dark,new Vector3(-w*0.3f+i*0.5f,1.2f,-1.3f),new Vector3(0.32f,0.32f,1.0f));
+                ModernFunnel(t,w,1,0.85f);
+            }
+            else
+            {   // 驱逐舰：舰桥 + 主炮 + 双烟囱 + 垂发单元
+                Part(t,"Bridge",PrimitiveType.Cube,_hull,new Vector3(0,1.15f,0.6f),new Vector3(w*0.62f,0.65f,1.3f));
+                ModernGun(t,w,0.95f,0.55f);
+                ModernFunnel(t,w,2,0.8f);
+                Part(t,"VLS",PrimitiveType.Cube,Dark,new Vector3(0,1.0f,-0.9f),new Vector3(w*0.6f,0.32f,0.65f));
+            }
+        }
+        static void ModernHull(GameObject t,float w,float h,float len)
+        {
+            Part(t,"Hull",PrimitiveType.Cube,Metal,new Vector3(0,h*0.55f,0),new Vector3(w,h,len));
+            Part(t,"Deck",PrimitiveType.Cube,_hull,new Vector3(0,h+0.03f,0),new Vector3(w*0.94f,0.08f,len*0.96f));
+            Part(t,"Waterline",PrimitiveType.Cube,Dark,new Vector3(0,h*0.26f,0),new Vector3(w*1.01f,h*0.32f,len)); // 水线深色带
+            var bow=Part(t,"Bow",PrimitiveType.Cube,_hull,new Vector3(0,h*0.52f,-len*0.5f-0.2f),new Vector3(w*0.7f,h*0.62f,0.42f));
+            bow.transform.localRotation=Quaternion.Euler(-14,0,0);
+        }
+        static void ModernGun(GameObject t,float w,float y,float z)
+        {
+            Part(t,"Turret",PrimitiveType.Cylinder,Dark,new Vector3(0,y,z),new Vector3(0.52f,0.36f,0.52f));
+            var barrel=Part(t,"Barrel",PrimitiveType.Cylinder,Metal,new Vector3(0,y+0.18f,z-0.72f),new Vector3(0.09f,1.0f,0.09f));
+            barrel.transform.localRotation=Quaternion.Euler(0,0,90f);
+        }
+        static void ModernFunnel(GameObject t,float w,int n,float h)
+        {
+            for(int i=0;i<n;i++)
+            {
+                float ox=(n==1?0:(i==0?-0.35f:0.35f))*w;
+                Part(t,"Funnel"+i,PrimitiveType.Cylinder,Dark,new Vector3(ox,h,0.55f),new Vector3(0.3f,0.9f,0.3f));
+                Part(t,"FunnelTop"+i,PrimitiveType.Cylinder,Fire,new Vector3(ox,h+0.45f,0.55f),new Vector3(0.34f,0.1f,0.34f));
+            }
         }
 
         // ---- 船体通用件 ----

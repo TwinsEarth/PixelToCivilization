@@ -73,6 +73,11 @@ namespace PixelToCivilization.Core
         public int Age, MaxAge = 200;
         public float AttackCd;
         public GameObject View;
+        // V9.3.3 船只系统大升级：阵营/航母载机/潜艇状态（敌舰阵营不存档=运行时生成重建，我方载机/下潜随读档重建）
+        public string FactionId = "";           // 敌舰所属海上帝阵营（红海海盗/黑旗帮/南蛮水师/北洋余部/联合舰队）；我方船为空
+        public long FactionColor = 0;           // 阵营代表色（敌舰船体色，替代旧固定 0xFF4500）
+        public int CarrierAir;                  // 航母挂载的舰载机数（舰载机/舰载直升机/舰载喷气机，随等级提升）
+        public bool Submerged;                  // 潜艇下潜标志（浮出更低、贴水面以下航迹）
         public Vector3 Pos => new(X, 0, Z);
         public float LevelMult => 1f+(Level-1)*0.5f;
         /// <summary>有效居住人数：普通1.0 / 精良1.5 / 传奇2.0（对齐 getShipHousing）</summary>

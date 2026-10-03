@@ -953,6 +953,27 @@ namespace PixelToCivilization.Core
         public void WebProbeBridges(){ Bridge?.DebugProbe(); }
         public void WebForceBridge(){ bool ok=Bridge!=null&&Bridge.ForceNearest(); Debug.Log("[Web] ForceBridge "+(ok?"OK":"FAIL")); }
         public void WebV923Naval(){ Naval?.DebugNavalShowcase(); }   // V9.2.3 海战演示：炮船巡逻→接敌→火炮声光
+        /// <summary>V9.3.3 现代海军演示：静默跳到公元2000（游戏年5000）、生成我方现代舰队、触发敌舰阵营（Debug 强制，浏览器 SendMessage 无参入口）</summary>
+        public void WebV933Modern()
+        {
+            if (Time!=null) Time.DebugJumpTo(5000);   // 游戏年5000 = 公元2000（era6），现代舰船时代
+            if (Naval==null){ Debug.Log("[Web] V933 Naval=null"); return; }
+            string[] fleet={"destroyer","missile_ship","aircraft_carrier","submarine","steamship","cruise_liner"};
+            foreach(var t in fleet)
+            {
+                for(int i=0;i<18;i++)
+                {
+                    float ang=UnityEngine.Random.value*Mathf.PI*2f, dist=16f+UnityEngine.Random.value*30f;
+                    float x=Mathf.Cos(ang)*dist, z=Mathf.Sin(ang)*dist;
+                    var terrain=FindObjectOfType<WorldGenerator>();
+                    if(terrain!=null && !terrain.IsOceanWater(x,z)) continue;
+                    var s=Naval.SpawnInitialShip(t,x,z);
+                    if(s!=null){ AddEvent("good","🚢 现代舰队就位："+t); break; }
+                }
+            }
+            Naval.DebugSpawnEnemy();
+            AddEvent("bad","⚔ 公元2000年·现代海军时代：敌国舰队以 3-5 阵营巡弋海疆！");
+        }
         public void WebToggleLeftPanel(){ UIManager.Instance?.WebToggleLeft(); }
         public void WebToggleRightPanel(){ UIManager.Instance?.WebToggleRight(); }
 

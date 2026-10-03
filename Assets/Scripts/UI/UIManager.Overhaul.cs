@@ -358,10 +358,10 @@ private void BuildTopBarV2(Transform parent)
                 }
                 UITheme.Label("st",_buildList,"— 船只（水域）—",12,TextAnchor.MiddleCenter,UITheme.Gold)
                     .gameObject.AddComponent<LayoutElement>().preferredHeight=20;
-                foreach(var kv in GM.Naval.Defs)
+                foreach(var d in GM.Naval.AvailableDefs)   // V9.3.3 时代替换：公元1949前木船9型、之后现代7型直接替换（unlocked 恒真=不灰显）
                 {
-                    var d=kv.Value;bool unlocked=d.Era<=S.Era;string id=d.Id;
-                    MakeBuildCard(_buildList,"ship",d.Name,d.Cost,d.Military?"军用舰船":"水上运输",unlocked,()=>
+                    string id=d.Id;
+                    MakeBuildCard(_buildList,"ship",d.Name,d.Cost,d.Military?"军用舰船":"水上运输",true,()=>
                     { S.SelectedBuildType="ship:"+id;S.Tool="build";RecordUsage("s:"+id); });
                 }
             }
