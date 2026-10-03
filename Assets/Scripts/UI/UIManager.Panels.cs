@@ -523,6 +523,7 @@ namespace PixelToCivilization.UI
 public void ShowBuilding(BuildingEntity b)
         {
             if (_buildingModal==null || b==null || b.Def==null) return;   // V9.1.3 防御：面板未装配或实体/定义缺失时不裸访问
+            Debug.Log("[UI] ShowBuilding "+b.Def.Id+" Lv."+b.Level);   // V9.3.7 选中路径探针（浏览器回归观测点）
             _buildingModal.SetActive(true);
             var box=_buildingModal.transform.Find("Box").GetComponent<RectTransform>();
             box.sizeDelta=new Vector2(460,620);

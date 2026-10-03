@@ -956,17 +956,24 @@ namespace PixelToCivilization.Core
             if(Time==null){ Debug.Log("[Web] YearProbe Time=null"); return; }
             Debug.Log($"[Web] YearProbe Year={State.Year} Day={State.Day:F2} Era={State.Era} Paused={State.Paused} Speed={State.Speed} Eff={EffectiveSpeed:F0} Greg={Time.GregorianText}");
         }
-        // V9.3.6 世界对象点击守卫：建筑/车/船的 OnMouseDown 由 Unity 独立派发、不经 EventSystem UI 射线，
-        // 建造面板展开/建造放置中/指针落在任意 UI 上时，点击背后的建筑仍会弹属性栏。此守卫统一拦截：
-        // 修复"建造界面不是顶层、经常点中背后的建筑弹出属性栏影响操作"。
+        // V9.3.7 世界对象点击守卫（修正 V9.3.6 过度拦截）：
+        // 仅两个条件屏蔽 OnMouseDown——建造放置模式（摆虚影中）、指针落在任意 UI 上（含左建造面板，
+        // Glass 底板 raycastTarget=true 必命中，穿透防护仍成立）。不再因"面板展开"整图禁选，
+        // 修复"V9.3.6 后无法选中建筑/船只"的回归。
         public bool BlocksWorldClick()
         {
             if (State!=null && !string.IsNullOrEmpty(State.SelectedBuildType)) return true;   // 建造放置模式（虚影摆放中）
-            var ui=UIManager.Instance;
-            if (ui!=null && ui.LeftPanelOpen) return true;                                     // 左侧建造面板展开
             if (UnityEngine.EventSystems.EventSystem.current!=null &&
                 UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) return true; // 指针在任意 UI 上
             return false;
+        }
+        // V9.3.7 点击守卫探针：浏览器回归直读守卫三态（指针不在UI上时应为 blocks=false 才能选中世界对象）
+        public void WebClickGuardProbe()
+        {
+            string sel = State!=null ? (State.SelectedBuildType??"") : "null";
+            string left = UIManager.Instance!=null ? (UIManager.Instance.LeftPanelOpen ? "open":"closed") : "no-ui";
+            bool blocks = BlocksWorldClick();
+            Debug.Log($"[Web] ClickGuard blocks={blocks} selectedBuild='{sel}' leftPanel={left} pointerOverUI={UnityEngine.EventSystems.EventSystem.current?.IsPointerOverGameObject()}");
         }
         public void WebNextDynasty(){ bool ok=Time!=null && Time.DebugNextDynasty(); Debug.Log("[Web] NextDynasty "+(ok?"OK":"FAIL")); }
         public void WebProbeBridges(){ Bridge?.DebugProbe(); }
