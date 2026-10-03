@@ -647,7 +647,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
         {
             var hb=_helpModal.transform.Find("Box").GetComponent<RectTransform>();hb.sizeDelta=new Vector2(720,600);   // V9.3.10 760×660→720×600
             var body=ModalBody(_helpModal);Clear(body);
-            var helpSr=UITheme.VerticalScroll("HelpScroll",body.transform,out var c,6);
+            var helpSr=UITheme.VerticalScroll("HelpScroll",body.transform,out var c,4);   // V9.3.12 6→4
             c.GetComponent<VerticalLayoutGroup>().childControlHeight=true;
             // 自适应高度的分组卡片（标题金色 + 正文）
             void Section(string e,string t)
@@ -655,13 +655,13 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
                 // 固定行高（按字数预算行数），避免嵌套 ContentSizeFitter/动态 preferred 高度形成每帧布局反馈环导致卡帧
                 int cpl=64; // 每行约容纳字符数（正文 11 号、内容宽约 690）V9.3.10 54→64 减少换行留白
                 int lines=0; foreach(var seg in t.Split('\n')){ lines+=Math.Max(1,Mathf.CeilToInt(seg.Length/(float)cpl)); }
-                int bodyH=lines*15;   // V9.3.10 18→15
-                int secH=14+18+3+bodyH;   // V9.3.10 18+22+4→14+18+3
+                int bodyH=lines*14;   // V9.3.12 15→14
+                int secH=12+16+2+bodyH;   // V9.3.12 14+18+3→12+16+2
                 var row=UITheme.Surface("hs",c,UITheme.HexA(0x232e50,0.9f));
                 var hrle=row.AddComponent<LayoutElement>();hrle.flexibleWidth=1;hrle.preferredHeight=secH;
-                var vg=row.AddComponent<VerticalLayoutGroup>();vg.spacing=4;vg.padding=new RectOffset(12,12,9,9);
+                var vg=row.AddComponent<VerticalLayoutGroup>();vg.spacing=2;vg.padding=new RectOffset(8,8,6,6);
                 vg.childControlWidth=true;vg.childForceExpandWidth=true;vg.childControlHeight=true;vg.childForceExpandHeight=false;vg.childAlignment=TextAnchor.UpperCenter;
-                UITheme.Label("e",row.transform,e,15,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=22;
+                UITheme.Label("e",row.transform,e,14,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=20;   // V9.3.12 15→14 / 22→20
                 var tx=UITheme.Label("t",row.transform,t,12,TextAnchor.UpperLeft);
                 tx.horizontalOverflow=HorizontalWrapMode.Wrap;
                 tx.gameObject.AddComponent<LayoutElement>().preferredHeight=bodyH;
@@ -671,12 +671,12 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
                 var cou=GM.Council;
                 string keyShow2 = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
                 var aiCard=UITheme.Surface("hs",c,UITheme.HexA(0x232e50,0.9f));
-                var al2=aiCard.AddComponent<LayoutElement>();al2.flexibleWidth=1;al2.preferredHeight=92;   // V9.3.10 112→92
-                var avg=aiCard.AddComponent<VerticalLayoutGroup>();avg.spacing=4;avg.padding=new RectOffset(9,9,7,7);   // V9.3.10 6→4 / (12,12,9,9)→(9,9,7,7)
+                var al2=aiCard.AddComponent<LayoutElement>();al2.flexibleWidth=1;al2.preferredHeight=80;   // V9.3.12 92→80
+                var avg=aiCard.AddComponent<VerticalLayoutGroup>();avg.spacing=2;avg.padding=new RectOffset(7,7,5,5);   // V9.3.12 4→2 / (9,9,7,7)→(7,7,5,5)
                 avg.childControlWidth=true;avg.childForceExpandWidth=true;avg.childControlHeight=true;avg.childForceExpandHeight=false;avg.childAlignment=TextAnchor.UpperCenter;
-                UITheme.Label("e",aiCard.transform,"AI 密钥设置 · 九神联网议政",14,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=18;   // V9.3.10 15→14 / 22→18
-                UITheme.Label("k",aiCard.transform,"状态："+keyShow2+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://","")+"；点击下方按钮弹窗粘贴 DeepSeek API Key，保存即联网议政，清空即离线规则自治",10,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=24;   // V9.3.10 11→10 / 28→24
-                var hr=Row(aiCard.transform,28);   // V9.3.10 32→28
+                UITheme.Label("e",aiCard.transform,"AI 密钥设置 · 九神联网议政",14,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=16;   // V9.3.12 22→16
+                UITheme.Label("k",aiCard.transform,"状态："+keyShow2+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://","")+"；点击下方按钮弹窗粘贴 DeepSeek API Key，保存即联网议政，清空即离线规则自治",10,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=20;   // V9.3.12 24→20
+                var hr=Row(aiCard.transform,26);   // V9.3.12 28→26
                 var kbtn=UITheme.Btn("aikey",hr.transform,"设置 AI 密钥（弹窗输入）",12);
                 kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
                 kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{ if(_helpModal!=null && _helpModal.activeSelf) FillHelp(); },_hud!=null?_hud.transform:null); });
@@ -690,7 +690,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             Section("铁路系统","公元 1800 年起聚落旁铺设铁路廊道，红色标志的蒸汽机车（黑锅炉+红饰驾驶室+绿客车编组）在廊道上往返行驶；随年代自动升级：1900 内燃机车（橙）、1950 电力机车（银蓝）、1990 高速列车（白）、2010 磁悬浮（悬浮无轮）。列车为装饰性往返行驶，仅在陆地/疆域内铺设。");
             Section("加速冷冻","加速累计推进满 100 游戏年后，强制进入 300 现实秒冷冻冷却，期间倍速封顶 10；收到解冻指令后重新累计。画面中顶显示倒计时。");
             Section("快捷键 / 存档","空格 暂停，+/- 调整倍速，F11 或 Alt+Enter 全屏；游戏每 5 分钟自动存档，也可在左下角手动存/读 5 个手动槽、导出导入 JSON 跨设备迁移。");
-            var row=UITheme.Panel("hb",c,new Color(0,0,0,0));row.AddComponent<LayoutElement>().preferredHeight=40;
+            var row=UITheme.Panel("hb",c,new Color(0,0,0,0));row.AddComponent<LayoutElement>().preferredHeight=34;   // V9.3.12 40→34
             var hg=row.AddComponent<HorizontalLayoutGroup>();hg.spacing=8;hg.childForceExpandWidth=true;
             UITheme.Btn("debug",row.transform,"Debug 高级解锁",12).onClick.AddListener(()=>{_helpModal.SetActive(false);OnClickDebug();});
             UITheme.Btn("save",row.transform,"存档管理",12).onClick.AddListener(()=>{_helpModal.SetActive(false);OpenSaveModal();});

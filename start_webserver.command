@@ -1,11 +1,11 @@
 #!/bin/bash
-# 从像素到文明 V9.3.11 - macOS 本地网页服务器
+# 从像素到文明 V9.3.12 - macOS 本地网页服务器
 cd "$(dirname "$0")" || exit 1
 PORT=8000
 while lsof -iTCP:$PORT -sTCP:LISTEN -nP >/dev/null 2>&1; do PORT=$((PORT+1)); done
 LANIP="$(ipconfig getifaddr en0 2>/dev/null)"
 echo "================================================ "
-echo "  从像素到文明 V9.3.11 · 本地网页服务器"
+echo "  从像素到文明 V9.3.12 · 本地网页服务器"
 echo "  本机浏览器: http://localhost:$PORT/"
 if [ -n "$LANIP" ]; then echo "  手机同网段: http://$LANIP:$PORT/  (默认横屏全屏)"; fi
 echo "  关闭本窗口即停止服务"

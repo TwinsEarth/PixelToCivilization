@@ -444,6 +444,18 @@ namespace PixelToCivilization.Core
             Debug.Log("[WEB] AddResources1M done food="+State.GetRes("food")+" gold="+State.GetRes("gold"));
         }
 
+        // V9.3.12 剪贴板桥：JS（PXC_ReadClipboard）读取系统剪贴板后 SendMessage 到此处；ApiKeyPrompt 弹窗激活时直接填入输入框
+        public void WebApplyClipboard(string text){
+            if(string.IsNullOrEmpty(text)) return;
+            text=text.Trim();
+            if(PixelToCivilization.UI.ApiKeyPrompt.Current!=null){
+                PixelToCivilization.UI.ApiKeyPrompt.Current.SetText(text);
+                Debug.Log("[WEB] Clipboard applied len="+text.Length);
+            } else {
+                Debug.Log("[WEB] Clipboard recv no-prompt len="+text.Length);
+            }
+        }
+
         // ===== V6.8.0 世界奇观：浏览器回归入口（SendMessage 可绑 string） =====
         public void WebBuildWonder(string id){
             if(Wonder==null){Debug.Log("[WEB] Wonder system null");return;}

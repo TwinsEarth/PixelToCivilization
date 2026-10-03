@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿﻿﻿using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -62,11 +62,11 @@ namespace PixelToCivilization.UI
             var overlay=UITheme.Panel(name,_modalLayer,UITheme.HexA(0x000000,0.55f));Stretch(overlay);
             var box=UITheme.Surface("Box",overlay.transform,new Color(0.985f,0.975f,0.935f,0.99f));
             var rt=box.GetComponent<RectTransform>();
-            rt.anchorMin=rt.anchorMax=new Vector2(0.5f,0.5f);rt.sizeDelta=new Vector2(740,620);
-            var vl=box.AddComponent<VerticalLayoutGroup>();vl.spacing=3;vl.padding=new RectOffset(9,9,7,7);   // V9.3.10 8→5 / (18,18,16,16)→(12,12,10,10) 减少留白
+            rt.anchorMin=rt.anchorMax=new Vector2(0.5f,0.5f);rt.sizeDelta=new Vector2(700,580);
+            var vl=box.AddComponent<VerticalLayoutGroup>();vl.spacing=2;vl.padding=new RectOffset(5,5,4,4);   // V9.3.10 8→5 / (18,18,16,16)→(12,12,10,10) 减少留白
             vl.childControlWidth=true;vl.childForceExpandWidth=true;
             var head=UITheme.Panel("Head",box.transform,new Color(0,0,0,0));
-            head.AddComponent<LayoutElement>().preferredHeight=26;   // V9.3.10 36→30
+            head.AddComponent<LayoutElement>().preferredHeight=24;   // V9.3.12 26→24
             UITheme.Label("title",head.transform,title,22,TextAnchor.MiddleLeft,UITheme.Gold)
                 .SetInset(8,0);
             var close=UITheme.Btn("close",head.transform,"×",16);
@@ -136,7 +136,7 @@ namespace PixelToCivilization.UI
         private void OpenTechModal(){ FillTech(_techModal);Open(_techModal); }        private void FillTech(GameObject modal)
         {
             var body=ModalBody(modal);Clear(body);
-            UITheme.VerticalScroll("TechScroll",body.transform,out var content,4);   // V9.3.10 6→4
+            UITheme.VerticalScroll("TechScroll",body.transform,out var content,3);   // V9.3.12 4→3
             foreach (var era in GM.Eras)
             {
                 UITheme.Label("era",content,$"【{era.Name}】",15,TextAnchor.MiddleLeft,era.ThemeColor);
@@ -164,7 +164,7 @@ namespace PixelToCivilization.UI
         private void FillPolicy(GameObject modal)
         {
             var body=ModalBody(modal);Clear(body);
-            UITheme.VerticalScroll("PolScroll",body.transform,out var content,4);   // V9.3.10 6→4
+            UITheme.VerticalScroll("PolScroll",body.transform,out var content,3);   // V9.3.12 4→3
             foreach (var p in GM.Policies.Values)
             {
                 bool on=S.Policies.Contains(p.Id);
@@ -183,7 +183,7 @@ namespace PixelToCivilization.UI
         private void FillCity(GameObject modal)
         {
             var body=ModalBody(modal);Clear(body);
-            UITheme.VerticalScroll("CityScroll",body.transform,out var content,4);   // V9.3.10 6→4
+            UITheme.VerticalScroll("CityScroll",body.transform,out var content,3);   // V9.3.12 4→3
             var vl=content.GetComponent<VerticalLayoutGroup>();
             vl.spacing=4;vl.childControlWidth=true;vl.childForceExpandWidth=true;   // V9.3.10 6→4
 
@@ -194,7 +194,7 @@ namespace PixelToCivilization.UI
 
             // —— 城市等级 / 地价 / 国库 ——
             var top=UITheme.Panel("top",content,UITheme.HexA(0x1b2440,0.10f));
-            top.AddComponent<LayoutElement>().preferredHeight=50;   // V9.3.10 64→50
+            top.AddComponent<LayoutElement>().preferredHeight=46;   // V9.3.12 50→46
             UITheme.Label("ti",top.transform,
                 $"【{fin.TierName}】　人口 {S.Pop}　升格阈值 村落120 / 集镇350 / 县城800 / 都市1400 / 大都市1600\n"+
                 $"地价指数 {fin.LandPrice:F0}　国库金币 {fin.Treasury:F0}　污染 {S.Pollution:F0}　拥堵 {(GM.ModernTraffic!=null?GM.ModernTraffic.AvgCongestion:0f):F1}",
@@ -213,7 +213,7 @@ namespace PixelToCivilization.UI
             BudgetRow(content,"公共服务运维",fin.ServiceCost,false);
             BudgetRow(content,"道路运维",fin.RoadCost,false);
             var netRow=UITheme.Panel("net",content,UITheme.HexA(fin.NetAnnual>=0?0x2e7d32:0xc62828,0.12f));
-            netRow.AddComponent<LayoutElement>().preferredHeight=26;   // V9.3.10 30→26
+            netRow.AddComponent<LayoutElement>().preferredHeight=24;   // V9.3.12 26→24
             UITheme.Label("nl",netRow.transform,"年度净额",13,TextAnchor.MiddleLeft).SetInset(10,0.3f);
             UITheme.Label("nv",netRow.transform,(fin.NetAnnual>=0?"+":"")+fin.NetAnnual.ToString("F0")+
                 (fin.NetAnnual<0&&fin.Treasury<50?"　⚠ 财政破产，停俸减民心":""),13,TextAnchor.MiddleRight,
@@ -241,17 +241,17 @@ namespace PixelToCivilization.UI
 
             UITheme.Label("tip",content,"说明：人头税随时代货币化程度提高；低税增民心、重税减民心；公共设施与道路每年产生运维支出；"+
                 "地价由时代、城市等级、服务覆盖、城市指标、污染与拥堵综合决定。财政数据每年结算一次并随存档保存。",
-                11,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=34;   // V9.3.10 44→34
+                11,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=30;   // V9.3.12 34→30
         }
         private void SectionTitle(Transform content,string text)
         {
             UITheme.Label("sec",content,text,14,TextAnchor.MiddleLeft,UITheme.Gold)
-                .gameObject.AddComponent<LayoutElement>().preferredHeight=22;   // V9.3.10 26→22
+                .gameObject.AddComponent<LayoutElement>().preferredHeight=20;   // V9.3.12 22→20
         }
         private void BudgetRow(Transform content,string name,float val,bool income)
         {
             var row=UITheme.Panel("b_"+name,content,UITheme.HexA(0xffffff,0.05f));
-            row.AddComponent<LayoutElement>().preferredHeight=22;   // V9.3.10 26→22
+            row.AddComponent<LayoutElement>().preferredHeight=21;   // V9.3.12 22→21
             UITheme.Label("n",row.transform,name,12,TextAnchor.MiddleLeft).SetInset(12,0.3f);
             UITheme.Label("v",row.transform,(income?"+":"−")+val.ToString("F0"),12,TextAnchor.MiddleRight,
                 income?UITheme.Good:UITheme.Bronze).rectTransform.SetInsetRight(12);
@@ -261,7 +261,7 @@ namespace PixelToCivilization.UI
         {
             float r=Mathf.Clamp01(ratio01);
             var row=UITheme.Panel("g_"+name,parent,UITheme.HexA(0xffffff,0.05f));
-            row.AddComponent<LayoutElement>().preferredHeight=20;   // V9.3.10 24→20
+            row.AddComponent<LayoutElement>().preferredHeight=19;   // V9.3.12 20→19
             UITheme.Label("n",row.transform,name,12,TextAnchor.MiddleLeft).SetInset(12,0.5f);
             var track=UITheme.Panel("track",row.transform,UITheme.HexA(0x000000,0.16f));
             var trt=track.GetComponent<RectTransform>();
@@ -279,7 +279,7 @@ namespace PixelToCivilization.UI
         private void FillGods(GameObject modal)
         {
             var body=ModalBody(modal);Clear(body);
-            UITheme.VerticalScroll("GodScroll",body.transform,out var content,4);   // V9.3.10 6→4
+            UITheme.VerticalScroll("GodScroll",body.transform,out var content,3);   // V9.3.12 4→3
             var cou=GM.Council;
             if(cou==null){ UITheme.Label("noai",content,"九智能体系统未装配",13); return; }
             cou.ComputeContinuity();
@@ -301,14 +301,14 @@ namespace PixelToCivilization.UI
             string net = cou.Online ? (cou.NetOk?"联网正常":("联网失败→已自动离线："+cou.LastNetError)) : "离线自治（不耗Token，保证不断绝）";
             UITheme.Label("meta",content,
                 $"共用Token累计 {cou.TokensUsed}　议政间隔 每{cou.IntervalYears}游戏年　上次议政 第{cou.LastCouncilYear}年　模式：{net}",
-                11,TextAnchor.MiddleLeft,UITheme.Sky).gameObject.AddComponent<LayoutElement>().preferredHeight=24;   // V9.3.10 30→24
+                11,TextAnchor.MiddleLeft,UITheme.Sky).gameObject.AddComponent<LayoutElement>().preferredHeight=22;   // V9.3.12 24→22
             UITheme.Label("tip",content,"九位职能AI自主决策、神庭仲裁：允许饥荒/灾难/动乱让文明倒退，但人口/粮/住房/民心/军力触红线即强制托底并注入恢复条件，保证5000~10000年兴衰而不断绝。",
-                11,TextAnchor.UpperLeft,UITheme.Text).gameObject.AddComponent<LayoutElement>().preferredHeight=34;   // V9.3.10 42→34
+                11,TextAnchor.UpperLeft,UITheme.Text).gameObject.AddComponent<LayoutElement>().preferredHeight=30;   // V9.3.12 34→30
             // —— V9.3.10：AI 密钥入口（按钮弹窗输入，仿 Debug 密码门——弹窗出现即聚焦，实体键盘可直接输入） ——
             string keyShow = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
             UITheme.Label("ais",content,"AI 密钥："+keyShow+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://",""),11,TextAnchor.MiddleLeft,UITheme.Sky)
                 .gameObject.AddComponent<LayoutElement>().preferredHeight=20;   // V9.3.10 24→20
-            var rk=Row(content,30);   // V9.3.10 32→30
+            var rk=Row(content,28);   // V9.3.12 30→28
             var kbtn=UITheme.Btn("aikey",rk.transform,"设置 AI 密钥（弹窗输入）",12);
             kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
             kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM, _=>{ if(_godsModal!=null && _godsModal.activeSelf) FillGods(_godsModal); }, _hud!=null?_hud.transform:null); });
@@ -325,7 +325,7 @@ namespace PixelToCivilization.UI
             }
             // —— 底部：v5.9.9 神话九神赐福（保留不回退） ——
             UITheme.Label("legacy",content,"——— 神话赐福 · v5.9.9 九神（保留） ———",12,TextAnchor.MiddleCenter,UITheme.Gold)
-                .gameObject.AddComponent<LayoutElement>().preferredHeight=24;   // V9.3.10 28→24
+                .gameObject.AddComponent<LayoutElement>().preferredHeight=22;   // V9.3.12 24→22
             foreach (var g in GM.Gods.Gods)
             {
                 int last=GM.Gods.LastDecision.Or(g.Id);
@@ -341,7 +341,7 @@ namespace PixelToCivilization.UI
         {
             var r=UITheme.Panel("r",parent,new Color(0,0,0,0));
             r.AddComponent<LayoutElement>().preferredHeight=h;
-            var hl=r.AddComponent<HorizontalLayoutGroup>();hl.spacing=8;hl.childForceExpandWidth=true;hl.childControlWidth=true;
+            var hl=r.AddComponent<HorizontalLayoutGroup>();hl.spacing=6;hl.childForceExpandWidth=true;hl.childControlWidth=true;
             return r;
         }
 
@@ -350,9 +350,9 @@ namespace PixelToCivilization.UI
         private void FillOcean(GameObject modal)
         {
             var body=ModalBody(modal);Clear(body);
-            UITheme.VerticalScroll("OceanScroll",body.transform,out var content,4);   // V9.3.10 6→4
+            UITheme.VerticalScroll("OceanScroll",body.transform,out var content,3);   // V9.3.12 4→3
             var vl=content.GetComponent<VerticalLayoutGroup>();
-            vl.spacing=6;vl.childControlWidth=true;vl.childForceExpandWidth=true;   // V9.3.10 8→6
+            vl.spacing=4;vl.childControlWidth=true;vl.childForceExpandWidth=true;   // V9.3.12 6→4
             UITheme.Label("st",content,$"已开辟航线：{S.OceanDiscovered.Count} 条  {string.Join("、",S.OceanDiscovered)}   殖民地：{S.Colonies.Count} 处",13,TextAnchor.MiddleLeft);
             var sb=new StringBuilder();
             foreach (var k in OceanExpansionSystem.OceanResIds)
@@ -373,12 +373,12 @@ namespace PixelToCivilization.UI
         private void FillSpace(GameObject modal)
         {
             var body=ModalBody(modal);Clear(body);
-            UITheme.VerticalScroll("SpaceScroll",body.transform,out var content,4);   // V9.3.10 6→4
-            var vl=content.GetComponent<VerticalLayoutGroup>();vl.spacing=6;vl.childControlWidth=true;vl.childForceExpandWidth=true;   // V9.3.10 8→6
+            UITheme.VerticalScroll("SpaceScroll",body.transform,out var content,3);   // V9.3.12 4→3
+            var vl=content.GetComponent<VerticalLayoutGroup>();vl.spacing=4;vl.childControlWidth=true;vl.childForceExpandWidth=true;   // V9.3.12 6→4
             UITheme.Label("st",content,
                 $"太空电梯 {Mathf.RoundToInt(S.SpElevator)}%  飞船 {S.SpShips}艘  戴森云 {Mathf.RoundToInt(S.SpDyson)}%  月球 {Mathf.RoundToInt(S.SpLunar)}%  火星 {Mathf.RoundToInt(S.SpMars)}%",13,TextAnchor.MiddleLeft);
             var grid=UITheme.Panel("grid",content,new Color(0,0,0,0));
-            var g=grid.AddComponent<GridLayoutGroup>();g.constraint=GridLayoutGroup.Constraint.FixedColumnCount;g.constraintCount=2;g.cellSize=new Vector2(330,32);g.spacing=new Vector2(6,4);   // V9.3.10 36→32
+            var g=grid.AddComponent<GridLayoutGroup>();g.constraint=GridLayoutGroup.Constraint.FixedColumnCount;g.constraintCount=2;g.cellSize=new Vector2(334,30);g.spacing=new Vector2(4,2);   // V9.3.12 32→30
             ProjBtn(grid.transform," 太空电梯(钢50碳20)","elevator");
             ProjBtn(grid.transform," 宇宙飞船(钢30聚变10)","ship");
             ProjBtn(grid.transform," 戴森云(聚变50)","dyson");
@@ -396,10 +396,10 @@ namespace PixelToCivilization.UI
             UITheme.Label("epos",content,$"坐标({e.PosX},{e.PosY})  战力{Mathf.RoundToInt(e.Power)}/{Mathf.RoundToInt(e.MaxPower)}  补给{Mathf.RoundToInt(e.Supply)}",12,TextAnchor.MiddleLeft);
             // 9×9 网格
             var gp=UITheme.Panel("egrid",content,new Color(0,0,0,0));
-            gp.AddComponent<LayoutElement>().preferredHeight=304;   // V9.3.10 348→304（9×9 网格 36→32px）
+            gp.AddComponent<LayoutElement>().preferredHeight=278;   // V9.3.12 9×9 网格 32→30px
             var eg=gp.AddComponent<GridLayoutGroup>();
             eg.constraint=GridLayoutGroup.Constraint.FixedColumnCount;eg.constraintCount=e.N;
-            eg.cellSize=new Vector2(32,32);eg.spacing=new Vector2(2,2);   // V9.3.10 36→32
+            eg.cellSize=new Vector2(30,30);eg.spacing=new Vector2(1,1);   // V9.3.12 32→30
             for(int y=e.N-1;y>=0;y--)
                 for(int x=0;x<e.N;x++)
                 {
@@ -460,13 +460,13 @@ namespace PixelToCivilization.UI
         private void FillCampaign(GameObject modal)
         {
             var body=ModalBody(modal);Clear(body);
-            UITheme.VerticalScroll("CampScroll",body.transform,out var content,4);   // V9.3.10 6→4
+            UITheme.VerticalScroll("CampScroll",body.transform,out var content,3);   // V9.3.12 4→3
             // V6.3.4 征兵/讨伐界面实拍内视图（Resources/Portraits/military/campaign_1.jpg，缺失回退矢量军营图）
             var campTex=PortraitLoader.Load("military","campaign",1);
             if(campTex!=null) UITheme.Portrait(content,campTex,120);   // V9.3.10 140→120
             else{
                 var camph=UITheme.Surface("CampPortrait",content,UITheme.HexA(0x1b2440,0.92f));
-                camph.AddComponent<LayoutElement>().preferredHeight=100;   // V9.3.10 118→100
+                camph.AddComponent<LayoutElement>().preferredHeight=92;   // V9.3.12 100→92
                 UITheme.SetOutline(camph,UITheme.Gold,1);
                 var chh=camph.AddComponent<HorizontalLayoutGroup>();chh.childAlignment=TextAnchor.MiddleCenter;chh.spacing=12;chh.childControlHeight=true;chh.childForceExpandHeight=false;
                 var cimg=UITheme.Icon(camph.transform,"military",64);cimg.rectTransform.sizeDelta=new Vector2(64,64);
@@ -476,7 +476,7 @@ namespace PixelToCivilization.UI
             int inf=0,cav=0; foreach(var u in S.FriendlyUnits){ if(u.IsCavalry)cav++;else inf++; }
             UITheme.Label("mine",content,
                 $"我方兵力：士兵{Mathf.RoundToInt(S.MilSoldiers)} 骑兵{Mathf.RoundToInt(S.MilCavalry)}　机动部队：步兵队{inf} 骑兵队{cav}",13,TextAnchor.MiddleLeft,UITheme.Gold);
-            var tr=UITheme.Panel("tr",content,new Color(0,0,0,0));tr.AddComponent<LayoutElement>().preferredHeight=32;   // V9.3.10 36→32
+            var tr=UITheme.Panel("tr",content,new Color(0,0,0,0));tr.AddComponent<LayoutElement>().preferredHeight=30;   // V9.3.12 32→30
             var th=tr.AddComponent<HorizontalLayoutGroup>();th.spacing=8;
             UITheme.Btn("train1",tr.transform,"征兵（粮20/人5）",12).onClick.AddListener(()=>{GM.Military.TrainSoldiers();FillCampaign(modal);});
             UITheme.Btn("train2",tr.transform,"训练骑兵（需马厩·粮30金20）",12).onClick.AddListener(()=>{GM.Military.TrainCavalry();FillCampaign(modal);});
@@ -504,13 +504,13 @@ namespace PixelToCivilization.UI
         private void FillColony(GameObject modal)
         {
             var body=ModalBody(modal);Clear(body);
-            UITheme.VerticalScroll("ColScroll",body.transform,out var content,4);   // V9.3.10 6→4
+            UITheme.VerticalScroll("ColScroll",body.transform,out var content,3);   // V9.3.12 4→3
             var col=GM.Colonization;
             bool open=col.EraOpen;
             UITheme.Label("st",content,
                 (open?"殖民时代已开启（大航海/明·清）":"尚未进入殖民时代（公元1000年大航海、明·清时代开启）")+
                 $"　海外领地 {S.Colonies.Count} 处（每处 +2% 金币产出，8处达成日不落）",12,TextAnchor.MiddleLeft,open?UITheme.Gold:UITheme.Sky);
-            var fr=UITheme.Panel("fr",content,new Color(0,0,0,0));fr.AddComponent<LayoutElement>().preferredHeight=34;   // V9.3.10 38→34
+            var fr=UITheme.Panel("fr",content,new Color(0,0,0,0));fr.AddComponent<LayoutElement>().preferredHeight=32;   // V9.3.12 34→32
             var fh=fr.AddComponent<HorizontalLayoutGroup>();fh.spacing=8;
             var found=UITheme.Btn("found",fr.transform,"建立殖民地（金200木100·需1船）",12);
             found.interactable=open;

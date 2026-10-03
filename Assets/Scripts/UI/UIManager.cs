@@ -595,13 +595,13 @@ namespace PixelToCivilization.UI
         private void OpenDebugModal()
         {
             var modal=CreateModal("Debug 控制台（Lv"+S.DebugLevel+" 全权限 · 最高 "+GM.MaxSpeed+" 倍速）");
-            modal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(740,640);   // V9.3.10 780×680→740×640
+            modal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(700,580);   // V9.3.12 740×640→700×580
             var outer=ModalBody(modal);Clear(outer);
-            var ol=outer.AddComponent<VerticalLayoutGroup>();ol.spacing=4;ol.padding=new RectOffset(2,2,2,2);   // V9.3.10 6→4
+            var ol=outer.AddComponent<VerticalLayoutGroup>();ol.spacing=2;ol.padding=new RectOffset(1,1,1,1);   // V9.3.12 4→2
             ol.childControlWidth=true;ol.childForceExpandWidth=true;ol.childControlHeight=true;ol.childForceExpandHeight=false;
 
-            var st=UITheme.Surface("DbgStat",outer.transform,UITheme.HexA(0x232e50,0.9f));st.AddComponent<LayoutElement>().preferredHeight=50;   // V9.3.10 58→50
-            var sv=st.AddComponent<VerticalLayoutGroup>();sv.spacing=2;sv.padding=new RectOffset(10,10,4,4);
+            var st=UITheme.Surface("DbgStat",outer.transform,UITheme.HexA(0x232e50,0.9f));st.AddComponent<LayoutElement>().preferredHeight=44;   // V9.3.12 50→44
+            var sv=st.AddComponent<VerticalLayoutGroup>();sv.spacing=1;sv.padding=new RectOffset(8,8,2,2);
             sv.childControlWidth=true;sv.childForceExpandWidth=true;sv.childControlHeight=false;sv.childForceExpandHeight=false;
             UITheme.Label("l1",st.transform,"第"+S.Year+"年 · "+GM.Time.DynastyName+" · "+GM.Time.EraName+"　地图："+(S.CurrentMap=="home"?"母大陆":S.CurrentMap),12,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold);
             UITheme.Label("l2",st.transform,"人口 "+S.Pop+"/"+Mathf.RoundToInt(S.Housing)+"　建筑 "+S.Buildings.Count+"　状态 "+(S.WarActive?"战争中":"和平")+"　倍速 x"+(int)S.Speed+"　航海 "+(S.AgeOfSail?"已开":"未开"),11,TextAnchor.MiddleLeft,UITheme.Sub);
@@ -611,8 +611,8 @@ namespace PixelToCivilization.UI
                 var cou=GM.Council;
                 string keyShow = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
                 var keyLbl=UITheme.Label("aiS",outer.transform,"AI 密钥："+keyShow+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://",""),11,TextAnchor.MiddleLeft,UITheme.Sky);
-                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=18;
-                var rk=Row(outer.transform,28);
+                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=16;   // V9.3.12 18→16
+                var rk=Row(outer.transform,26);   // V9.3.12 28→26
                 var kbtn=UITheme.Btn("aikey",rk.transform,"设置 AI 密钥（弹窗输入）",12);
                 kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
                 kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{},_hud!=null?_hud.transform:null); });
@@ -624,8 +624,10 @@ namespace PixelToCivilization.UI
             cvlg.padding=new RectOffset(2,10,10,4);
             dbgSr.movementType=ScrollRect.MovementType.Clamped;dbgSr.scrollSensitivity=30f;
             Transform grid=null;
-            void Section(string t){ var p=UITheme.Panel("sec",content,new Color(0,0,0,0));p.AddComponent<LayoutElement>().preferredHeight=24; UITheme.Label("s",p.transform,t,13,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold); }   // V9.3.10 30→24 / 14→13
-            void BeginGrid(int count){ var g=UITheme.Panel("g",content,new Color(0,0,0,0));int rows=Mathf.CeilToInt(count/3f);var gle=g.AddComponent<LayoutElement>();gle.preferredHeight=rows*28+(rows-1)*4+4;var gl=g.AddComponent<GridLayoutGroup>();gl.constraint=GridLayoutGroup.Constraint.FixedColumnCount;gl.constraintCount=3;gl.cellSize=new Vector2(248,28);gl.spacing=new Vector2(4,4);grid=g.transform; }   // V9.3.10 34→28 / 236→248 / 6→4
+            void Section(string t){ var p=UITheme.Panel("sec",content,new Color(0,0,0,0));p.AddComponent<LayoutElement>().preferredHeight=20; UITheme.Label("s",p.transform,t,13,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold); }   // V9.3.12 24→20
+            void BeginGrid(int count){ var g=UITheme.Panel("g",content,new Color(0,0,0,0));int rows=Mathf.CeilToInt(count/3f);var gle=g.AddComponent<LayoutElement>();gle.preferredHeight=rows*26+(rows-1)*2+2;   // V9.3.12 28→26
+            var gl=g.AddComponent<GridLayoutGroup>();gl.constraint=GridLayoutGroup.Constraint.FixedColumnCount;gl.constraintCount=3;gl.cellSize=new Vector2(252,26);gl.spacing=new Vector2(2,2);   // V9.3.12 248×28→252×26 / 4→2
+            grid=g.transform; }   // V9.3.10 34→28 / 236→248 / 6→4
             void DBtn(string t,System.Action act){ var b=UITheme.Btn("d",grid,t,11);b.onClick.AddListener(()=>{try{act();Toast("已执行："+t);Refresh();}catch(System.Exception e){Toast("执行失败："+t+"："+e.Message,false);Debug.LogError("[DEBUG-BTN] "+e);}}); AddHover(b.gameObject,t); }
             void SpeedV(int v){ DBtn("x"+v+" 倍速",()=>{S.Speed=Mathf.Min(v,GM.MaxSpeed);SyncSlider();}); }
 
@@ -693,7 +695,7 @@ namespace PixelToCivilization.UI
             DBtn("快速存档(槽1)",()=>GM.SaveSystem.SaveToSlot(1));
             DBtn("快速读档(槽1)",()=>{if(GM.SaveSystem.LoadFromSlot(1))Refresh();});
 
-            var foot=UITheme.Panel("DbgFoot",content,new Color(0,0,0,0));foot.AddComponent<LayoutElement>().preferredHeight=40;
+            var foot=UITheme.Panel("DbgFoot",content,new Color(0,0,0,0));foot.AddComponent<LayoutElement>().preferredHeight=34;   // V9.3.12 40→34
             var fh=foot.AddComponent<HorizontalLayoutGroup>();fh.spacing=8;fh.childForceExpandWidth=true;fh.childControlHeight=false;fh.childForceExpandHeight=false;
             var cb=UITheme.Btn("close",foot.transform,"关闭控制台",13);cb.gameObject.AddComponent<LayoutElement>().preferredHeight=34;
             cb.onClick.AddListener(()=>modal.SetActive(false));
