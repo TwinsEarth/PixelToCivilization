@@ -39,6 +39,12 @@ namespace PixelToCivilization.World
                 // V6.1.2 底部工具：种树 / 招民（对齐 v5.9.9 setTool）
                 if (_gm.Tool=="tree") _gm.Env?.PlantTreeAt(tp.x,tp.z);
                 else if (_gm.Tool=="npc") _gm.Env?.RecruitAt(tp.x,tp.z);
+                // V9.3.8 树木属性面板：选择模式下点击陆地（无建筑/船/车命中时）拾取 10 单位内最近树
+                else if (_gm.Tool=="select")
+                {
+                    var veg=UnityEngine.Object.FindObjectOfType<PixelToCivilization.World.VegetationSystem>();
+                    if(veg!=null){ var t=veg.TryPickTree(tp.x,tp.z); if(t!=null) PixelToCivilization.UI.UIManager.Instance?.ShowTree(t); }
+                }
             }
         }
 

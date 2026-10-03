@@ -127,6 +127,8 @@ namespace PixelToCivilization.Systems
             var nodes = d.Districts;
             int tier = TrainSystem.TierForYear(S.Year);
             bool roadDue = S.Era >= 5;
+            // V9.3.8 大陆内部 0 铁路：经典模式行政区不再铺轨（铁路只存在于大陆之间——跨海/跨陆块国际线，由地球模式 Intercity 承载）
+            bool railDue = false;
             string sig = "C|" + nodes.Count + "|" + tier + "|" + (roadDue ? 1 : 0);
             if (sig == _sig && Root.childCount > 0) return;
             _sig = sig;
@@ -135,7 +137,6 @@ namespace PixelToCivilization.Systems
             if (nodes.Count < 2) return;
             var pts = new List<Vector3>();
             foreach (var dist in nodes) pts.Add(new Vector3(dist.Cx, 0f, dist.Cz));
-            bool railDue = tier > 0;
             var railEdges = railDue ? BuildNetwork(pts, 8, tier >= 4 ? 9f : 2.6f, true) : new List<(int a, int b)>();
             var roadEdges = roadDue ? BuildNetwork(pts, 10, 8f, false) : new List<(int a, int b)>();
             foreach (var e in railEdges)
@@ -150,6 +151,10 @@ namespace PixelToCivilization.Systems
                 Vector3 b = pts[e.b] - new Vector3(0, 0, 2.1f);
                 if (Feasible(a, b, 8f)) { BuildRoadView(a, b); _roads++; AddCars(a, b); }
             }
+            // V9.3.8 环大陆/环岛公路：经典模式沿每块陆地（主大陆/次大陆/岛）边缘生成沿海闭合环线
+            if (roadDue && _terrain != null)
+                foreach (var lm in _terrain.Landmasses)
+                    BuildCoastalLoop(lm.Id, lm.Cx, lm.Cz, 46f);
         }
 
         // ---------------- 地球模式：一陆块一国 + 跨海铁路 + 4车道马路 ----------------
@@ -213,9 +218,9 @@ namespace PixelToCivilization.Systems
             }
         }
 
-        /// <summary>V9.2.3 沿海/环岛公路（沿沙滩·陆地边缘）：
-        /// 小岛以陆块中心为心、半径≈Br*0.82 取岸点串成可闭合环岛；
-        /// 大陆/次大陆以港口为心、半径按陆块 Br 收敛，取近岸一段（不跨洲硬连）。</summary>
+        /// <summary>V9.3.8 沿海/环岛公路全环版（沿沙滩·陆地边缘）：
+        /// 岛/大陆/次大陆一律以本陆块中心为心、半径≈Br*0.82(岛)/0.9(大陆)，
+        /// 逐角度沿径向扫描找"本陆块·干燥·靠海"岸点，闭合成一圈环陆公路（大陆 SEG 按周长比例放大）。</summary>
         void BuildCoastalLoop(int landId, float cx, float cz, float radius)
         {
             // 取陆块实际中心与半径，解决固定半径在小岛落空、在大陆比例失调
@@ -223,10 +228,8 @@ namespace PixelToCivilization.Systems
             foreach(var lm in _terrain.Landmasses)
                 if(lm.Id==landId){ acx=lm.Cx; acz=lm.Cz; br=lm.Br; break; }
             bool island=br<=28f;
-            float ringCx, ringCz, R;
-            if(island){ ringCx=acx; ringCz=acz; R=Mathf.Max(8f,br*0.82f); }       // 全岛环
-            else { ringCx=cx; ringCz=cz; R=Mathf.Min(radius,br*0.9f); }          // 大陆近岸弧
-            int SEG=island? Mathf.Clamp(Mathf.RoundToInt(R*1.6f),16,40) : 24;
+            float ringCx=acx, ringCz=acz, R=Mathf.Max(8f, br*(island?0.82f:0.9f));
+            int SEG=Mathf.Clamp(Mathf.RoundToInt(R*1.6f), island?16:40, 72);
             var ring=new List<Vector3>();
             for(int i=0;i<SEG;i++)
             {
@@ -241,8 +244,8 @@ namespace PixelToCivilization.Systems
                 }
                 if(coast.HasValue) ring.Add(coast.Value);
             }
-            // 相邻岸点缺口阈值内才连接（岛屿按周向间距自适应，大陆为近岸段），不跨缺口硬连
-            float gapMax=island? Mathf.Min(42f,2f*Mathf.PI*R/SEG*2.2f) : 30f;
+            // 相邻岸点缺口阈值内才连接（岛按周向间距自适应；大陆环线阈值放宽到60闭合整圈），不跨缺口硬连
+            float gapMax=island? Mathf.Min(42f,2f*Mathf.PI*R/SEG*2.2f) : 60f;
             for(int i=0;i<ring.Count;i++)
             {
                 var a=ring[i]; var b=ring[(i+1)%ring.Count];
@@ -267,10 +270,12 @@ namespace PixelToCivilization.Systems
                 if (!byCountry.TryGetValue(link.A, out var ga) || !byCountry.TryGetValue(link.B, out var gb)) continue;
                 int cap = RailCapacity(Mathf.Min(MinCityLevel(ga), MinCityLevel(gb)), tier);
                 Color col = FactionColorOf(ga[0].Faction);
-                bool ok = link.Sea ? TrySeaRail(link, ga, gb, tier, cap, col)
-                                   : TryLandRail(link, ga, gb, tier, cap, col);
+                // V9.3.8 大陆内部不允许铁路：陆上国际线（link.Sea=false）一律不铺设；仅保留跨海（大陆之间）铁路
+                bool ok;
+                if (link.Sea) ok = TrySeaRail(link, ga, gb, tier, cap, col);
+                else ok = false;
                 if (!ok)
-                    Debug.Log($"[Intercity] 国际铁路 {link.A}↔{link.B}({(link.Sea ? "跨海" : "陆地")}) 暂无可铺通道");
+                    Debug.Log($"[Intercity] 国际铁路 {link.A}↔{link.B}({(link.Sea ? "跨海" : "陆地-大陆内部已禁用")}) 未铺设");
             }
         }
 

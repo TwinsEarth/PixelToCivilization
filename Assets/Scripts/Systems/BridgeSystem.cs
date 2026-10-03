@@ -130,9 +130,9 @@ namespace PixelToCivilization.Systems
                 if(b2>0)incident[b2]=incident.TryGetValue(b2,out var ib)?ib+1:1;
                 if(S.BridgeRuns[i+5]>GrandSpan)usedGrand++;else usedNormal++;
             }
-            // V6.5.5 时间累积额度：每10年1普通(上限300)、每50年1跨海(上限50)；现存数低于已获额度才可建
+            // V9.3.8 跨海大桥可达性：人口阈值 pop/100 → pop/50（主村 StartPop80 即 ≥1 座额度，原 pop/100 使早期永远 0 座）
             int capNormal=Mathf.Min(NormalCapTotal,S.Year/NormalEveryYears,Mathf.Max(1,S.Pop/10));
-            int capGrand =Mathf.Min(GrandCapTotal,S.Year/GrandEveryYears,S.Pop/100);
+            int capGrand =Mathf.Min(GrandCapTotal,S.Year/GrandEveryYears,Mathf.Max(1,S.Pop/50));
             var paired=new HashSet<long>();
             for(int i=0;i+RunStride-1<S.BridgeRuns.Count;i+=RunStride)
             {

@@ -14,6 +14,7 @@ namespace PixelToCivilization.Buildings
         // V9.3.6 点击守卫：OnMouseDown 不经 EventSystem UI 射线，建造面板/放置模式/指针在UI上时不得弹属性栏
         private void OnMouseDown()
         {
+            Debug.Log("[Click] BuildingMouseDown "+(Entity!=null&&Entity.Def!=null?Entity.Def.Id:"null")); // V9.3.8 点击链路探针
             var gm=GameManager.Instance;
             if (gm!=null && gm.BlocksWorldClick()) return;
             OnClicked?.Invoke(Entity);

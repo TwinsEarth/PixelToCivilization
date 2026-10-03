@@ -6,6 +6,7 @@ using PixelToCivilization.Core;
 using PixelToCivilization.Data;
 using PixelToCivilization.AI;
 using PixelToCivilization.Systems;
+using PixelToCivilization.World;
 
 namespace PixelToCivilization.UI
 {
@@ -15,8 +16,10 @@ namespace PixelToCivilization.UI
         private GameObject _techModal,_policyModal,_godsModal,_oceanModal,_spaceModal,_buildingModal,_shipModal,_cartModal;
         private GameObject _campaignModal,_colonyModal;   // V6.1.4 群雄讨伐 / V6.1.5 殖民地
         private GameObject _cityModal;                    // V9.0.7 城市治理（等级/财政/税率/地价）
+        private GameObject _treeModal;                    // V9.3.8 树木属性面板
         private ShipEntity _selectedShip;
         private CartEntity _selectedCart;
+        private TreeRecord _selectedTree;
         private Transform _modalLayer;
 
         private void BuildModals(Transform parent)
@@ -39,6 +42,10 @@ namespace PixelToCivilization.UI
             _cartModal=MakeModal("CartModal","车辆详情",out _);
             var cbox=_cartModal.transform.Find("Box").GetComponent<RectTransform>();
             cbox.sizeDelta=new Vector2(320,380);
+            // V9.3.8 树木属性面板（紧凑窗对齐船窗）
+            _treeModal=MakeModal("TreeModal","树木详情",out _);
+            var tbox=_treeModal.transform.Find("Box").GetComponent<RectTransform>();
+            tbox.sizeDelta=new Vector2(320,400);
             // V6.1.4 群雄讨伐 / V6.1.5 殖民地面板
             _campaignModal=MakeModal("CampaignModal","【群雄争霸 · 出师讨伐】",out var cab);
             cab.parent.GetComponent<RectTransform>().sizeDelta=new Vector2(580,620);
@@ -638,6 +645,44 @@ public void ShowBuilding(BuildingEntity b)
             var up=UITheme.Btn("up",row.transform,upLabel,13); up.interactable=cost!=null;
             up.onClick.AddListener(()=>{ if(cart.UpgradeCart(c)) FillCart(c); });
             UITheme.Btn("close",row.transform," 关闭",13).onClick.AddListener(CloseCart);
+        }
+
+        // ===== V9.3.8 树木属性面板（查看树龄/高度/健康/培育等级；培育升级：金10+粮5 → 等级+1、+2×等级文化）=====
+        public void ShowTree(TreeRecord r)
+        {
+            _selectedTree=r; FillTree(r); _treeModal.SetActive(true);
+        }
+        public void CloseTree()
+        {
+            _selectedTree=null;
+            if(_treeModal!=null) _treeModal.SetActive(false);
+        }
+        private void FillTree(TreeRecord r)
+        {
+            var body=ModalBody(_treeModal);Clear(body);
+            var vl=body.AddComponent<VerticalLayoutGroup>();vl.spacing=7;vl.padding=new RectOffset(10,10,8,8);
+            vl.childControlWidth=true;vl.childForceExpandWidth=true;
+            var veg=UnityEngine.Object.FindObjectOfType<VegetationSystem>();
+            string icon=r.Kind==2?"🌳":"🌲";
+            string name=VegetationSystem.TreeName(r);
+            string lv=veg!=null?veg.TreeLevelName(r):(r.Level>=3?"巨木":(r.Level==2?"壮株":"幼株"));
+            UITheme.Label("name",body.transform,$"{icon} {name} · {lv}",19,TextAnchor.MiddleCenter,UITheme.Gold);
+            var sb=new StringBuilder();
+            sb.Append("分类：乔木（").Append(r.Kind==2?"村落榕树":(r.Kind==1?"针叶":"阔叶")).Append("）\n");
+            int age=veg!=null?veg.TreeAge(r):0;
+            sb.Append("树龄：").Append(age).Append(" 游戏年\n");
+            sb.Append("高度：约 ").Append(Mathf.RoundToInt((veg!=null?veg.TreeHeightM(r):1f)*10f)/10f).Append(" 米\n");
+            sb.Append("健康：").Append(Mathf.RoundToInt(r.Health)).Append("%\n");
+            if(r.Kind==2) sb.Append("寿命：300~800 游戏年（枯荣更替，原地萌发）\n");
+            sb.Append("<color=#8be9fd>🌿 培育成长：每级 +2 文化实力</color>");
+            UITheme.Label("meta",body.transform,sb.ToString(),13,TextAnchor.UpperLeft);
+            var row=UITheme.Panel("row",body.transform,new Color(0,0,0,0));
+            var h=row.AddComponent<HorizontalLayoutGroup>();h.spacing=8;row.AddComponent<LayoutElement>().preferredHeight=40;
+            var up=UITheme.Btn("up",row.transform,r.Level>=3?" 已成材，福荫四方":" 培育(10金+5粮)",13);
+            up.interactable=r.Level<3;
+            TreeRecord cap=r;
+            up.onClick.AddListener(()=>{ if(veg!=null && veg.NurtureTree(cap)) FillTree(cap); });
+            UITheme.Btn("close",row.transform," 关闭",13).onClick.AddListener(CloseTree);
         }
 
         private static string CostText(Dictionary<string,int> cost)

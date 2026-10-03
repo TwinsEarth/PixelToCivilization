@@ -37,6 +37,16 @@ namespace PixelToCivilization.Systems
         // V9.3.5 主动载人（运行时态）：载人态船的目标闲人航点（0.5s 节流刷新；沉舰/退役同步清理）
         readonly Dictionary<ShipEntity,Vector2> _loadGoal = new();
         private float _loadCd;
+        // V9.3.8 靠岸等待（运行时态）：载人态船到点停泊 _dockWait 秒，期间不动，等 EmbarkSystem 吸附岸边人员
+        readonly Dictionary<ShipEntity,float> _dockWait = new();
+        // V9.3.8 自动编队巡航（运行时态）：满员军用船无敌舰时分桶 3-7 艘成队，领队巡航、成员跟随；三模式每 10 现实分钟切换
+        class CruiseFormation { public readonly List<ShipEntity> Members=new(); public int Mode; public readonly List<Vector2> Waypoints=new(); public int WpIdx; public bool Inited; }
+        readonly Dictionary<ShipEntity,CruiseFormation> _formation = new();
+        private float _cruiseSwitchCd;
+        private const float CruiseSwitchInterval=600f;   // 现实 10 分钟切换巡航模式（unscaled，不受倍速影响）
+        private static readonly Vector2[] FollowOffsets={
+            new(0f,0f),new(2.5f,0f),new(-2.5f,0f),new(0f,2.5f),new(0f,-2.5f),new(5f,3f),new(-5f,3f)};
+        private static readonly string[] CruiseModeNames={"绕大陆","岛间巡逻","随机坐标"};
 
         // ===== V9.3.3 海上帝阵营（3-5 个敌对阵营，敌舰按阵营着色/命名；运行时随机启用）=====
         static readonly (string name,long color)[] FactionDefs =
@@ -398,7 +408,7 @@ namespace PixelToCivilization.Systems
                 s.Age++;
                 if (s.Age>s.MaxAge)
                 {
-                    _loadGoal.Remove(s);
+                    _loadGoal.Remove(s); _dockWait.Remove(s); _formation.Remove(s);
                     if(s.View!=null)Object.Destroy(s.View);
                     S.Ships.RemoveAt(i);
                     GM.AddEvent("bad","一艘"+s.Name+"超期服役，已退役（船龄 "+s.Age+" 年）");
@@ -428,19 +438,10 @@ namespace PixelToCivilization.Systems
                     try{
                     float ox=s.X, oz=s.Z;
                     // V9.3.5 民用船恒载人态：100格内有闲人优先驶向载人，无则围绕家园锚点缓慢圆周巡游
-                    if(!MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz))
-                    {
-                        float phase=(s.HomeX*0.7f+s.HomeZ*0.5f)+Time.time*0.10f;
-                        float rr=9f;
-                        float tx=s.HomeX+Mathf.Cos(phase)*rr, tz=s.HomeZ+Mathf.Sin(phase)*rr;
-                        float nx=Mathf.Lerp(s.X,tx,dt*0.6f), nz=Mathf.Lerp(s.Z,tz,dt*0.6f);
-                        float dvx=0f,dvz=0f;
-                        if(GM.OceanFlow!=null){var dv=GM.OceanFlow.Drift(nx,nz,dt,1.2f);dvx=dv.x;dvz=dv.y;} // 洋流/海风漂流
-                        // V6.3.4：巡游目标与洋流叠加后必须仍在水面，否则本帧不移动，杜绝被吹上陆地
-                        if(OnWater(nx+dvx,nz+dvz)){ s.X=nx+dvx; s.Z=nz+dvz; }
-                        float mvx=s.X-ox, mvz=s.Z-oz;
-                        if (Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
-                    }
+                    // V9.3.8 修复登船：到点停靠等待 6s；100格无闲人时驶向聚落海岸停靠点接人（人满/无人回家园巡游）
+                    if(IsDocked(s)) { }
+                    else if (s.Passengers>=s.EffectiveHousing) { HomeCruise(s,dt,ref lookYaw,ref hasLook,ox,oz); }
+                    else if(!MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz)) CoastGoal(s,dt,ref lookYaw,ref hasLook,ox,oz);
                     }catch(System.Exception ex){ Debug.LogError("[NAV:C3 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
                 }
                 else
@@ -471,8 +472,14 @@ namespace PixelToCivilization.Systems
                     }
                     else {
                         // V9.3.5 军用载人态：30格内无敌舰时，100格内有闲人优先驶向载人；否则自主巡逻
+                        // V9.3.8 修复登船：载人态到点停靠等待6s、无闲人驶向聚落海岸停靠点；满员(≥50%)无敌舰时自动编队巡航(3-7艘/队、三模式每10分钟切换)
                         float ox=s.X,oz=s.Z;
-                        if(!MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz)) PatrolMove(s,dt,ref lookYaw,ref hasLook);
+                        if(!BattlePriority(s))
+                        {
+                            if(IsDocked(s)) { }
+                            else if(!MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz)) CoastGoal(s,dt,ref lookYaw,ref hasLook,ox,oz);
+                        }
+                        else if(!CruiseMove(s,dt,ref lookYaw,ref hasLook)) PatrolMove(s,dt,ref lookYaw,ref hasLook);
                     } // V9.2.3 无敌舰：自主巡逻
                     }catch(System.Exception ex){ Debug.LogError("[NAV:C5 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
                 }
@@ -518,7 +525,7 @@ namespace PixelToCivilization.Systems
             }
             // 清理我方沉舰
             try{
-            S.Ships.RemoveAll(s=>{ if(s.Hp<=0){_loadGoal.Remove(s); if(s.View!=null)Object.Destroy(s.View);return true;} return false; });
+            S.Ships.RemoveAll(s=>{ if(s.Hp<=0){_loadGoal.Remove(s); _dockWait.Remove(s); _formation.Remove(s); if(s.View!=null)Object.Destroy(s.View);return true;} return false; });
             }catch(System.Exception ex){ Debug.LogError("[NAV:D6] "+ex.GetType().Name+": "+ex.Message); }
             try{
             if (EnemyShips.Count==0)
@@ -616,7 +623,8 @@ namespace PixelToCivilization.Systems
                 if(near.HasValue) _loadGoal[s]=near.Value; else _loadGoal.Remove(s);
             }
             if(!_loadGoal.TryGetValue(s,out var g)) return false;
-            if(Vector2.Distance(new Vector2(s.X,s.Z),g)<=14f){ _loadGoal.Remove(s); return false; }
+            // V9.3.8 修复登船：到 14 世界单位内不立即开走，停靠等待 6s（EmbarkSystem 每 2.5s 以 400 世界单位吸附岸边人员）
+            if(Vector2.Distance(new Vector2(s.X,s.Z),g)<=14f){ _dockWait[s]=6f; return true; }
             Vector3 dir=(new Vector3(g.x,0f,g.y)-s.Pos).normalized;
             float sp=SpeedOf(s)*0.8f;
             if(GM.OceanFlow!=null) sp*=GM.OceanFlow.SailFactor(s.X,s.Z,new Vector2(dir.x,dir.z));
@@ -628,6 +636,174 @@ namespace PixelToCivilization.Systems
             float mvx=s.X-ox, mvz=s.Z-oz;
             if(Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
             return true;
+        }
+
+        // ===== V9.3.8 靠岸停泊与聚落海岸接人 =====
+        /// <summary>停泊计时：停泊期间船保持原位不动（EmbarkSystem 每 2.5s 吸附岸边人员）；到期移除。</summary>
+        private bool IsDocked(ShipEntity s)
+        {
+            if(!_dockWait.TryGetValue(s,out var dw)) return false;
+            dw-=Time.deltaTime;
+            if(dw<=0f){ _dockWait.Remove(s); return false; }
+            _dockWait[s]=dw; return true;
+        }
+        /// <summary>民用船满员/无人可载时的家园锚点圆周巡游（V9.2.3 原逻辑抽出复用）。</summary>
+        private void HomeCruise(ShipEntity s,float dt,ref float lookYaw,ref bool hasLook,float ox,float oz)
+        {
+            float phase=(s.HomeX*0.7f+s.HomeZ*0.5f)+Time.time*0.10f;
+            float rr=9f;
+            float tx=s.HomeX+Mathf.Cos(phase)*rr, tz=s.HomeZ+Mathf.Sin(phase)*rr;
+            float nx=Mathf.Lerp(s.X,tx,dt*0.6f), nz=Mathf.Lerp(s.Z,tz,dt*0.6f);
+            float dvx=0f,dvz=0f;
+            if(GM.OceanFlow!=null){var dv=GM.OceanFlow.Drift(nx,nz,dt,1.2f);dvx=dv.x;dvz=dv.y;}
+            if(OnWater(nx+dvx,nz+dvz)){ s.X=nx+dvx; s.Z=nz+dvz; }
+            float mvx=s.X-ox, mvz=s.Z-oz;
+            if (Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
+        }
+        /// <summary>聚落海岸停靠：载人态船 100 格内无闲人时，取未登船闲人质心，向外海螺旋找最近水面停靠点(≤60世界单位)驶向并停泊 8s 接人。</summary>
+        private void CoastGoal(ShipEntity s,float dt,ref float lookYaw,ref bool hasLook,float ox,float oz)
+        {
+            float gx=0f,gz=0f; int n=0;
+            if(S.Agents!=null)
+                for(int i=0;i<S.Agents.Count;i++){ var a=S.Agents[i]; if(a!=null&&!a.Boarded){ gx+=a.X; gz+=a.Z; n++; } }
+            if(n==0){ HomeCruise(s,dt,ref lookYaw,ref hasLook,ox,oz); return; }   // 无人可载：家园巡游兜底
+            gx/=n; gz/=n;
+            float tx=gx,tz=gz; bool found=false;
+            for(float rr=0f;rr<=60f&&!found;rr+=2f)
+            {
+                for(int a=0;a<24;a++)
+                {
+                    float ang=a/24f*Mathf.PI*2f;
+                    float cx=gx+Mathf.Cos(ang)*rr, cz=gz+Mathf.Sin(ang)*rr;
+                    if(OnWater(cx,cz)){ tx=cx; tz=cz; found=true; break; }
+                }
+            }
+            if(!found){ HomeCruise(s,dt,ref lookYaw,ref hasLook,ox,oz); return; }  // 60 内无外海：家园巡游兜底
+            if(Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(tx,tz))<=4f){ _dockWait[s]=8f; return; }   // 到达停靠点：停泊 8s 等 Embark 吸附
+            Vector3 dir=(new Vector3(tx,0f,tz)-s.Pos).normalized;
+            float sp=SpeedOf(s); if(sp<=0f&&Defs.TryGetValue(s.ShipTypeId,out var pd)) sp=pd.Speed*0.5f;
+            if(GM.OceanFlow!=null) sp*=GM.OceanFlow.SailFactor(s.X,s.Z,new Vector2(dir.x,dir.z));
+            float nx=s.X+dir.x*sp*30f*dt, nz=s.Z+dir.z*sp*30f*dt;
+            float dvx=0f,dvz=0f;
+            if(GM.OceanFlow!=null){ var dv=GM.OceanFlow.Drift(nx,nz,dt,0.6f); dvx=dv.x; dvz=dv.y; }
+            if(OnWater(nx+dvx,nz+dvz)){ s.X=nx+dvx; s.Z=nz+dvz; }
+            else if(OnWater(nx,nz)){ s.X=nx; s.Z=nz; }
+            float mvx=s.X-ox, mvz=s.Z-oz;
+            if(Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
+        }
+
+        // ===== V9.3.8 自动编队巡航（军用满员、无敌舰时触发；运行时态不进存档） =====
+        private CruiseFormation GetFormation(ShipEntity s)
+        {
+            if(_formation.TryGetValue(s,out var f)) return f;
+            RebuildFormations();
+            return _formation.TryGetValue(s,out f)?f:null;
+        }
+        private void RebuildFormations()
+        {
+            _formation.Clear();
+            var eligible=new List<ShipEntity>();
+            for(int i=0;i<S.Ships.Count;i++){ var s=S.Ships[i]; if(s.Military&&BattlePriority(s)) eligible.Add(s); }
+            if(eligible.Count<3) return;   // 少于 3 艘不编队（单船由 PatrolMove 巡逻兜底）
+            int idx=0;
+            while(idx<eligible.Count)
+            {
+                int size=Random.Range(3,8); if(size>eligible.Count-idx) size=eligible.Count-idx;
+                var f=new CruiseFormation();
+                for(int k=0;k<size&&idx<eligible.Count;k++,idx++){ _formation[eligible[idx]]=f; f.Members.Add(eligible[idx]); }
+            }
+        }
+        private bool CruiseMove(ShipEntity s,float dt,ref float lookYaw,ref bool hasLook)
+        {
+            var f=GetFormation(s);
+            if(f==null) return false;   // 未入编队 → 单船巡逻
+            _cruiseSwitchCd-=dt;
+            if(_cruiseSwitchCd<=0f){ _cruiseSwitchCd=CruiseSwitchInterval; f.Mode=(f.Mode+1)%3; f.Inited=false; }
+            if(!f.Inited){ f.Inited=true; f.WpIdx=0; GenCruiseWaypoints(f,s); }
+            if(f.Members[0]==s)   // 领队：沿航点巡航
+            {
+                if(f.Waypoints.Count==0){ GenCruiseWaypoints(f,s); return true; }
+                if(f.WpIdx>=f.Waypoints.Count) f.WpIdx=0;
+                var wp=f.Waypoints[f.WpIdx];
+                if(Vector2.Distance(new Vector2(s.X,s.Z),wp)<=3f){ f.WpIdx=(f.WpIdx+1)%f.Waypoints.Count; return true; }
+                MoveToward(s,wp.x,wp.y,dt,ref lookYaw,ref hasLook);
+                return true;
+            }
+            // 成员跟随领队（菱形偏移；落队>30 直奔领队归位）
+            var lead=f.Members[0];
+            int mi=f.Members.IndexOf(s);
+            var off=FollowOffsets[mi%FollowOffsets.Length];
+            var target=new Vector2(lead.X+off.x,lead.Z+off.y);
+            if(Vector2.Distance(new Vector2(s.X,s.Z),target)>30f) target=new Vector2(lead.X,lead.Z);
+            MoveToward(s,target.x,target.y,dt,ref lookYaw,ref hasLook);
+            return true;
+        }
+        private void GenCruiseWaypoints(CruiseFormation f,ShipEntity s)
+        {
+            f.Waypoints.Clear();
+            switch(f.Mode)
+            {
+                case 0:   // M1 绕大陆航线：8 方位、半径 40~90 环带找外海航点
+                    for(int k=0;k<8;k++)
+                    {
+                        float ang=k/8f*Mathf.PI*2f;
+                        for(float rr=40f;rr<=90f;rr+=5f)
+                        {
+                            float px=s.X+Mathf.Cos(ang)*rr, pz=s.Z+Mathf.Sin(ang)*rr;
+                            if(OnWater(px,pz)){ f.Waypoints.Add(new Vector2(px,pz)); break; }
+                        }
+                    }
+                    break;
+                case 1:   // M2 岛间巡逻：已揭示疆域内随机 3-4 个外海水面点
+                    float br=_terrain!=null?Mathf.Max(21f,_terrain.RevealBase*0.9f):120f;
+                    for(int k=0;k<4;k++)
+                    {
+                        for(int t=0;t<40;t++)
+                        {
+                            float rr=Random.Range(20f,br), ang=Random.value*Mathf.PI*2f;
+                            float px=s.X+Mathf.Cos(ang)*rr, pz=s.Z+Mathf.Sin(ang)*rr;
+                            if(OnWater(px,pz)){ f.Waypoints.Add(new Vector2(px,pz)); break; }
+                        }
+                    }
+                    break;
+                default:  // M3 随机坐标巡航：2-3 个随机外海水面点
+                    for(int k=0;k<3;k++)
+                    {
+                        for(int t=0;t<40;t++)
+                        {
+                            float rr=Random.Range(25f,110f), ang=Random.value*Mathf.PI*2f;
+                            float px=s.X+Mathf.Cos(ang)*rr, pz=s.Z+Mathf.Sin(ang)*rr;
+                            if(OnWater(px,pz)){ f.Waypoints.Add(new Vector2(px,pz)); break; }
+                        }
+                    }
+                    break;
+            }
+            if(f.Waypoints.Count==0) f.Waypoints.Add(new Vector2(s.X,s.Z));
+        }
+        private void MoveToward(ShipEntity s,float tx,float tz,float dt,ref float lookYaw,ref bool hasLook)
+        {
+            float ox=s.X, oz=s.Z;
+            Vector3 dir=(new Vector3(tx,0f,tz)-s.Pos).normalized;
+            float sp=SpeedOf(s); if(sp<=0f&&Defs.TryGetValue(s.ShipTypeId,out var pd)) sp=pd.Speed*0.5f;
+            if(GM.OceanFlow!=null) sp*=GM.OceanFlow.SailFactor(s.X,s.Z,new Vector2(dir.x,dir.z));
+            float nx=s.X+dir.x*sp*30f*dt, nz=s.Z+dir.z*sp*30f*dt;
+            float dvx=0f,dvz=0f;
+            if(GM.OceanFlow!=null){ var dv=GM.OceanFlow.Drift(nx,nz,dt,0.8f); dvx=dv.x; dvz=dv.y; }
+            if(OnWater(nx+dvx,nz+dvz)){ s.X=nx+dvx; s.Z=nz+dvz; }
+            else if(OnWater(nx,nz)){ s.X=nx; s.Z=nz; }
+            float mvx=s.X-ox, mvz=s.Z-oz;
+            if(Mathf.Abs(mvx)+Mathf.Abs(mvz)>1e-4f){ lookYaw=Mathf.Atan2(mvx,mvz)*Mathf.Rad2Deg; hasLook=true; }
+        }
+        /// <summary>V9.3.8 浏览器探针：船数/敌舰数/编队数/巡航模式/停泊中船数。</summary>
+        public string DebugCruiseState()
+        {
+            int formations=0; var seen=new HashSet<CruiseFormation>();
+            int mode=-1;
+            foreach(var kv in _formation){ if(seen.Add(kv.Value)) formations++; if(mode<0) mode=kv.Value.Mode; }
+            int docked=0, cruised=0;
+            for(int i=0;i<S.Ships.Count;i++){ var s=S.Ships[i]; if(_dockWait.ContainsKey(s)) docked++; if(_formation.ContainsKey(s)) cruised++; }
+            return "ships="+S.Ships.Count+" enemy="+EnemyShips.Count+" formations="+formations
+                +" mode="+(mode>=0?CruiseModeNames[mode]:"-")+" cruising="+cruised+" docked="+docked;
         }
 
         // ===== V9.2.3 火炮声光 =====
@@ -742,6 +918,7 @@ namespace PixelToCivilization.Systems
         public void ScuttleShip(ShipEntity s)
         {
             if (s.View!=null) Object.Destroy(s.View);
+            _loadGoal.Remove(s); _dockWait.Remove(s); _formation.Remove(s);   // V9.3.8 解散同步清理运行时态
             S.Ships.Remove(s); S.OceanFleets.Remove(s);
             GM.AddEvent("info","已解散一艘"+s.Name);
         }

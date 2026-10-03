@@ -96,7 +96,7 @@ namespace PixelToCivilization.EditorTools
             PlayerSettings.defaultScreenWidth = 1920;
             PlayerSettings.defaultScreenHeight = 1080;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
-            PlayerSettings.productName = "从像素到文明 V9.3.7";
+            PlayerSettings.productName = "从像素到文明 V9.3.8";
             PlayerSettings.companyName = "ToFuture";
         }
 
@@ -135,7 +135,7 @@ namespace PixelToCivilization.EditorTools
             File.WriteAllBytes(Path.Combine(outDir, "start_webserver.bat"), gbk.GetBytes(bat));
         }
 
-        const string BuildVer = "9.3.7";
+        const string BuildVer = "9.3.8";
         const string IndexTemplate = @"<!doctype html>
 <html lang=""zh-CN"">
 <head>
@@ -143,7 +143,7 @@ namespace PixelToCivilization.EditorTools
 <meta name=""viewport"" content=""width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"">
 <meta http-equiv=""Cache-Control"" content=""no-store,no-cache,must-revalidate"">
 <meta http-equiv=""Pragma"" content=""no-cache"">
-<title>从像素到文明 V9.3.7 · HTML5 网页版</title>
+<title>从像素到文明 V9.3.8 · HTML5 网页版</title>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#0e72c8;overflow:hidden;font-family:'Microsoft YaHei',PingFang SC,Arial,sans-serif;}
   #game{position:fixed;inset:0;width:100%;height:100%;}
@@ -168,7 +168,7 @@ namespace PixelToCivilization.EditorTools
 <canvas id=""game""></canvas>
 <div id=""boot"">
   <h1>从 像 素 到 文 明</h1>
-  <p>V9.3.7 · HTML5 网页版 · 低员船优先驶向载人(100格) / 高员船优先战斗(发现100格·载人30格) · 射程格口径修正 · 暂停防呆</p>
+  <p>V9.3.8 · HTML5 网页版 · 树木属性面板(拾取·培育) / 靠岸停泊接人(6-8s) / 军用满员自动编队巡航(3-7艘·三模式·10分钟切换) / 环大陆公路·跨海大桥 / 大陆内部0铁路(只跨大陆)</p>
   <div id=""bar""><div id=""fill""></div></div>
   <div id=""pct"">正在加载 0%</div>
 </div>
@@ -183,7 +183,7 @@ namespace PixelToCivilization.EditorTools
   var script=document.createElement('script');
   script.src='Build/__LOADER__'+VER;
   script.onload=function(){
-    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.3.7',productVersion:'__VER__'};
+    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.3.8',productVersion:'__VER__'};
     createUnityInstance(document.querySelector('#game'),cfg,function(progress){
       var p=Math.round(progress*100);fill.style.width=p+'%';pct.textContent='正在加载 '+p+'%';
     }).then(function(inst){window.unityInstance=inst;boot.style.opacity='0';setTimeout(function(){boot.style.display='none';},600);})
@@ -199,7 +199,7 @@ namespace PixelToCivilization.EditorTools
 </html>";
 
         const string ReadmeText =
-            "《从像素到文明》V9.3.7 HTML5 网页版 — 运行说明\r\n" +
+            "《从像素到文明》V9.3.8 HTML5 网页版 — 运行说明\r\n" +
             "==========================================\r\n\r\n" +
             "一、为什么不能直接双击 index.html？\r\n" +
             "    Unity WebGL 出于浏览器安全策略，必须通过 http(s) 访问，直接用 file:// 双击通常会被拦截。\r\n\r\n" +
@@ -215,14 +215,14 @@ namespace PixelToCivilization.EditorTools
 
         const string StartBat = @"@echo off
 chcp 936 >nul
-title PixelToCivilization V9.3.7 Web Server
+title PixelToCivilization V9.3.8 Web Server
 cd /d ""%~dp0""
 rem V6.7.1: auto pick free port so a stale old server cannot hijack 8000
 set PORT=8000
 :findport
 netstat -ano -p tcp | findstr /R /C:"":%PORT% .*LISTENING"" >nul 2>nul && set /a PORT+=1 && goto findport
 echo ================================================
-echo   从像素到文明 V9.3.7 · 本地网页服务器
+echo   从像素到文明 V9.3.8 · 本地网页服务器
 echo   URL: http://localhost:%PORT%/
 echo   (8000 被旧版本占用时自动顺延到下一端口)
 echo   关闭本窗口即停止服务

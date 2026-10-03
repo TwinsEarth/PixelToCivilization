@@ -36,13 +36,46 @@ namespace PixelToCivilization.World
         }
         readonly Dictionary<int,VegSet> _sets=new();
         readonly Dictionary<int,VegSet> _sets3=new();   // V6.3.1 近景 LV3 精合并
+        // V9.3.8 树木属性面板：TreeRecord 运行时态（不进存档），点击拾取 + 培育升级（纯数据）
+        public readonly List<TreeRecord> Trees = new();
+        public int TreeAge(TreeRecord r){ var gm=GameManager.Instance; float y=gm!=null&&gm.State!=null?gm.State.Year:1f; return Mathf.Max(0,Mathf.FloorToInt(y-r.BirthYear)); }
+        public float TreeHeightM(TreeRecord r)
+        {
+            if(r.Kind==2){ float s=r.Banyan!=null?r.Banyan.transform.localScale.y:1f; return 3.5f*s; }
+            return r.BaseH*(1f+(r.Level-1)*0.25f);
+        }
+        public static string TreeName(TreeRecord r)=> r.Kind==2?"大榕树":(r.Kind==1?"针叶乔木":"阔叶乔木");
+        public string TreeLevelName(TreeRecord r)=> r.Level>=3?"巨木":(r.Level==2?"壮株":"幼株");
+        public TreeRecord TryPickTree(float x,float z)
+        {
+            TreeRecord best=null; float bd=10f*10f;
+            for(int i=0;i<Trees.Count;i++)
+            { var t=Trees[i]; float dx=t.X-x,dz=t.Z-z,d=dx*dx+dz*dz; if(d<bd){bd=d;best=t;} }
+            return best;
+        }
+        /// <summary>培育升级：金10+粮5 → 等级+1(≤3)、健康回满、即时 +2×等级 文化实力</summary>
+        public bool NurtureTree(TreeRecord r)
+        {
+            var gm=GameManager.Instance; if(gm==null||gm.State==null) return false;
+            if(r.Level>=3) return false;
+            if(gm.State.GetRes("gold")<10||gm.State.GetRes("food")<5){ gm.AddEvent("bad","培育需 10 金 + 5 粮"); return false; }
+            gm.State.AddRes("gold",-10); gm.State.AddRes("food",-5);
+            r.Level++; r.Health=100f; int c=2*r.Level;
+            gm.State.AddRes("culture",c);
+            gm.AddEvent("good","🌳 培育"+TreeName(r)+"为"+TreeLevelName(r)+"，文化 +"+c);
+            return true;
+        }
+        float _lastYear=-1f;
         VegSet SetFor(int cid){ if(!_sets.TryGetValue(cid,out var v)){v=new VegSet();_sets[cid]=v;} return v; }
         VegSet SetFor3(int cid){ if(!_sets3.TryGetValue(cid,out var v)){v=new VegSet();_sets3[cid]=v;} return v; }
 
         public void Populate(WorldGenerator terrain, int seed)
         {
             _sets.Clear(); _sets3.Clear();
+            Trees.Clear();
             LODManager.ClearCull();
+            var curYear=GameManager.Instance!=null&&GameManager.Instance.State!=null?GameManager.Instance.State.Year:1f;
+            _lastYear=curYear;
             _cylinder = Builtin("Cylinder.fbx") ?? BuildCylinder();
             // V9.0.1fix 圆球阔叶/灌木/岩石/大榕树冠：绝不用内置 Sphere.fbx（515 顶点）。
             // 植被有数千实例 × 每株多个叶球/岩石 × LV2/LV3 双份合并，高面数球会让合并网格顶点量暴涨数十倍，
@@ -101,6 +134,7 @@ namespace PixelToCivilization.World
                     float tr=(float)rng.NextDouble(); bool con=h>3.6f || (float)rng.NextDouble()<0.45f; // V6.3.6 平地也有45%三角锥形树，高海拔全锥形
                     AddTree(vs.bark,vs.la,vs.lb,x,y,z,tr,con);
                     AddTree3(vs3.bark,vs3.la,vs3.lb,x,y,z,tr,con);
+                    Trees.Add(new TreeRecord{X=x,Z=z,BaseH=(0.8f+tr*0.7f)*1.4f,Kind=con?1:0,BirthYear=curYear});   // V9.3.8 树木属性面板登记
                     trees++;
                 }
                 // ② 灌木层（中，无主干团状）
@@ -267,6 +301,9 @@ namespace PixelToCivilization.World
                 var bt=go.AddComponent<BanyanTree>();
                 bt.BirthYear = GameManager.Instance!=null?GameManager.Instance.State.Year:1;
                 bt.LifeSpan = 300f+(float)rng.NextDouble()*500f;
+                var rec=new TreeRecord{X=x,Z=z,BaseH=1f,Kind=2,BirthYear=bt.BirthYear,Banyan=bt};
+                Trees.Add(rec); bt.Record=rec;   // V9.3.8 榕树登记 + 点击桥
+                var bc=go.AddComponent<BoxCollider>(); bc.size=new Vector3(4.5f,4.5f,4.5f); bc.center=new Vector3(0,2.2f,0);
                 made++;
             }
         }
@@ -560,10 +597,22 @@ namespace PixelToCivilization.World
         }
     }
 
+    /// <summary>V9.3.8 树木属性记录：X/Z 位置、种类(0阔叶/1针叶/2榕树)、基准高、出生年、健康、培育等级(1幼株/2壮株/3巨木)。运行时态不进存档。</summary>
+    public class TreeRecord
+    {
+        public float X,Z,BaseH;
+        public int Kind;
+        public float BirthYear=1f;
+        public float Health=100f;
+        public int Level=1;
+        public BanyanTree Banyan;
+    }
+
     /// <summary>大榕树生长器：随游戏年代由幼苗长大，到寿命(300-800年)枯萎后原地萌发新株。</summary>
     public class BanyanTree : MonoBehaviour
     {
         public float BirthYear=1f, LifeSpan=500f;
+        public TreeRecord Record;   // V9.3.8 点击桥回指属性记录
         float _lastScale=-1f;
         void Update()
         {
@@ -575,6 +624,13 @@ namespace PixelToCivilization.World
             // 0~120年由0.35幼苗长到1.0成熟，之后缓慢增至1.3的巨榕
             float g = age<120f ? 0.35f+0.65f*(age/120f) : Mathf.Min(1.3f,1f+(age-120f)/800f*0.3f);
             if(Mathf.Abs(g-_lastScale)>0.002f){ transform.localScale=Vector3.one*g; _lastScale=g; }
+        }
+        // V9.3.8 榕树点击桥：对齐建筑/车/船守卫（V9.3.7 口径）
+        void OnMouseDown()
+        {
+            var gm=GameManager.Instance;
+            if(gm!=null && gm.BlocksWorldClick()) return;
+            if(Record!=null) PixelToCivilization.UI.UIManager.Instance?.ShowTree(Record);
         }
     }
 }

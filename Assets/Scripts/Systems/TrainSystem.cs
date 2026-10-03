@@ -99,8 +99,9 @@ namespace PixelToCivilization.Systems
         private void ManageLines()
         {
             _manageTicks++;
-            // V9.1.1 地球模式：铁路只跨海峡，由 IntercityNetworkSystem 管理；停用聚落旁陆地廊道（大陆内部 0 铁路）。
-            if (_terrain != null && _terrain.EarthMode)
+            // V9.3.8 大陆内部 0 铁路（覆盖经典+地球两模式）：聚落旁陆地廊道一律不建，
+            // 铁路只存在于大陆之间（跨海/跨陆块国际线，由 IntercityNetworkSystem 承载）。
+            if (_terrain != null)
             {
                 if (_lines.Count > 0)
                 {
@@ -196,11 +197,11 @@ namespace PixelToCivilization.Systems
                     else bandBlock++;
                 }
             int before = _lines.Count;
-            bool t1 = TryCreateLine(tier), t2 = TryCreateLine(tier), t3 = TryCreateLine(tier);
+            // V9.3.8 大陆内部 0 铁路：诊断不再自建廊道（原 V9.3.6 直建 3 条仅用于验证蒸汽机车辨识，已无必要）
             return $"[TRAINDIAG] id={GetInstanceID()} tier={tier} buildings={S.Buildings.Count} bestHalf={best:F0} okAxes={ok} " +
                    $"waterBlock={waterBlock} bandBlock={bandBlock} activeHalf={_terrain.ActiveHalf:F0} " +
                    $"ticks={_tickTicks} early={_earlyReturn} manage={_manageTicks} lines={_lines.Count} " +
-                   $"directTry=({t1},{t2},{t3}) lines {before}->{_lines.Count}";
+                   $"directTry=disabled lines {before}->{_lines.Count}";
         }
 
         // ================= 轨道（局部坐标，z 轴为线路方向，轨面 y=0）=================

@@ -40,6 +40,7 @@ namespace PixelToCivilization.Core
         public OceanExpansionSystem Ocean;
         public SpaceExpansionSystem Space;
         public CanalSystem Canal;
+        public World.VegetationSystem Veg;   // V9.3.8 树木属性面板：植被系统引用（Populate/读档后赋值）
         public CartSystem Cart;
         public ModernTrafficSystem ModernTraffic;  // V9.0.1 现代交通：工业时代彩色轿车/卡车、现代机场飞机（纯装饰，有上限不存档）
         public CityServicesSystem CityServices;   // V9.0.1 城市公共设施：消防/警察/医院/学校/公园/超市/小区，组织神按人口自动配套
@@ -189,6 +190,7 @@ namespace PixelToCivilization.Core
             // 2) 随机重建地形 + 植被
             var terrain = UnityEngine.Object.FindObjectOfType<World.WorldGenerator>();
             var veg = UnityEngine.Object.FindObjectOfType<World.VegetationSystem>();
+            Veg=veg;   // V9.3.8 树面板：缓存植被系统引用
             int seed = World.WorldGenerator.RandomSeed();
             Vector3 village = Vector3.zero;
             bool earth=NextEarthMode;   // V9.1.1 地球模式：先进经典地图片头，再黑场干净切换到真实地球（杜绝两图叠加）
@@ -269,6 +271,7 @@ namespace PixelToCivilization.Core
             ClearWorldVisuals();
             var terrain = UnityEngine.Object.FindObjectOfType<World.WorldGenerator>();
             var veg = UnityEngine.Object.FindObjectOfType<World.VegetationSystem>();
+            Veg=veg;   // V9.3.8 树面板：地球切换后刷新引用
             // 防御性销毁经典地形/水面/植被根（RegenerateEarth 内部也会做，这里再兜一层，彻底杜绝叠加）
             if (terrain != null)
                 foreach (var nm in new[] { "Terrain", "Water" })
@@ -974,6 +977,31 @@ namespace PixelToCivilization.Core
             string left = UIManager.Instance!=null ? (UIManager.Instance.LeftPanelOpen ? "open":"closed") : "no-ui";
             bool blocks = BlocksWorldClick();
             Debug.Log($"[Web] ClickGuard blocks={blocks} selectedBuild='{sel}' leftPanel={left} pointerOverUI={UnityEngine.EventSystems.EventSystem.current?.IsPointerOverGameObject()}");
+        }
+        // V9.3.8 探针：船数/敌舰数/编队数/巡航模式/停泊中船数（配合 DebugSpawnOwnShip×4+DebugSpawnEnemy 回归编队巡航）
+        public void WebV938Probe()
+        {
+            string naval = Naval!=null ? Naval.DebugCruiseState() : "no-naval";
+            string trees = "no-veg";
+            if (Veg!=null) trees = "trees="+Veg.Trees.Count;
+            Debug.Log("[Web] V938 "+naval+" "+trees);
+        }
+        // V9.3.8 编队巡航浏览器演示：就地造 5 艘满员军用船（不跳年、不放敌舰），自动分桶编队巡航
+        public void WebV938Fleet()
+        {
+            if (Naval==null){ Debug.Log("[Web] V938Fleet Naval=null"); return; }
+            int made=0;
+            for(int k=0;k<5;k++)
+                for(int i=0;i<24;i++)
+                {
+                    float ang=UnityEngine.Random.value*Mathf.PI*2f, dist=14f+UnityEngine.Random.value*26f;
+                    float x=Mathf.Cos(ang)*dist, z=Mathf.Sin(ang)*dist;
+                    var terrain=FindObjectOfType<WorldGenerator>();
+                    if(terrain!=null && !terrain.IsOceanWater(x,z)) continue;
+                    if(Naval.SpawnInitialShip(State.Era>=3?"cannon_ship":"war_junk",x,z)!=null){ made++; break; }
+                }
+            Debug.Log("[Web] V938Fleet made="+made);
+            AddEvent("good","🚢 V9.3.8 编队演示：我方 5 舰就位（无敌人，应自动编队巡航）");
         }
         public void WebNextDynasty(){ bool ok=Time!=null && Time.DebugNextDynasty(); Debug.Log("[Web] NextDynasty "+(ok?"OK":"FAIL")); }
         public void WebProbeBridges(){ Bridge?.DebugProbe(); }
