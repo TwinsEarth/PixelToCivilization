@@ -189,7 +189,7 @@ namespace PixelToCivilization.EditorTools
     var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.3.9',productVersion:'__VER__'};
     createUnityInstance(document.querySelector('#game'),cfg,function(progress){
       var p=Math.round(progress*100);fill.style.width=p+'%';pct.textContent='正在加载 '+p+'%';
-    }).then(function(inst){window.unityInstance=inst;boot.style.opacity='0';setTimeout(function(){boot.style.display='none';},600);})
+    }).then(function(inst){window.unityInstance=inst;var _mk=document.querySelector('meta[name=""ai-key""]');if(_mk&&_mk.getAttribute('content')){inst.SendMessage('GameManager','WebAISetKey',_mk.getAttribute('content'));}boot.style.opacity='0';setTimeout(function(){boot.style.display='none';},600);})
       .catch(function(e){showErr('启动失败：'+e+'\n若直接双击打不开，请用附带的本地服务器脚本（start_webserver）通过 http 方式打开。');});
   };
   script.onerror=function(){showErr('加载器脚本丢失，请确认 Build 目录完整，并通过本地 http 服务器访问。');};

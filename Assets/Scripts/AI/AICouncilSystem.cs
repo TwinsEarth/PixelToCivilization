@@ -49,34 +49,19 @@ namespace PixelToCivilization.AI
         public override void Init(GameManager gm)
         {
             base.Init(gm);
-            // V9.3.9 密钥三级读取（源码/仓库不含任何密钥）：① 游戏内 PlayerPrefs（九神面板可填）② WebGL index.html meta 注入（构建时环境变量 PXC_AI_KEY）③ 环境变量（PXC_AI_KEY，兼容旧 PXC_ARK_API_KEY）；全空则离线规则自治兜底
+            // V9.3.9 密钥读取（源码/仓库不含任何密钥）：① 游戏内 PlayerPrefs（九神面板可填）② 环境变量（PXC_AI_KEY，兼容旧 PXC_ARK_API_KEY）；WebGL 交付包由 index.html 加载器 JS 自动 SendMessage(WebAISetKey) 注入 PlayerPrefs（构建时环境变量 PXC_AI_KEY 写入 meta ai-key）；全空则离线规则自治兜底
             if(string.IsNullOrEmpty(ApiKey))
             {
-                string pp = UnityEngine.PlayerPrefs.GetString("PXC_AI_KEY","");
-                if(!string.IsNullOrEmpty(pp)) ApiKey = pp;
-                else if(IsWebGLMeta("ai-key", out string mk) && !string.IsNullOrEmpty(mk)) ApiKey = mk;
-                else ApiKey = System.Environment.GetEnvironmentVariable("PXC_AI_KEY")
-                        ?? System.Environment.GetEnvironmentVariable("PXC_ARK_API_KEY") ?? "";
+                ApiKey = UnityEngine.PlayerPrefs.GetString("PXC_AI_KEY","");
+                if(string.IsNullOrEmpty(ApiKey))
+                    ApiKey = System.Environment.GetEnvironmentVariable("PXC_AI_KEY")
+                            ?? System.Environment.GetEnvironmentVariable("PXC_ARK_API_KEY") ?? "";
             }
             Online = Online && !string.IsNullOrEmpty(ApiKey);
             Debug.Log("[AICouncil] V9.3.9 AI 神通道："+(string.IsNullOrEmpty(ApiKey)?"离线规则自治（未配置密钥）":"DeepSeek 联网就绪 model="+Model+" endpoint="+Endpoint));
             BuildGods();
         }
 
-        /// <summary>WebGL 下读取 index.html 注入的 meta（构建产物带 key，源码无 key）；桌面/编辑器走环境变量</summary>
-        static bool IsWebGLMeta(string name, out string val)
-        {
-            val="";
-#if UNITY_WEBGL && !UNITY_EDITOR
-            try {
-                string js="(function(){var m=document.querySelector('meta[name=\""+name+"\"]');return m?(m.getAttribute('content')||''):'';})()";
-#pragma warning disable CS0618
-                val = Application.ExternalEval(js) ?? "";
-#pragma warning restore CS0618
-            } catch(Exception) { val=""; }
-#endif
-            return val.Length>0;
-        }
 
         void BuildGods()
         {
