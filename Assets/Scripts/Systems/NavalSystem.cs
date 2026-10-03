@@ -140,7 +140,7 @@ namespace PixelToCivilization.Systems
                 Speed=speed,Attack=atk,Range=range,Military=mil,ColorHex=color,Cost=cost,Era=era,AttackType=atkType,SizeCls=sizeCls};
         }
 
-        // ===== V9.3.3 时代替换：公元1900（游戏年4900）前=木船9型；之后=现代7型（军事栏直接替换，不做灰显解锁）=====
+        // ===== V9.3.3 时代替换：公元1949（游戏年4949）前=木船9型；之后=现代7型（军事栏直接替换，不做灰显解锁）=====
         private static readonly string[] ModernShipIds = {"steamship","oil_tanker","cruise_liner","destroyer","submarine","missile_ship","aircraft_carrier"};
         public bool ModernEra => S.Year >= 4949;   // 公元1949 = 游戏年4949（游戏纪年=公元+3000；用户硬约束：1949年前木船、1949年起现代舰船）
         public IEnumerable<ShipDef> AvailableDefs
