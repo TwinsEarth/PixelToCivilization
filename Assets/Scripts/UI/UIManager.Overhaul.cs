@@ -663,6 +663,27 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             Section("铁路系统","公元 1800 年起聚落旁铺设铁路廊道，红色标志的蒸汽机车（黑锅炉+红饰驾驶室+绿客车编组）在廊道上往返行驶；随年代自动升级：1900 内燃机车（橙）、1950 电力机车（银蓝）、1990 高速列车（白）、2010 磁悬浮（悬浮无轮）。列车为装饰性往返行驶，仅在陆地/疆域内铺设。");
             Section("加速冷冻","加速累计推进满 100 游戏年后，强制进入 300 现实秒冷冻冷却，期间倍速封顶 10；收到解冻指令后重新累计。画面中顶显示倒计时。");
             Section("快捷键 / 存档","空格 暂停，+/- 调整倍速，F11 或 Alt+Enter 全屏；游戏每 5 分钟自动存档，也可在左下角手动存/读 5 个手动槽、导出导入 JSON 跨设备迁移。");
+            // —— V9.3.9：AI 密钥设置（DeepSeek 直连；填写即存本机并即时联网，清空即离线自治） ——
+            {
+                var cou=GM.Council;
+                string keyShow2 = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
+                var aiCard=UITheme.Surface("hs",c,UITheme.HexA(0x232e50,0.9f));
+                var al2=aiCard.AddComponent<LayoutElement>();al2.flexibleWidth=1;al2.preferredHeight=112;
+                var avg=aiCard.AddComponent<VerticalLayoutGroup>();avg.spacing=6;avg.padding=new RectOffset(12,12,9,9);
+                avg.childControlWidth=true;avg.childForceExpandWidth=true;avg.childControlHeight=true;avg.childForceExpandHeight=false;avg.childAlignment=TextAnchor.UpperCenter;
+                UITheme.Label("e",aiCard.transform,"AI 密钥设置 · 九神联网议政",15,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=22;
+                UITheme.Label("k",aiCard.transform,"状态："+keyShow2+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://","")+"；下方粘贴 DeepSeek API Key 保存即联网议政；留空保存即离线规则自治（不耗Token）",11,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=28;
+                var hr=Row(aiCard.transform,32);
+                var hip=UITheme.Panel("aiin",hr.transform,new Color(0.93f,0.96f,0.98f,1f));
+                hip.AddComponent<LayoutElement>().flexibleWidth=1;
+                var hkt=UITheme.Label("kt",hip.transform,"",11,TextAnchor.MiddleLeft);
+                hkt.rectTransform.offsetMin=new Vector2(8,2);hkt.rectTransform.offsetMax=new Vector2(-8,-2);
+                var hkf=hip.AddComponent<InputField>();
+                hkf.textComponent=hkt;hkf.lineType=InputField.LineType.SingleLine;hkf.text="";
+                var hsb=UITheme.Btn("aisave",hr.transform,"保存",11);
+                hsb.AddComponent<LayoutElement>().preferredWidth=70;
+                hsb.onClick.AddListener(()=>{cou.SetApiKey(hkf.text);hkf.text="";Toast("AI 密钥已"+(string.IsNullOrEmpty(cou.ApiKey)?"清空·离线自治":"保存·即时联网"));FillHelp();});
+            }
             var row=UITheme.Panel("hb",c,new Color(0,0,0,0));row.AddComponent<LayoutElement>().preferredHeight=40;
             var hg=row.AddComponent<HorizontalLayoutGroup>();hg.spacing=8;hg.childForceExpandWidth=true;
             UITheme.Btn("debug",row.transform,"Debug 高级解锁",12).onClick.AddListener(()=>{_helpModal.SetActive(false);OnClickDebug();});
