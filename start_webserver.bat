@@ -1,16 +1,16 @@
 @echo off
 chcp 936 >nul
-title PixelToCivilization V9.3.12 Web Server
+title PixelToCivilization V9.3.13 Web Server
 cd /d "%~dp0"
 rem V6.7.1: auto pick free port so a stale old server cannot hijack 8000
 set PORT=8000
 :findport
 netstat -ano -p tcp | findstr /R /C:":%PORT% .*LISTENING" >nul 2>nul && set /a PORT+=1 && goto findport
 echo ================================================
-echo   ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ V9.3.12 ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+echo   ´ÓÏñËØµ½ÎÄÃ÷ V9.3.13 ¡¤ ±¾µØÍøÒ³·þÎñÆ÷
 echo   URL: http://localhost:%PORT%/
-echo   (8000 ï¿½ï¿½ï¿½É°æ±¾Õ¼ï¿½ï¿½Ê±ï¿½Ô¶ï¿½Ë³ï¿½Óµï¿½ï¿½ï¿½Ò»ï¿½Ë¿ï¿½)
-echo   ï¿½Ø±Õ±ï¿½ï¿½ï¿½ï¿½Ú¼ï¿½Í£Ö¹ï¿½ï¿½ï¿½ï¿½
+echo   (8000 ±»¾É°æ±¾Õ¼ÓÃÊ±×Ô¶¯Ë³ÑÓµ½ÏÂÒ»¶Ë¿Ú)
+echo   ¹Ø±Õ±¾´°¿Ú¼´Í£Ö¹·þÎñ
 echo ================================================
 where py >nul 2>nul
 if %errorlevel%==0 (
