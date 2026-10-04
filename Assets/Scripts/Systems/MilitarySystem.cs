@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
@@ -242,6 +242,35 @@ namespace PixelToCivilization.Systems
         }
 
         // ---------- 塔防 ----------
+        // ===== V9.4.7 统一战斗目录接线 =====
+        public void RegisterCombat(CombatSystem c)
+        {
+            foreach (var fu in S.FriendlyUnits)
+            {
+                if (fu==null || fu.Hp<=0f) continue;
+                int kd=fu.IsCavalry?CombatSystem.K_CAV:CombatSystem.K_INF;
+                c.Add(kd,fu,fu.X,fu.Z,fu.Hp,fu.Attack,(fu.IsCavalry?28f:22f)*GameConstants.Tile,CombatSystem.PlayerKey);
+            }
+            foreach (var f in Factions)
+            {
+                if (f.Destroyed) continue;
+                foreach (var u in f.Army)
+                {
+                    if (u==null || u.Dead) continue;
+                    int kd=u.IsCavalry?CombatSystem.K_CAV:CombatSystem.K_INF;
+                    c.Add(kd,u,u.X,u.Z,u.Hp,u.Attack,22f*GameConstants.Tile,f.Id);
+                }
+            }
+        }
+
+        /// <summary>统一目录伤害分发：步骑受击（死亡清理由 UpdateFriendly/UpdateEnemyArmy 现有 Hp<=0 检查处理）</summary>
+        public void DamageUnit(object @ref, float dmg)
+        {
+            if (dmg<=0f) return;
+            if (@ref is EnemyUnit eu){ if (!eu.Dead) eu.Hp-=dmg; }
+            else if (@ref is FriendlyUnit fu){ fu.Hp-=dmg; }
+        }
+
         private void UpdateTowers(float dt)
         {
             foreach (var b in S.Buildings)
@@ -249,35 +278,28 @@ namespace PixelToCivilization.Systems
                 if (b.Def==null || b.Def.GetFunc("attack")<=0) continue;
                 int lv=Mathf.Max(1,b.Level);
                 float range = b.Def.GetFunc("range")*(1+(lv-1)*0.08f);
-                EnemyUnit target=null; float nearest=range;
-                foreach (var f in Factions)
-                    if (!f.Destroyed)
-                        foreach (var u in f.Army)
-                        {
-                            float d=Vector2.Distance(new Vector2(u.X,u.Z),new Vector2(b.X,b.Z));
-                            if (d<nearest){nearest=d;target=u;}
-                        }
-                if (target!=null)
+                // V9.4.7 塔索敌统一目录（跨类型：敌方步骑/军车/军舰；不打己方）
+                CombatTarget ct=GM.Combat.NearestHostile(b.X,b.Z,range*GameConstants.Tile,CombatSystem.PlayerKey);
+                if (ct!=null)
                 {
                     b.AttackCooldown = Mathf.Max(0,b.AttackCooldown-dt);
                     if (b.AttackCooldown<=0)
                     {
                         float dmg=b.Def.GetFunc("attack")*(1+(lv-1)*0.3f);
-                        // 箭塔/炮塔克制骑兵 ×1.5
-                        if (target.IsCavalry && b.Type!="fire_tower") dmg*=1.5f;
+                        if (ct.Kind==CombatSystem.K_CAV && b.Type!="fire_tower") dmg*=1.5f;
                         string kind = b.Type=="fire_tower"?"fire" : b.Type=="cannon_tower"?"cannonball":"arrow";
-                        FireProjectile(b.X,b.Z,target,dmg,kind);
-                        b.AttackCooldown = b.Type=="bunker"?0.6f:1.5f;   // 碉堡机枪速射
+                        FireProjectile(b.X,b.Z,ct,dmg,kind);
+                        b.AttackCooldown = b.Type=="bunker"?0.6f:1.5f;
                     }
                 }
             }
         }
 
-        public void FireProjectile(float x, float z, EnemyUnit target, float damage, string kind="arrow")
+        public void FireProjectile(float x, float z, CombatTarget target, float damage, string kind="arrow")
         {
             var p = new ProjectileEntity
             {
-                Pos=new Vector3(x,2,z), Vel=(target.Pos-new Vector3(x,0,z)).normalized*18f,
+                Pos=new Vector3(x,2,z), Vel=new Vector3(target.X-x,0,target.Z-z).normalized*18f,
                 Damage=damage, Life=2f, Kind=kind, Target=target
             };
             Color c = kind=="cannonball"?new Color(0.2f,0.2f,0.2f)
@@ -292,14 +314,18 @@ namespace PixelToCivilization.Systems
             {
                 var p=S.Projectiles[i];
                 p.Life-=dt;
-                if (p.Target is EnemyUnit u && !u.Dead) p.Vel=(u.Pos-p.Pos).normalized*18f;
+                if (p.Target is CombatTarget ct && ct.Hp>0f)
+                    p.Vel=new Vector3(ct.X-p.Pos.x,0f,ct.Z-p.Pos.z).normalized*18f;
                 p.Pos += p.Vel*dt;
                 if (p.View) p.View.transform.position=p.Pos;
-                if (p.Target is EnemyUnit t && !t.Dead && Vector3.Distance(p.Pos,t.Pos)<1.6f)
+                if (p.Target is CombatTarget t && t.Hp>0f &&
+                    Vector3.Distance(p.Pos,new Vector3(t.X,p.Pos.y,t.Z))<1.6f)
                 {
-                    if (p.Kind=="fire") { AoeDamage(p.Pos,4f,p.Damage,1f); p.Life=0; }
-                    else if (p.Kind=="cannonball") { AoeDamage(p.Pos,5f,p.Damage,0.5f,t); p.Life=0; }
-                    else { t.Hp-=p.Damage; p.Life=0; }
+                    if (p.Kind=="fire"){ GM.Combat.DamageArea(t.X,t.Z,4f,p.Damage,CombatSystem.PlayerKey); p.Life=0; }
+                    else if (p.Kind=="cannonball"){
+                        GM.Combat.DamageArea(t.X,t.Z,5f,p.Damage*0.5f,CombatSystem.PlayerKey);
+                        GM.Combat.Damage(t,p.Damage*0.5f); p.Life=0; }
+                    else { GM.Combat.Damage(t,p.Damage); p.Life=0; }
                 }
                 if (p.Life<=0){ if(p.View)EntityViewFactory.RecyclePooled(p.View,PrimitiveType.Sphere); S.Projectiles.RemoveAt(i); }
             }
@@ -341,27 +367,27 @@ namespace PixelToCivilization.Systems
                 if (fu.Hp<=0)
                 {
                     if(fu.View)Object.Destroy(fu.View);
-                    // V6.1.4 队覆灭同步账面兵力（1 步兵队=5 兵、1 骑兵队=4 骑），保持面板兵力与实际队数一致
                     if(fu.IsCavalry) S.MilCavalry=Mathf.Max(0,S.MilCavalry-4);
                     else S.MilSoldiers=Mathf.Max(0,S.MilSoldiers-5);
                     S.FriendlyUnits.RemoveAt(i); continue;
                 }
-                EnemyUnit foe = NearestEnemy(fu, fu.IsCavalry?28:22);
+                // V9.4.7 索敌统一目录（跨类型：敌方步骑/军车/军舰）
+                CombatTarget ct=GM.Combat.NearestHostile(fu.X,fu.Z,(fu.IsCavalry?28f:22f)*GameConstants.Tile,CombatSystem.PlayerKey);
                 Vector3 aim=fu.Pos; bool move=false; Vector3 vel=Vector3.zero;
 
-                if (fu.State==2) // 讨伐行军/围攻据点
+                if (fu.State==2)
                 {
                     var fac = Factions.Find(x=>x.Id==fu.CampaignId && !x.Destroyed);
                     if (fac==null){ fu.State=3; }
                     else
                     {
                         Vector3 bp=new(fac.X,0,fac.Z);
-                        if (foe!=null && Vector3.Distance(foe.Pos,fu.Pos)<7f){ aim=foe.Pos;move=true; }
+                        if (ct!=null && Vector3.Distance(new Vector3(ct.X,0,ct.Z),fu.Pos)<7f){ aim=new Vector3(ct.X,0,ct.Z);move=true; }
                         else if (Vector3.Distance(bp,fu.Pos)>8f){ aim=bp;move=true; }
                         else { fu.AtkCd-=dt; if(fu.AtkCd<=0){ fu.AtkCd=1.2f; SiegeFaction(fac,fu.Attack);} continue; }
                     }
                 }
-                else if (foe!=null) { fu.State=1; aim=foe.Pos; move=true; }
+                else if (ct!=null) { fu.State=1; aim=new Vector3(ct.X,0,ct.Z); move=true; }
                 else
                 {
                     Vector3 home=new(fu.HomeX,0,fu.HomeZ);
@@ -369,14 +395,14 @@ namespace PixelToCivilization.Systems
                     else fu.State=0;
                 }
 
-                if (foe!=null && Vector3.Distance(foe.Pos,fu.Pos)<=2.6f)
+                if (ct!=null && Vector3.Distance(new Vector3(ct.X,0,ct.Z),fu.Pos)<=2.6f)
                 {
                     fu.AtkCd-=dt;
                     if (fu.AtkCd<=0)
                     {
                         fu.AtkCd=1.2f;
-                        float d=fu.Attack*(fu.IsCavalry&&!foe.IsCavalry?1.5f:1f); // 骑克步
-                        foe.Hp-=d;
+                        float d=fu.Attack*(fu.IsCavalry&&ct.Kind==CombatSystem.K_INF?1.5f:1f);
+                        GM.Combat.Damage(ct,d);
                     }
                 }
                 else if (move)
@@ -386,7 +412,6 @@ namespace PixelToCivilization.Systems
                     {
                         dir.Normalize();
                         float nx=fu.X+dir.x*fu.Speed*dt, nz=fu.Z+dir.z*fu.Speed*dt;
-                        // V6.1.7 大航海前陆地队不得踏入开阔深水（无法跨洋），航海后可航渡、速度减半
                         if(CanStepInto(nx,nz,out var sm)){ fu.X=nx; fu.Z=nz; vel=dir*fu.Speed*sm; }
                     }
                 }
@@ -434,14 +459,16 @@ namespace PixelToCivilization.Systems
                     var u=f.Army[i];
                     if (u.Dead){ if(u.View)Object.Destroy(u.View); f.Army.RemoveAt(i); continue; }
 
-                    // 1) 近身有我方单位则先交战
-                    FriendlyUnit fu=NearestFriendly(u.X,u.Z,2.6f);
+                    // V9.4.7 统一目录索敌：平时 12 格内迎敌，战时 40 格远征；可跨类型/他派
+                    float search=S.WarActive?40f:12f;
+                    CombatTarget ct=GM.Combat.NearestHostile(u.X,u.Z,search*GameConstants.Tile,f.Id);
                     Vector3 moveVel=Vector3.zero;
-                    if (fu!=null)
+                    if (ct!=null)
                     {
-                        if (Vector3.Distance(fu.Pos,u.Pos)>1.8f)
+                        float d=Vector2.Distance(new Vector2(u.X,u.Z),new Vector2(ct.X,ct.Z));
+                        if (d>2.2f)
                         {
-                            Vector3 dir=(fu.Pos-u.Pos).normalized;
+                            Vector3 dir=new Vector3(ct.X-u.X,0,ct.Z-u.Z).normalized;
                             float nx=u.X+dir.x*u.Speed*dt, nz=u.Z+dir.z*u.Speed*dt;
                             if(CanStepInto(nx,nz,out var em)){ u.X=nx;u.Z=nz; moveVel=dir*u.Speed*em; }
                         }
@@ -451,13 +478,14 @@ namespace PixelToCivilization.Systems
                             if (u.AtkCd<=0)
                             {
                                 u.AtkCd=1.5f;
-                                fu.Hp -= u.Attack*(u.IsCavalry&&!fu.IsCavalry?1.5f:1f); // 骑克步
+                                float dmg=u.Attack*(u.IsCavalry&&ct.Kind==CombatSystem.K_INF?1.5f:1f);
+                                GM.Combat.Damage(ct,dmg);
                             }
                         }
                     }
                     else if (!S.WarActive)
                     {
-                        // V6.1.4 平时驻防：群雄军队只在本势力据点 18 格内巡逻，不主动远征犯境（避免开局被持续平推）；离开即回防
+                        // 平时驻防：据点 18 格内巡逻，离开即回防
                         float home=Vector2.Distance(new Vector2(f.X,f.Z),new Vector2(u.X,u.Z));
                         if (home>18f)
                         {
@@ -494,7 +522,6 @@ namespace PixelToCivilization.Systems
                     }
                 }
                 f.SpawnTimer-=dt;
-                // V6.1.4 平时按时代维持常备军（4+Era*2，8s 慢补，让群雄持续陈兵边境）；战争期上限 12、5s 快补
                 int troopCap = S.WarActive?12:Mathf.Min(12,4+S.Era*2);
                 if (f.SpawnTimer<=0 && f.Army.Count<troopCap)
                 { f.Army.Add(MakeUnit(f.X,f.Z,f.ColorHex)); f.SpawnTimer=S.WarActive?5f:8f; }
