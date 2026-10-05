@@ -4,14 +4,14 @@
 
 - **引擎**：团结引擎 Tuanjie 2022.3.62t12（基于 Unity 2022.3 LTS）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.5.2「上线硬化」——资源栏数字过万自动紧凑为“万/亿”、彻底解决图标遮挡；修复 Tuanjie 原生组件 LODGroup 假空对象 MissingComponentException；命令行构建、PlayMode 冒烟、万年存续压测与浏览器四项回归全部通过
+- **当前版本**：V9.5.3「存档加固 · 高架桥修复 · 基建分类 · 地面作战 · 武器特效」——存档界面按图重做（置顶/加宽/导入按钮/Debug 解锁行）；高架桥 tier4 越界导致地图错乱&闪烁根因修复；建造栏新增“基建”分类（桥梁/高架/铁路/机场/高铁站）；军事栏补地面作战部队（坦克/装甲车/导弹车，1949 解锁）；武器特效声光 + 统一粒子与内存回收（WeaponFxSystem）
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
 ## ▶ 立即试玩（无需安装）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.5.2_HTML5.zip`（约 58 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.5.3_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
 
 - **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
 - **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
@@ -55,6 +55,11 @@
 - **资源栏紧凑格式**：数值不足 1 万显示完整整数；≥1 万自动以“万”、≥1 亿以“亿”显示（如 1000000 → “100万”）；配合顶部栏 item/icon/label 收紧，数字恒定落在预留宽度内、不再被图标居中劈开遮挡。
 - **LODGroup 假空修复**：Tuanjie 原生组件下 `GetComponent<LODGroup>()` 未命中时会返回 Unity 重写 `==` 判空但 CLR 引用非空的“假空对象”，`??` 无法识别、对其调用 `SetLODs` 会在原生边界抛 `MissingComponentException`；改为显式 `if (lg == null) lg = AddComponent<LODGroup>()`，并补诊断工具 LODDiag。
 - **构建/冒烟流水线**：命令行 WebGLBuilder 一键出包；新增 PlayMode 状态机冒烟 V601SmokeTest（开局/建造/逐时代跳年/渲染体检/UI 射线），覆盖 5100 年 8 个时代；长年代走 `DebugJumpTo` 逐年补结，避免全实时 Tick 卡死。
+- **存档界面加固（V9.5.3）**：存档模态置顶、宽度 380→700、补“导入存档”按钮、底部 Debug 密码解锁行；自动存档/多槽位/导出导入链路浏览器实锤可用。
+- **高架桥修复（V9.5.3）**：`BridgeSystem.DeckY[tier]` 数组仅 4 元素，高架档 tier=4 越界 → 桥面生成/读档中断 → 主地图错乱&闪烁；取高改为 `tier==4 ? ViaductDeckY : DeckY[tier]` 并去双柱重叠。
+- **基建分类（V9.5.3）**：建造面板 10→11 类新增“基建”（桥梁/高架柱/铁路/城际公路，机场/高铁站自动承接）。
+- **地面作战部队（V9.5.3）**：军事分类顶部“地面作战部队（1949 起）”：坦克/装甲车/导弹车，选中置 `ground:gid` 放置。
+- **武器特效（V9.5.3）**：新建 WeaponFxSystem——Muzzle/Hit/Explosion/Tracer/Sfx 五类特效，GameObjectPool 分桶租还、相机 85 单位外不生成、FxLifetime 到期回收、烟尘淡出上升自缩；军舰/地面/塔防开火与命中全链路接入。
 
 **真实地球文明（V9.x，开局可选）**
 - 按现实地球地形/气候生成世界，公元 1700 年（美国建国前后）开局，现代风格建筑、大马路、铁路、飞机与城市公共设施（消防站/医院/警局/学校/公园/市场/小区）。
@@ -158,6 +163,7 @@ export PXC_ARK_API_KEY="你的 Key"
 | V9.4.7 | 统一跨阵营作战：五类单位统一战斗目录、跨类型索敌、敌方各派互攻、建筑（除树木）可破坏 |
 | V9.5.0 | 上线五阶段硬化：项目审计、版本号统一、命令行构建、浏览器端到端回归 |
 | V9.5.2 | 资源栏“万/亿”紧凑格式彻底解决图标遮挡；LODGroup 假空 MissingComponentException 修复；PlayMode 冒烟与万年存续压测 |
+| V9.5.3 | 存档界面加固（置顶/加宽/导入/Debug 解锁行）；高架桥 tier4 越界修复（地图错乱&闪烁）；建造栏新增“基建”分类；军事栏补地面作战部队（坦克/装甲车/导弹车，1949 解锁）；武器特效声光 + 统一粒子与内存回收（WeaponFxSystem） |
 
 ## 🤝 贡献
 
