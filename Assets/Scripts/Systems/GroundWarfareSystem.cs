@@ -74,7 +74,7 @@ namespace PixelToCivilization.Systems
         public bool BuildGround(string typeId,float x,float z)
         {
             if(!Defs.TryGetValue(typeId,out var d)) return false;
-            if(S.Year<4949){ GM.AddEvent("bad","地面作战部队公元1949年才列装（当前 公元"+(S.Year-3000)+")"); return false; }
+            if(S.Year<4949){ GM.AddEvent("bad","地面作战部队公元1949年才列装（当前 公元"+(S.Year-3000)+"）"); return false; }
             if(Ours.Count+Enemies.Count>=MaxGround){ GM.AddEvent("bad","已达地面部队上限 "+MaxGround+" 辆"); return false; }
             if(S.GetRes("steel")<d.CostSteel||S.GetRes("gold")<d.CostGold){ GM.AddEvent("bad","资源不足，无法列装"+d.Name); return false; }
             S.AddRes("steel",-d.CostSteel); S.AddRes("gold",-d.CostGold);
@@ -152,6 +152,18 @@ namespace PixelToCivilization.Systems
                 FactionId=fac.name,FactionColor=fac.color};
             u.View=BuildView(u,d,fac.color);
             Enemies.Add(u); AssignGroup(u);
+        }
+
+        /// <summary>V9.5.0 新局清理：地面部队运行时列表不进 GameState，必须在此销毁视图并清空，防上一局坦克/装甲残留。</summary>
+        public void ResetForNewGame()
+        {
+            foreach (var u in Ours) if (u.View != null) Object.Destroy(u.View);
+            foreach (var e in Enemies) if (e.View != null) Object.Destroy(e.View);
+            Ours.Clear(); Enemies.Clear();
+            GroupCenter.Clear();
+            _enemyFactions.Clear(); _factionsInited = false;
+            _enemySeen = false; Active = false;
+            _spawnCd = 0f; _sepAt = 0f; _reformTimer = 0f;
         }
 
         public override void Tick(float dt)
@@ -252,7 +264,7 @@ namespace PixelToCivilization.Systems
         void MoveToward(GroundUnit u,float tx,float tz,float dt,float mul)
         {
             if(_terrain==null) return;
-            float dx=tx-u.X,dz=u.Z; float dist=Mathf.Sqrt(dx*dx+dz*dz);
+            float dx=tx-u.X,dz=tz-u.Z; float dist=Mathf.Sqrt(dx*dx+dz*dz);
             if(dist<0.5f) return;
             float sp=u.Speed*mul;
             float nx=u.X+dx/dist*sp*30f*dt, nz=u.Z+dz/dist*sp*30f*dt;
@@ -299,7 +311,7 @@ namespace PixelToCivilization.Systems
             foreach(var o in Ours)
             {
                 if(o.View==null) continue;
-                float dx=o.X-e.X,dz=e.Z-o.Z,d=dx*dx+dz*dz;
+                float dx=o.X-e.X,dz=o.Z-e.Z,d=dx*dx+dz;
                 if(d<bd){ bd=d; best=o; }
             }
             return best;
@@ -379,8 +391,8 @@ namespace PixelToCivilization.Systems
             int g=0;
             // 找未满 7 辆的组（3-7 辆一队）
             var cnt=new Dictionary<int,int>();
-            foreach(var o in Ours){ if(o.Group>=0) cnt[o.Group]=cnt[o.Group]?.c+1:1; }
-            foreach(var e in Enemies){ if(e.Group>=0) cnt[e.Group]=cnt[e.Group]?.c+1:1; }
+            foreach(var o in Ours){ if(o.Group>=0) cnt[o.Group]=cnt.TryGetValue(o.Group,out var c)?c+1:1; }
+            foreach(var e in Enemies){ if(e.Group>=0) cnt[e.Group]=cnt.TryGetValue(e.Group,out var c)?c+1:1; }
             for(int k=0;k<64;k++){ if(!cnt.TryGetValue(k,out var c)||c<3){ g=k; break; } }
             u.Group=g;
             GroupCenter[g]=u;   // 组中心=最后加入者（领队）
@@ -413,7 +425,7 @@ namespace PixelToCivilization.Systems
                     {
                         float d=Mathf.Sqrt(d2); float push=(5f-d)*0.5f*4f*dt;
                         float ux=dx/d,uz=dz/d;
-                        a.X-=ux*push; a.Z-=uz*push; b.X+=ux*push; b.Z+=uz*push;
+                        a.X-=ux*push; a.Z+=uz*push; b.X+=ux*push; b.Z+=uz*push;
                     }
                 }
             }
