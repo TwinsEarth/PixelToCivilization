@@ -70,10 +70,13 @@ namespace PixelToCivilization.Systems
             _root=go.transform;
         }
 
-        /// <summary>建造地面部队（玩家）：公元1949 起解锁，扣钢/金，上限 60</summary>
+        /// <summary>建造地面部队（玩家）：公元1949 起解锁，扣钢/金，上限 60，须列装在陆地</summary>
         public bool BuildGround(string typeId,float x,float z)
         {
             if(!Defs.TryGetValue(typeId,out var d)) return false;
+            // V9.5.3 防坦克/装甲车/导弹车列装在水面
+            if(_terrain==null) _terrain=Object.FindObjectOfType<WorldGenerator>();
+            if(_terrain!=null && _terrain.IsWater(x,z)){ GM.AddEvent("bad","陆地载具不能列装在水面"); return false; }
             if(S.Year<4949){ GM.AddEvent("bad","地面作战部队公元1949年才列装（当前 公元"+(S.Year-3000)+"）"); return false; }
             if(Ours.Count+Enemies.Count>=MaxGround){ GM.AddEvent("bad","已达地面部队上限 "+MaxGround+" 辆"); return false; }
             if(S.GetRes("steel")<d.CostSteel||S.GetRes("gold")<d.CostGold){ GM.AddEvent("bad","资源不足，无法列装"+d.Name); return false; }
@@ -294,34 +297,10 @@ namespace PixelToCivilization.Systems
             }
         }
 
-        GroundUnit NearestEnemy(GroundUnit u,float range)
-        {
-            GroundUnit best=null; float bd=range*range;
-            foreach(var e in Enemies)
-            {
-                if(e.View==null) continue;
-                float dx=e.X-u.X,dz=e.Z-u.Z,d=dx*dx+dz*dz;
-                if(d<bd){ bd=d; best=e; }
-            }
-            return best;
-        }
-        GroundUnit NearestOurs(GroundUnit e,float range)
-        {
-            GroundUnit best=null; float bd=range*range;
-            foreach(var o in Ours)
-            {
-                if(o.View==null) continue;
-                float dx=o.X-e.X,dz=o.Z-e.Z,d=dx*dx+dz;
-                if(d<bd){ bd=d; best=o; }
-            }
-            return best;
-        }
-
         void Hit(GroundUnit t,float atk)
         {
             if(t==null) return;
             t.Hp-=atk;
-            if(t.View!=null) t.View.transform.localScale=new Vector3(1,1,1);   // 命中反馈占位（保持稳定）
         }
         void DestroyUnit(GroundUnit u,List<GroundUnit> list)
         {
@@ -354,20 +333,31 @@ namespace PixelToCivilization.Systems
         /// <summary>我方军车开火：同类型军车走 Hit+DestroyUnit；跨类型（舰/步/骑/建筑）走统一 Damage</summary>
         void GroundFire(GroundUnit u,CombatTarget ct)
         {
+            // V9.5.3 统一武器特效：坦克炮口闪光+开火音效 / 命中爆炸+爆炸音效（桶池化）
+            WeaponFxSystem.Muzzle(new Vector3(u.X,1.4f,u.Z),1.5f);
+            WeaponFxSystem.Sfx("cannon_fire",new Vector3(u.X,1.4f,u.Z),0.65f);
             if(ct.Ref is GroundUnit tgt)
             {
+                var hp=new Vector3(ct.X,1f,ct.Z);
+                WeaponFxSystem.Explosion(hp); WeaponFxSystem.Sfx("cannon_explode",hp,0.8f);
                 Hit(tgt,u.BaseAttack);
                 if(tgt.Hp<=0f){ DestroyUnit(tgt,Enemies); GM.AddEvent("good","💥 击毁一辆敌"+tgt.Name+"！"); }
                 return;
             }
+            WeaponFxSystem.Explosion(new Vector3(ct.X,1f,ct.Z)); WeaponFxSystem.Sfx("cannon_explode",new Vector3(ct.X,1f,ct.Z),0.8f);
             GM.Combat.Damage(ct,u.BaseAttack);
         }
 
         /// <summary>敌方军车开火：目标为我方/他派军车走 Hit+DestroyUnit（敌方各派混战）；跨类型走统一 Damage</summary>
         void EnemyGroundFire(GroundUnit e,CombatTarget ct)
         {
+            // V9.5.3 统一武器特效（敌方同样生效）
+            WeaponFxSystem.Muzzle(new Vector3(e.X,1.4f,e.Z),1.5f);
+            WeaponFxSystem.Sfx("cannon_fire",new Vector3(e.X,1.4f,e.Z),0.65f);
             if(ct.Ref is GroundUnit tgt)
             {
+                var hp=new Vector3(ct.X,1f,ct.Z);
+                WeaponFxSystem.Explosion(hp); WeaponFxSystem.Sfx("cannon_explode",hp,0.8f);
                 Hit(tgt,e.BaseAttack);
                 if(tgt.Hp<=0f)
                 {
@@ -376,6 +366,7 @@ namespace PixelToCivilization.Systems
                 }
                 return;
             }
+            WeaponFxSystem.Explosion(new Vector3(ct.X,1f,ct.Z)); WeaponFxSystem.Sfx("cannon_explode",new Vector3(ct.X,1f,ct.Z),0.8f);
             GM.Combat.Damage(ct,e.BaseAttack);
         }
 
@@ -425,7 +416,7 @@ namespace PixelToCivilization.Systems
                     {
                         float d=Mathf.Sqrt(d2); float push=(5f-d)*0.5f*4f*dt;
                         float ux=dx/d,uz=dz/d;
-                        a.X-=ux*push; a.Z+=uz*push; b.X+=ux*push; b.Z+=uz*push;
+                        a.X-=ux*push; a.Z-=uz*push; b.X+=ux*push; b.Z+=uz*push;
                     }
                 }
             }

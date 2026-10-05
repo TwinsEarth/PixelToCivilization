@@ -230,7 +230,7 @@ namespace PixelToCivilization.Systems
             var fu=new FriendlyUnit
             {
                 Kind=kind, HomeX=rp.x, HomeZ=rp.y,
-                X=rp.x+Random.Range(-3,3f), Z=rp.y+Random.Range(-3,3f),
+                X=rp.x+Random.Range(-3,3f), Z=rp.z+Random.Range(-3,3f),
                 Hp=cav?60:50, MaxHp=cav?60:50, Attack=cav?9:6, Speed=cav?3.2f:1.6f, State=0
             };
             fu.View=EntityViewFactory.SpawnHumanoid(cav?"OurCav":"OurInf",_root,
@@ -302,6 +302,8 @@ namespace PixelToCivilization.Systems
                 Pos=new Vector3(x,2,z), Vel=new Vector3(target.X-x,0,target.Z-z).normalized*18f,
                 Damage=damage, Life=2f, Kind=kind, Target=target
             };
+            // V9.5.3 统一武器特效：塔防开火炮口闪光（桶池化，见 WeaponFxSystem）
+            WeaponFxSystem.Muzzle(new Vector3(x, 3.2f, z), kind=="cannonball"?1.6f:(kind=="fire"?1.2f:0.9f));
             Color c = kind=="cannonball"?new Color(0.2f,0.2f,0.2f)
                     : kind=="fire"?new Color(1f,0.45f,0.1f):new Color(0.9f,0.8f,0.4f);
             p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,c,kind=="arrow"?0.22f:0.34f);
@@ -321,11 +323,14 @@ namespace PixelToCivilization.Systems
                 if (p.Target is CombatTarget t && t.Hp>0f &&
                     Vector3.Distance(p.Pos,new Vector3(t.X,p.Pos.y,t.Z))<1.6f)
                 {
-                    if (p.Kind=="fire"){ GM.Combat.DamageArea(t.X,t.Z,4f,p.Damage,CombatSystem.PlayerKey); p.Life=0; }
+                    // V9.5.3 统一武器特效：命中火花/爆炸 + 音效（桶池化）
+                    var hp=new Vector3(t.X,1.2f,t.Z);
+                    if (p.Kind=="fire"){ WeaponFxSystem.Explosion(hp); WeaponFxSystem.Sfx("cannon_explode",hp,0.85f); GM.Combat.DamageArea(t.X,t.Z,4f,p.Damage,CombatSystem.PlayerKey); p.Life=0; }
                     else if (p.Kind=="cannonball"){
+                        WeaponFxSystem.Explosion(hp); WeaponFxSystem.Sfx("cannon_explode",hp,0.9f);
                         GM.Combat.DamageArea(t.X,t.Z,5f,p.Damage*0.5f,CombatSystem.PlayerKey);
                         GM.Combat.Damage(t,p.Damage*0.5f); p.Life=0; }
-                    else { GM.Combat.Damage(t,p.Damage); p.Life=0; }
+                    else { WeaponFxSystem.Hit(hp); GM.Combat.Damage(t,p.Damage); p.Life=0; }
                 }
                 if (p.Life<=0){ if(p.View)EntityViewFactory.RecyclePooled(p.View,PrimitiveType.Sphere); S.Projectiles.RemoveAt(i); }
             }
@@ -346,19 +351,6 @@ namespace PixelToCivilization.Systems
         }
 
         // ---------- 我方步骑机动部队 ----------
-        private EnemyUnit NearestEnemy(FriendlyUnit fu,float view)
-        {
-            EnemyUnit best=null; float bd=view;
-            foreach (var f in Factions)
-                if (!f.Destroyed)
-                    foreach (var u in f.Army)
-                    {
-                        float d=Vector2.Distance(new Vector2(u.X,u.Z),new Vector2(fu.X,fu.Z));
-                        if (d<bd){bd=d;best=u;}
-                    }
-            return best;
-        }
-
         private void UpdateFriendly(float dt)
         {
             for (int i=S.FriendlyUnits.Count-1;i>=0;i--)
@@ -527,17 +519,6 @@ namespace PixelToCivilization.Systems
                 { f.Army.Add(MakeUnit(f.X,f.Z,f.ColorHex)); f.SpawnTimer=S.WarActive?5f:8f; }
                 if (f.Army.Count==0 && f.Population<=0 && !f.Destroyed) Annex(f,true);
             }
-        }
-
-        private FriendlyUnit NearestFriendly(float x,float z,float within)
-        {
-            FriendlyUnit best=null; float bd=within;
-            foreach (var fu in S.FriendlyUnits)
-            {
-                float d=Vector2.Distance(new Vector2(x,z),new Vector2(fu.X,fu.Z));
-                if (d<bd){bd=d;best=fu;}
-            }
-            return best;
         }
 
         private static bool IsWall(BuildingEntity b)
