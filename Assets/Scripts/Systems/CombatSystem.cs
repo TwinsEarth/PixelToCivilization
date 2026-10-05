@@ -75,7 +75,7 @@ namespace PixelToCivilization.Systems
         {
             CombatTarget best = null;
             float bd = range * range;
-            string key = string.IsNullOrEmpty(myKey) ? PlayerKey : key;
+            string key = string.IsNullOrEmpty(myKey) ? PlayerKey : myKey;
             foreach (var t in Targets)
             {
                 if (t.Key == key || t.Hp <= 0) continue;
@@ -89,7 +89,7 @@ namespace PixelToCivilization.Systems
         public int DamageArea(float x, float z, float radius, float dmg, string myKey)
         {
             int hit = 0;
-            string key = string.IsNullOrEmpty(myKey) ? PlayerKey : key;
+            string key = string.IsNullOrEmpty(myKey) ? PlayerKey : myKey;
             foreach (var t in Targets)
             {
                 if (t.Key == key || t.Hp <= 0) continue;
