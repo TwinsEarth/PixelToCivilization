@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.World;
 
@@ -8,10 +8,10 @@ namespace PixelToCivilization.Rendering
     public enum LodTier { Hidden=0, Far=1, Mid=2, Near=3 }
 
     /// <summary>
-    /// V6.2.2 LOD 动态按需加载&amp;渲染系统。
+    /// V6.2.2 LOD 动态按需加载&渲染系统。
     /// ·个体物体（建筑/船/鸟/鱼/车/人）用 Unity <see cref="LODGroup"/> 组件建立多档几何：
     ///   3 档=完全体/简化体/像素点（建筑车船等）；2 档=完全体/简化体（鸟/鱼，无难看像素点）。引擎按屏幕占比自动切换、过远剔除。
-    /// ·鸟/鱼额外支持"最近 N 只全显"：屏幕占比达标者里只让距离最近的前 N 只保持完全体，其余强制降为简化体（数量上限内仍控算力）。
+    /// ·鸟/鱼额外支持“最近 N 只全显”：屏幕占比达标者里只让距离最近的前 N 只保持完全体，其余强制降为简化体（数量上限内仍控算力）。
     /// ·<see cref="LodAgent"/> 给出 1Hz/10Hz/20-60Hz 逻辑刷新闸门；静态合并网格（地形/植被）走 <see cref="LODManager"/> 全局档位。
     /// </summary>
     public static class LODKit
@@ -42,7 +42,7 @@ namespace PixelToCivilization.Rendering
         static float _schedTimer;
 
         /// <summary>
-        /// 为"完全体"根物体挂 LOD。
+        /// 为“完全体”根物体挂 LOD。
         /// tierCount=3：完全体(nearTh)/简化体(0.03)/像素点(lowTh)；tierCount=2：完全体(nearTh)/简化体(lowTh)，再远剔除。
         /// capGroup/capFull：给定分组内、屏幕占比≥nearTh 的物体里，仅最近 capFull 只完全体，其余强制简化。
         /// </summary>
@@ -74,7 +74,11 @@ namespace PixelToCivilization.Rendering
             GameObject simpleGo=null; Renderer[] simpleAuto=null;
             if(simpleR==null){ simpleGo=MakeProxy(root,"LOD2_Simple",b,avg,false); simpleAuto=RenderersOf(simpleGo); }
 
-            var lg=root.GetComponent<LODGroup>() ?? root.AddComponent<LODGroup>();
+            // 注意：Tuanjie 编辑器下 GetComponent<LODGroup>() 未命中时返回“假空”对象
+            //（Unity 重载的 == 判 null，但 C# 引用非空），?? 走 CLR 引用判空会漏判、
+            // 导致 SetLODs 对假空调用抛 MissingComponentException。必须用显式 Unity 判空。
+            var lg=root.GetComponent<LODGroup>();
+            if(lg==null) lg=root.AddComponent<LODGroup>();
             LOD[] lods;
             var midR = simpleR ?? simpleAuto;
             if(tierCount>=3)
@@ -94,7 +98,8 @@ namespace PixelToCivilization.Rendering
             for(int i=0;i<lods.Length;i++) lods[i].fadeTransitionWidth=0f;
             lg.SetLODs(lods); lg.RecalculateBounds(); lg.fadeMode=LODFadeMode.None;
 
-            var agent=root.GetComponent<LodAgent>() ?? root.AddComponent<LodAgent>();
+            var agent=root.GetComponent<LodAgent>();
+            if(agent==null) agent=root.AddComponent<LodAgent>();
             agent.WorldSize=Mathf.Max(0.2f,worldSize);
             agent.NearTh=nearTh; agent.Group=lg;
             if(!string.IsNullOrEmpty(capGroup)&&capFull>0)
