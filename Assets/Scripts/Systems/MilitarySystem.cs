@@ -36,7 +36,7 @@ namespace PixelToCivilization.Systems
     }
 
     /// <summary>
-    /// 军事系统 —— V6.1.4 骑兵&amp;塔防&amp;群雄争霸：征兵/训练骑兵、我方步骑机动部队、五方势力互伐吞并、
+    /// 军事系统 —— V6.1.4 骑兵&塔防&群雄争霸：征兵/训练骑兵、我方步骑机动部队、五方势力互伐吞并、
     /// 玩家主动讨伐、城墙阻挡、火塔/炮塔 AOE、兵种相克（骑克步、箭塔/炮塔克骑）。1:1 继承 v5.9.9 征兵与塔防。
     /// </summary>
     public partial class MilitarySystem : GameSystemBase
@@ -230,7 +230,7 @@ namespace PixelToCivilization.Systems
             var fu=new FriendlyUnit
             {
                 Kind=kind, HomeX=rp.x, HomeZ=rp.y,
-                X=rp.x+Random.Range(-3,3f), Z=rp.z+Random.Range(-3,3f),
+                X=rp.x+Random.Range(-3,3f), Z=rp.y+Random.Range(-3,3f),
                 Hp=cav?60:50, MaxHp=cav?60:50, Attack=cav?9:6, Speed=cav?3.2f:1.6f, State=0
             };
             fu.View=EntityViewFactory.SpawnHumanoid(cav?"OurCav":"OurInf",_root,
@@ -351,6 +351,19 @@ namespace PixelToCivilization.Systems
         }
 
         // ---------- 我方步骑机动部队 ----------
+        private EnemyUnit NearestEnemy(FriendlyUnit fu,float view)
+        {
+            EnemyUnit best=null; float bd=view;
+            foreach (var f in Factions)
+                if (!f.Destroyed)
+                    foreach (var u in f.Army)
+                    {
+                        float d=Vector2.Distance(new Vector2(u.X,u.Z),new Vector2(fu.X,fu.Z));
+                        if (d<bd){bd=d;best=u;}
+                    }
+            return best;
+        }
+
         private void UpdateFriendly(float dt)
         {
             for (int i=S.FriendlyUnits.Count-1;i>=0;i--)
@@ -519,6 +532,17 @@ namespace PixelToCivilization.Systems
                 { f.Army.Add(MakeUnit(f.X,f.Z,f.ColorHex)); f.SpawnTimer=S.WarActive?5f:8f; }
                 if (f.Army.Count==0 && f.Population<=0 && !f.Destroyed) Annex(f,true);
             }
+        }
+
+        private FriendlyUnit NearestFriendly(float x,float z,float within)
+        {
+            FriendlyUnit best=null; float bd=within;
+            foreach (var fu in S.FriendlyUnits)
+            {
+                float d=Vector2.Distance(new Vector2(x,z),new Vector2(fu.X,fu.Z));
+                if (d<bd){bd=d;best=fu;}
+            }
+            return best;
         }
 
         private static bool IsWall(BuildingEntity b)
