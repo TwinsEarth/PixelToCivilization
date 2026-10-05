@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -101,7 +101,7 @@ namespace PixelToCivilization.UI
             _splash.GetComponent<Image>().raycastTarget=false;
             var title=UITheme.Label("Title",_splash.transform,"从 像 素 到 文 明",64,TextAnchor.MiddleCenter,UITheme.HexA(0xffffff,1));
             Place(title.rectTransform,new Vector2(0.5f,0.68f),new Vector2(0.5f,0.68f),new Vector2(-400,-40),new Vector2(400,40));
-            var sub=UITheme.Label("Sub",_splash.transform,"V9.1.2 · 真实地球 · 一洲至多三国·14国四大阵营 · 国际铁路 · 月球太空电梯 · 固定国界",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
+            var sub=UITheme.Label("Sub",_splash.transform,"V9.5.2 · 生产硬化 · 资源栏防遮挡 · 五类单位互攻 · 九神AI · 真实地球",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
             Place(sub.rectTransform,new Vector2(0.5f,0.56f),new Vector2(0.5f,0.56f),new Vector2(-400,-18),new Vector2(400,18));
             // 主按钮：开始新游戏（带 10 秒无操作自动开局倒计时）
             var start=UITheme.Btn("Start",_splash.transform,"",26,UITheme.BtnGold); // V7.0.2 橙色主按钮
@@ -121,7 +121,7 @@ namespace PixelToCivilization.UI
             _mapModeBtn.onClick.AddListener(OnClickMapMode);
             // 自动开局倒计时武装
             ArmAutoStart();
-            var ver=UITheme.Label("Ver",_splash.transform,"v9.1.2 · Unity / Tuanjie 2022.3.61t13 · URP 高清 · 真实地球/一洲至多三国/十四主权国",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
+            var ver=UITheme.Label("Ver",_splash.transform,"v9.5.2 · Unity / Tuanjie 2022.3.62t12 · URP 高清 · 生产硬化/资源栏防遮挡/真实地球",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
             Place(ver.rectTransform,new Vector2(0.5f,0.22f),new Vector2(0.5f,0.22f),new Vector2(-300,-15),new Vector2(300,15));
             var hint=UITheme.Label("FullHint",_splash.transform,"提示：界面太小时，按 F11 或点底部「全屏」按钮 · 10 秒无操作将自动开新局",14,TextAnchor.MiddleCenter,UITheme.HexA(0xd0e6ff,1));
             Place(hint.rectTransform,new Vector2(0.5f,0.28f),new Vector2(0.5f,0.28f),new Vector2(-360,-12),new Vector2(360,12));
@@ -462,7 +462,7 @@ namespace PixelToCivilization.UI
         private void OpenSaveModal()
         {
             _saveModal=CreateModal("存档管理");
-            _saveModal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(740,640);
+            _saveModal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(888,780);   // V9.4.5 加高至780：6行存档槽全显（V9.4.2 888 宽保留）
             var body=ModalBody(_saveModal);Clear(body);
             var root=body.AddComponent<VerticalLayoutGroup>();root.spacing=8;root.padding=new RectOffset(4,4,4,4);
             root.childControlWidth=true;root.childForceExpandWidth=true;root.childControlHeight=false;
@@ -496,6 +496,7 @@ namespace PixelToCivilization.UI
                 if(string.IsNullOrWhiteSpace(_importField.text)){Toast("请先粘贴存档 JSON",false);return;}
                 if(GM.SaveSystem.Import(_importField.text)){RenderSaveSlots();Refresh();Toast("导入成功");}else Toast("导入失败：格式错误",false);});
             RenderSaveSlots();
+            FitModal(_saveModal, 380, 620);   // V9.4.5 620 高：容纳 6 行槽（≥5 行已保存列表可见）
         }
         private void RenderSaveSlots()
         {
@@ -508,7 +509,7 @@ namespace PixelToCivilization.UI
         private void SaveSlotRow(Transform parent,SlotSummary sum)
         {
             var row=UITheme.Surface("Slot"+sum.Slot,parent,UITheme.HexA(0xffffff,0.06f));
-            var rle=row.AddComponent<LayoutElement>();rle.preferredHeight=58;rle.layoutPriority=1;   // 优先级高于同行的 HLG 自动高度，防止塌缩为0
+            var rle=row.AddComponent<LayoutElement>();rle.preferredHeight=46;rle.layoutPriority=1;   // V9.4.5 行高58→46：6 行槽（自动+5 手动）一屏全显
             var h=row.AddComponent<HorizontalLayoutGroup>();h.padding=new RectOffset(10,8,6,6);h.spacing=8;h.childControlWidth=true;h.childControlHeight=true;h.childForceExpandWidth=true;h.childForceExpandHeight=true;
             var info=UITheme.Panel("info",row.transform,new Color(0,0,0,0));var ile=info.AddComponent<LayoutElement>();ile.flexibleWidth=1;ile.minHeight=46;
             var iv=info.AddComponent<VerticalLayoutGroup>();iv.spacing=2;iv.childControlWidth=true;iv.childForceExpandWidth=true;iv.childControlHeight=true;iv.childForceExpandHeight=false;iv.childAlignment=TextAnchor.MiddleLeft;
@@ -595,24 +596,23 @@ namespace PixelToCivilization.UI
         private void OpenDebugModal()
         {
             var modal=CreateModal("Debug 控制台（Lv"+S.DebugLevel+" 全权限 · 最高 "+GM.MaxSpeed+" 倍速）");
-            modal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(700,580);   // V9.3.12 740×640→700×580
+            modal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(816,560);   // V9.4.2 左右扩展20%：680×1.2=816
             var outer=ModalBody(modal);Clear(outer);
             var ol=outer.AddComponent<VerticalLayoutGroup>();ol.spacing=2;ol.padding=new RectOffset(1,1,1,1);   // V9.3.12 4→2
             ol.childControlWidth=true;ol.childForceExpandWidth=true;ol.childControlHeight=true;ol.childForceExpandHeight=false;
 
-            var st=UITheme.Surface("DbgStat",outer.transform,UITheme.HexA(0x232e50,0.9f));st.AddComponent<LayoutElement>().preferredHeight=44;   // V9.3.12 50→44
+            var st=UITheme.Surface("DbgStat",outer.transform,UITheme.HexA(0x232e50,0.9f));st.AddComponent<LayoutElement>().preferredHeight=24;   // V9.3.13 两行合一→24
             var sv=st.AddComponent<VerticalLayoutGroup>();sv.spacing=1;sv.padding=new RectOffset(8,8,2,2);
             sv.childControlWidth=true;sv.childForceExpandWidth=true;sv.childControlHeight=false;sv.childForceExpandHeight=false;
-            UITheme.Label("l1",st.transform,"第"+S.Year+"年 · "+GM.Time.DynastyName+" · "+GM.Time.EraName+"　地图："+(S.CurrentMap=="home"?"母大陆":S.CurrentMap),12,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold);
-            UITheme.Label("l2",st.transform,"人口 "+S.Pop+"/"+Mathf.RoundToInt(S.Housing)+"　建筑 "+S.Buildings.Count+"　状态 "+(S.WarActive?"战争中":"和平")+"　倍速 x"+(int)S.Speed+"　航海 "+(S.AgeOfSail?"已开":"未开"),11,TextAnchor.MiddleLeft,UITheme.Sub);
+            UITheme.Label("l1",st.transform,"第"+S.Year+"年·"+GM.Time.DynastyName+"·"+GM.Time.EraName+" 地图:"+(S.CurrentMap=="home"?"母大陆":S.CurrentMap)+"｜人口"+S.Pop+"/"+Mathf.RoundToInt(S.Housing)+" 建筑"+S.Buildings.Count+" 状态"+(S.WarActive?"战":"和")+" 倍速x"+(int)S.Speed+" 航海"+(S.AgeOfSail?"开":"未"),11,TextAnchor.MiddleLeft,UITheme.Gold);
 
             // —— V9.3.10：AI 密钥入口（按钮弹窗输入，仿 Debug 密码门——弹窗出现即聚焦） ——
             {
                 var cou=GM.Council;
                 string keyShow = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
                 var keyLbl=UITheme.Label("aiS",outer.transform,"AI 密钥："+keyShow+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://",""),11,TextAnchor.MiddleLeft,UITheme.Sky);
-                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=16;   // V9.3.12 18→16
-                var rk=Row(outer.transform,26);   // V9.3.12 28→26
+                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=12;   // V9.3.13 16→14
+                var rk=Row(outer.transform,24);   // V9.3.13 26→24
                 var kbtn=UITheme.Btn("aikey",rk.transform,"设置 AI 密钥（弹窗输入）",12);
                 kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
                 kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{},_hud!=null?_hud.transform:null); });
@@ -621,12 +621,12 @@ namespace PixelToCivilization.UI
             var dbgSr=UITheme.VerticalScroll("DbgScroll",outer.transform,out var content,4);dbgSr.gameObject.AddComponent<LayoutElement>().flexibleHeight=1;
             var cvlg=content.GetComponent<VerticalLayoutGroup>();
             cvlg.childControlWidth=true;cvlg.childForceExpandWidth=true;cvlg.childControlHeight=true;cvlg.childForceExpandHeight=false;
-            cvlg.padding=new RectOffset(2,10,10,4);
+            cvlg.padding=new RectOffset(2,8,8,2);   // V9.3.13
             dbgSr.movementType=ScrollRect.MovementType.Clamped;dbgSr.scrollSensitivity=30f;
             Transform grid=null;
-            void Section(string t){ var p=UITheme.Panel("sec",content,new Color(0,0,0,0));p.AddComponent<LayoutElement>().preferredHeight=20; UITheme.Label("s",p.transform,t,13,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold); }   // V9.3.12 24→20
-            void BeginGrid(int count){ var g=UITheme.Panel("g",content,new Color(0,0,0,0));int rows=Mathf.CeilToInt(count/3f);var gle=g.AddComponent<LayoutElement>();gle.preferredHeight=rows*26+(rows-1)*2+2;   // V9.3.12 28→26
-            var gl=g.AddComponent<GridLayoutGroup>();gl.constraint=GridLayoutGroup.Constraint.FixedColumnCount;gl.constraintCount=3;gl.cellSize=new Vector2(252,26);gl.spacing=new Vector2(2,2);   // V9.3.12 248×28→252×26 / 4→2
+            void Section(string t){ var p=UITheme.Panel("sec",content,new Color(0,0,0,0));p.AddComponent<LayoutElement>().preferredHeight=16; UITheme.Label("s",p.transform,t,13,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold); }   // V9.3.13 20→17
+            void BeginGrid(int count){ var g=UITheme.Panel("g",content,new Color(0,0,0,0));int rows=Mathf.CeilToInt(count/3f);var gle=g.AddComponent<LayoutElement>();gle.preferredHeight=rows*24+(rows-1)*1+1;   // V9.3.13 26→24
+            var gl=g.AddComponent<GridLayoutGroup>();gl.constraint=GridLayoutGroup.Constraint.FixedColumnCount;gl.constraintCount=3;gl.cellSize=new Vector2(254,24);gl.spacing=new Vector2(1,1);   // V9.3.13 252×26→254×24 / 2→1
             grid=g.transform; }   // V9.3.10 34→28 / 236→248 / 6→4
             void DBtn(string t,System.Action act){ var b=UITheme.Btn("d",grid,t,11);b.onClick.AddListener(()=>{try{act();Toast("已执行："+t);Refresh();}catch(System.Exception e){Toast("执行失败："+t+"："+e.Message,false);Debug.LogError("[DEBUG-BTN] "+e);}}); AddHover(b.gameObject,t); }
             void SpeedV(int v){ DBtn("x"+v+" 倍速",()=>{S.Speed=Mathf.Min(v,GM.MaxSpeed);SyncSlider();}); }
@@ -695,12 +695,13 @@ namespace PixelToCivilization.UI
             DBtn("快速存档(槽1)",()=>GM.SaveSystem.SaveToSlot(1));
             DBtn("快速读档(槽1)",()=>{if(GM.SaveSystem.LoadFromSlot(1))Refresh();});
 
-            var foot=UITheme.Panel("DbgFoot",content,new Color(0,0,0,0));foot.AddComponent<LayoutElement>().preferredHeight=34;   // V9.3.12 40→34
+            var foot=UITheme.Panel("DbgFoot",content,new Color(0,0,0,0));foot.AddComponent<LayoutElement>().preferredHeight=30;   // V9.3.13 34→30
             var fh=foot.AddComponent<HorizontalLayoutGroup>();fh.spacing=8;fh.childForceExpandWidth=true;fh.childControlHeight=false;fh.childForceExpandHeight=false;
             var cb=UITheme.Btn("close",foot.transform,"关闭控制台",13);cb.gameObject.AddComponent<LayoutElement>().preferredHeight=34;
             cb.onClick.AddListener(()=>modal.SetActive(false));
             Canvas.ForceUpdateCanvases();dbgSr.verticalNormalizedPosition=1f;
             AutoBindHovers(modal.transform);
+            FitModal(modal, 360, 520);
         }
 
         // ---- 通知 / 时代过场 ----
@@ -733,19 +734,20 @@ namespace PixelToCivilization.UI
         // ============ 每帧刷新 ============
         private void Update()
         {
+          string step="";
           try{
-            if (GM==null||_hud==null||!_hud.activeSelf) { TickSplashAutoStart(); HideTimed();return; }
+            if (GM==null||_hud==null||!_hud.activeSelf) { step="Splash"; TickSplashAutoStart(); step="HideT0"; HideTimed();return; }
             _splashArmed=false;
-            HandleFloatingClose();
-            UpdateHoverTip();
-            TickAutoHover(Time.unscaledDeltaTime);
-            RefreshMinimap(Time.unscaledDeltaTime);
-            RefreshMarkers(Time.unscaledDeltaTime);
+            step="FloatingClose"; HandleFloatingClose();
+            step="HoverTip"; UpdateHoverTip();
+            step="AutoHover"; TickAutoHover(Time.unscaledDeltaTime);
+            step="Minimap"; RefreshMinimap(Time.unscaledDeltaTime);
+            step="Markers"; RefreshMarkers(Time.unscaledDeltaTime);
             _refreshCd-=Time.unscaledDeltaTime;
-            if (_refreshCd<=0){_refreshCd=0.25f;Refresh();}
-            HideTimed();
+            if (_refreshCd<=0){_refreshCd=0.25f;step="Refresh";Refresh();}
+            step="HideT1"; HideTimed();
           }
-          catch(System.Exception e){ Debug.LogError("[MARK_UI] "+e.GetType().Name+": "+e.Message+"\n"+e.StackTrace); }
+          catch(System.Exception e){ Debug.LogError("[MARK_UI] step="+step+" "+e.GetType().Name+": "+e.Message); }
         }
 
         // V6.1.1：ESC / 右键 / 点击地图空白处关闭船只·建筑浮窗（对齐 v5.9.9 closeShipTooltip）
@@ -775,10 +777,28 @@ namespace PixelToCivilization.UI
             if (_toast&&_toast.gameObject.activeSelf&&_toastHide>0&&Time.unscaledTime>_toastHide)_toast.gameObject.SetActive(false);
         }
 
+        /// <summary>
+        /// V9.5.2 资源数值防遮挡格式：<1万显示完整整数，≥1万用"万"、≥1亿用"亿"紧凑表达（最多约5字符）。
+        /// 根因：旧版固定全量整数，七位数字在窄栏内以 Overflow 向左溢出，正好压到左侧图标，呈现"图标劈开数字"。
+        /// 紧凑表达把数值宽度恒定在标签框内，图标与数字永远不重叠。
+        /// </summary>
+        public static string FmtRes(float v)
+        {
+            if (v < 0f) v = 0f;
+            long n = (long)System.Math.Floor(v);
+            if (n < 10000L) return n.ToString();
+            if (n < 100000000L)
+            {
+                float w = v / 10000f;
+                return (w >= 100f ? w.ToString("F0") : w.ToString("F1")) + "万";
+            }
+            return (v / 100000000f).ToString("F1") + "亿";
+        }
+
         private void Refresh()
         {
             foreach (var id in ResourceDatabase.Order)
-                if (_resTexts.TryGetValue(id,out var t)) t.text=Mathf.FloorToInt(S.GetRes(id)).ToString();
+                if (_resTexts.TryGetValue(id,out var t)) t.text=FmtRes(S.GetRes(id));
             _eraTag.text=GM.Time.EraName;
             if(_lastBuildEra!=S.Era){_lastBuildEra=S.Era;RebuildBuildListV2();}
             _dynastyTag.text=GM.Time.DynastyName;
@@ -800,7 +820,7 @@ namespace PixelToCivilization.UI
             if (_saveCountdown!=null && _saveModal!=null && _saveModal.activeSelf)
             {
                 float cd=GM.SaveSystem.AutoCountdown;
-                _saveCountdown.text=$"下次存档 {Mathf.FloorToInt(cd/60f)}:{(Mathf.FloorToInt(cd%60f)).ToString("00")}";
+                _saveCountdown.text=$"下次存档 {Mathf.FloorToInt(cd/60f)}:{(Mathf.FloorToInt(cd%60f)).ToString(\"00\")}";
             }
             RefreshStats();
             // V6.1.9 中顶冷冻冷却倒计时（仅冷冻时显示）
