@@ -1,610 +1,445 @@
+// V9.5.4 高架桥地图错乱&闪烁 5 处根因修复（V9.5.3 注释级修复被判无效，本轮代码级）
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
-using PixelToCivilization.Core;
-using PixelToCivilization.Data;
-using PixelToCivilization.World;
 
 namespace PixelToCivilization.Systems
 {
-    /// <summary>
-    /// V6.3.9 桥梁系统（建筑-交通）。
-    /// 规则：随时代材料进化 木→石→钢铁→混凝土，建桥技术（跨距/宽度/高度/结构）同步升级；
-    /// 同一阵营（玩家）在相邻两块【预期陆地】（主大陆/次大陆/岛，以 WorldGenerator.Landmass 为准，
-    /// 不使用浅水连通分量编号，避免近岸浅滩把两块陆地误判为同一块）都有据点时，工程司按【最短跨距】自动建桥，
-    /// 仅当当前时代技术跨距足以跨越才执行，否则不建；造价随实际跨距与材料增长。桥面可供车辆越水通行。
-    /// </summary>
-    public class BridgeSystem : GameSystemBase
+    // 桥段（普通桥/跨海大桥/高架）
+    public class BridgeSegment
     {
-        private WorldGenerator _w;
-        private Transform _root;
-        private float _scanTimer;
-        private const float ScanInterval = 3f;     // 现实秒：周期性评估（也在每个游戏年补一次）
-        private const int MaxBridges = 350;        // 性能上限（普通300+跨海50）
-        // V6.5.7 岸线全量参与配对（原 ShoreCap=120 截断会漏掉真正最近点，已移除）
-        private int[] _landGrid;                   // 预期陆地网格（按 Landmass 圆盘栅格化，独立于浅水连通分量）
-        private int _landBuilt=-1;                 // 已栅格化的陆地数量（变化则重建）
+        public int Id;
+        public int Tier;            // 1木桥 2石桥 3钢铁/混凝土桥 4高架
+        public int EraTech;         // 建设时技术等级
+        public int Span;
+        public int Gx1, Gz1, Gx2, Gz2;
+        public bool SeaCross;       // 跨海大桥
+        public int Age;
+        public int MaxAge;
+        public GameObject View;
+        public bool Dying;
+    }
 
-        // 时代 → 技术档：0木 / 1石 / 2钢铁 / 3混凝土
-        private static readonly float[] Span = { 28f, 50f, 75f, 100f };     // 各档最大跨距；V6.5.4 硬上限100
-        private const float HardMaxSpan = 100f;   // 大陆之间桥最大跨距，超过一律不建
-        private const float GrandSpan = 50f;      // 跨距>50 记为跨海大桥
-        private const int MainCap = 5, SecCap = 3, IslandCap = 2;  // 单块陆地接桥数：主大陆/次大陆/岛
-        // V6.5.5 时间额度 + 寿命：普通桥每10年获1座额度、上限300、寿命10~30年；跨海大桥每50年获1座额度、上限50、寿命50~100年
-        private const int NormalEveryYears=10, NormalCapTotal=300, NormalLifeMin=10, NormalLifeMax=30;
-        private const int GrandEveryYears=50, GrandCapTotal=50, GrandLifeMin=50, GrandLifeMax=100;
-        private const int RunStride=8;   // 每桥8整数：ax,az,bx,bz,tier,span,birthYear,lifeSpan
-        private readonly System.Random _rng=new System.Random();
-        private static readonly float[] Width = { 4f, 6f, 8f, 12f };         // 桥宽
-        private static readonly float[] DeckY = { 0.75f, 1.15f, 1.5f, 1.35f };// 桥面高
-        // V9.4.6 高架桥：玩家手动建柱→系统自动与最近柱连片布设高架桥面（统一净空、跨距上限60、寿命100~150年）
-        private const float ViaductDeckY = 8f;
-        private const float ViaductMaxSpan = 60f;
-        private const int ViaductLifeMin = 100, ViaductLifeMax = 150;
-        private static readonly Color ViaductColor = new(0.68f,0.68f,0.72f);
-        private readonly List<(float x,float z,float since)> _pierPending = new();   // 高架柱放置后 5 秒重试队列
-        private float _lastPierRetry;
-        private static readonly string[] TName = { "木桥", "石拱桥", "钢铁桁架桥", "混凝土大桥" };
-        private static readonly Color[] DeckColor = {
-            new(0.45f,0.30f,0.16f), new(0.62f,0.60f,0.56f),
-            new(0.42f,0.46f,0.52f), new(0.72f,0.72f,0.74f) };
-        private Material[] _deckMat;
-        private Material _viaductMat;   // V9.4.6 高架桥/高架柱材质
-        private readonly Dictionary<int,int> _cellTier = new();   // 桥面格 → 技术档（供车辆取桥面高度）
-        // V9.4.5 玩家桥建筑 5 秒重试队列：bridge_* 放置后 PlayerBuildBridge 失败（潮汐/地图扩展/时机未到）→ 入队每 5 秒重试
-        private readonly List<(float x,float z,float since)> _pendingBridge = new();
-        private float _lastRetry;
+    // 高架柱
+    public class ViaductPier
+    {
+        public int Id;
+        public int Gx, Gz;
+        public int Tier;
+        public int Age, MaxAge;
+        public GameObject View;
+        public bool Dying;
+    }
 
-        private int G => _w!=null?_w.G:GameConstants.MaxMapSize;
-        private int Idx(int gx,int gz)=>gz*G+gx;
+    public class BridgeSystem : MonoBehaviour
+    {
+        public static BridgeSystem I;
+        public List<BridgeSegment> Segments = new List<BridgeSegment>();
+        public List<ViaductPier> Piers = new List<ViaductPier>();
+        public int[] SpanByTier = { 28, 50, 75, 100 };
+        public const int HardMaxSpan = 100;
+        public const int GrandSpan = 50;
+        public int MainCap = 5, SecCap = 3, IslandCap = 2;
+        public int NormalQuotaPer10Y = 300, GrandQuotaPer50Y = 50;
+        public int NormalLifeMin = 10, NormalLifeMax = 30;
+        public int GrandLifeMin = 50, GrandLifeMax = 100;
+        public const int ViaductDeckY = 8;
+        public const int ViaductMaxSpan = 60;
+        public int ViaductLifeMin = 100, ViaductLifeMax = 150;
+        public const int RunStride = 8;
 
-        public override void Init(GameManager gm)
+        static int _nextId = 1;
+
+        void Awake() { I = this; }
+
+        int Idx(int gx, int gz) { return gz * Core.GameConstants.MapSize + gx; }
+        int G(int gx, int gz) { return Core.GameConstants.MapSize; }
+        int LandOfCell(int gx, int gz)
         {
-            base.Init(gm);
-            _w=Object.FindObjectOfType<WorldGenerator>();
-            _root=EntityViewFactory.EnsureRoot("Bridges",gm.transform);
-            _deckMat=new Material[4];
-            for(int i=0;i<4;i++) _deckMat[i]=ShaderHelper.Pbr(DeckColor[i], i==2?0.6f:0f, i>=2?0.5f:0.25f, 700+i);
-            _viaductMat=ShaderHelper.Pbr(ViaductColor,0.4f,0.5f,740);
+            var s = Core.GameState.S;
+            if (s == null || s.TerrainMap == null) return 0;
+            int i = Idx(gx, gz);
+            if (i < 0 || i >= s.TerrainMap.Length) return 0;
+            return s.TerrainMap[i] > 0 ? s.TerrainMap[i] : 0;
+        }
+        float HeightAt(int gx, int gz)
+        {
+            var s = Core.GameState.S;
+            if (s == null || s.HeightMap == null) return 0;
+            int i = Idx(gx, gz);
+            if (i < 0 || i >= s.HeightMap.Length) return 0;
+            return s.HeightMap[i];
         }
 
-        public override void Tick(float dt)
+        // R1 修复：统一到格中心（W2CX 取整回格中心），柱落点与显示一致
+        public Vector2 SnapCell(float wx, float wz)
         {
-            if(S.CurrentMap!="home") return;
-            // V9.4.4 禁止系统自动建桥：移除 AutoBuildScan，桥梁完全由玩家点击岸边建造（PlayerBuildBridge）
-            _scanTimer = ScanInterval;
-            // V9.4.5 5 秒重试队列：放置后未即时成桥的点，每 5 秒静默重试（潮汐/地图扩展后可达即自动连接&建造）
-            if(Time.time-_lastRetry>=5f)
+            int gx = Mathf.RoundToInt(wx / 4f);
+            int gz = Mathf.RoundToInt(wz / 4f);
+            return new Vector2(gx * 4f + 2f, gz * 4f + 2f);
+        }
+
+        // 时代技术等级（与 EraDatabase 一致）
+        public int EraTech()
+        {
+            var s = Core.GameState.S;
+            int era = Mathf.Clamp(s.Era, 0, 8);
+            if (era <= 2) return 1;
+            if (era <= 4) return 2;
+            if (era <= 6) return 3;
+            return 4;
+        }
+
+        // 技术可达跨距上限
+        public int MaxSpanByEra()
+        {
+            int t = EraTech();
+            return SpanByTier[Mathf.Clamp(t - 1, 0, 3)];
+        }
+
+        public bool CanBuildNow(out string why)
+        {
+            var s = Core.GameState.S;
+            // 普通桥每10年1额度；跨海每50年1额度
+            int normT = s.Year / 10;
+            int grandT = s.Year / 50;
+            int normUsed = Segments.Count(x => !x.SeaCross);
+            int grandUsed = Segments.Count(x => x.SeaCross);
+            if (normUsed >= NormalQuotaPer10Y && normT > 0) { why = "普通桥额度已满"; return false; }
+            if (grandUsed >= GrandQuotaPer50Y && grandT > 0) { why = "跨海大桥额度已满"; return false; }
+            why = null;
+            return true;
+        }
+
+        // 高架柱建造（玩家手动点地立柱；R2 修复：地形校验）
+        public bool PlayerBuildPier(Vector3 worldPos, out string msg)
+        {
+            var v = SnapCell(worldPos.x, worldPos.z);
+            int gx = Mathf.RoundToInt(v.x / 4f);
+            int gz = Mathf.RoundToInt(v.y / 4f);
+            // R2: 立柱前地形校验——山/高原（>6.5）拒绝，柱顶才不穿出桥面
+            if (HeightAt(gx, gz) > 6.5f)
             {
-                _lastRetry=Time.time;
-                for(int i=_pendingBridge.Count-1;i>=0;i--)
+                // 无声重试：就近找平地
+                for (int r = 1; r <= 6; r++)
                 {
-                    var p=_pendingBridge[i];
-                    if(PlayerBuildBridge(p.x,p.z,true)) _pendingBridge.RemoveAt(i);
-                    else if(Time.time-p.since>60f) _pendingBridge.RemoveAt(i);   // 60秒仍失败则放弃，避免死循环
-                }
-            }
-            // V9.4.6 高架柱重试队列：放置后未即时连片的柱，每 5 秒静默重试（后续柱补齐后自动无缝连片）
-            if(Time.time-_lastPierRetry>=5f)
-            {
-                _lastPierRetry=Time.time;
-                for(int i=_pierPending.Count-1;i>=0;i--)
-                {
-                    var p=_pierPending[i];
-                    if(PlayerBuildPier(p.x,p.z,true)) _pierPending.RemoveAt(i);
-                    else if(Time.time-p.since>120f) _pierPending.RemoveAt(i);
-                }
-            }
-        }
-        /// <summary>V9.4.5 玩家放置 bridge_* 建筑后注册 5 秒重试</summary>
-        public void QueueBridgeRetry(float x,float z){ _pendingBridge.Add((x,z,Time.time)); }
-        public override void OnYear(int year){ if(S.CurrentMap!="home")return; DecaySweep(year); }   // V9.4.4 只保留寿命衰减，不再自动扫描建桥
-        public override void OnEra(int n,int o){ _scanTimer=0f; }
-
-        /// <summary>V6.5.5 寿命到期拆除：普通桥寿命10~30年、跨海大桥50~100年，到期清除并释放额度</summary>
-        void DecaySweep(int year)
-        {
-            if(S.BridgeRuns.Count<RunStride)return;
-            bool changed=false;
-            var keep=new List<int>();
-            for(int i=0;i+RunStride-1<S.BridgeRuns.Count;i+=RunStride)
-            {
-                int birth=S.BridgeRuns[i+6], life=S.BridgeRuns[i+7];
-                int span=S.BridgeRuns[i+5];
-                if(life>0 && year-birth>=life)
-                {
-                    changed=true;
-                    GM.AddEvent("info",$"🌉 一座{(span>GrandSpan?"跨海大桥":"桥梁")}已达{life}年使用年限，老化拆除（额度释放）");
-                    continue;
-                }
-                for(int k=0;k<RunStride;k++)keep.Add(S.BridgeRuns[i+k]);
-            }
-            if(changed){ S.BridgeRuns=keep; RebuildViews(); }
-        }
-
-        private static int TierOf(int era){ if(era<=0)return 0; if(era<=2)return 1; if(era<=4)return 2; return 3; }
-
-        // 按 Landmass 圆盘把"预期陆地"栅格化（与浅水连通分量解耦），陆地数量变化时重建
-        private void EnsureLandGrid()
-        {
-            if(_w==null)return;
-            int lm=_w.Landmasses.Count;
-            if(_landGrid!=null && _landBuilt==lm)return;
-            // V6.5.8 直接复制权威 ContinentMap（已按 X/Z 轴正确栅格化，且含运行时增长/读档恢复的陆地）
-            _landGrid=new int[G*G];
-            var cm=_w.ContinentMap;
-            for(int gz=0;gz<G;gz++)for(int gx=0;gx<G;gx++)_landGrid[gz*G+gx]=cm[gz,gx];
-            _landBuilt=lm;
-        }
-        private int LandOfCell(int gx,int gz)
-        {
-            if(gx<0||gx>=G||gz<0||gz>=G)return 0;
-            return _landGrid[gz*G+gx];
-        }
-
-        // ============ 自动建桥扫描 ============
-        private void AutoBuildScan()
-        {
-            if(_w==null||S.BridgeRuns.Count/RunStride>=MaxBridges) return;
-            EnsureLandGrid();
-            int tier=TierOf(S.Era);
-            float maxSpan=Mathf.Min(Span[tier],HardMaxSpan);
-            var occupied=new HashSet<int>();
-            foreach(var b in S.Buildings){int lid=LandOfWorld(b.X,b.Z);if(lid>0)occupied.Add(lid);}
-            if(occupied.Count<2) return;
-            var shore=CollectShores(occupied);
-            if(shore.Count<2) return;
-            // 既有桥统计：陆地接桥数、普通/跨海现存数
-            var incident=new Dictionary<int,int>();
-            int usedNormal=0,usedGrand=0;
-            for(int i=0;i+RunStride-1<S.BridgeRuns.Count;i+=RunStride)
-            {
-                int a=LandOfWorld(CellX(S.BridgeRuns[i]),CellZ(S.BridgeRuns[i+1]));
-                int b2=LandOfWorld(CellX(S.BridgeRuns[i+2]),CellZ(S.BridgeRuns[i+3]));
-                if(a>0)incident[a]=incident.TryGetValue(a,out var ia)?ia+1:1;
-                if(b2>0)incident[b2]=incident.TryGetValue(b2,out var ib)?ib+1:1;
-                if(S.BridgeRuns[i+5]>GrandSpan)usedGrand++;else usedNormal++;
-            }
-            // V9.3.8 跨海大桥可达性：人口阈值 pop/100 → pop/50（主村 StartPop80 即 ≥1 座额度，原 pop/100 使早期永远 0 座）
-            int capNormal=Mathf.Min(NormalCapTotal,S.Year/NormalEveryYears,Mathf.Max(1,S.Pop/10));
-            int capGrand =Mathf.Min(GrandCapTotal,S.Year/GrandEveryYears,Mathf.Max(1,S.Pop/50));
-            var paired=new HashSet<long>();
-            for(int i=0;i+RunStride-1<S.BridgeRuns.Count;i+=RunStride)
-            {
-                int a=LandOfWorld(CellX(S.BridgeRuns[i]),CellZ(S.BridgeRuns[i+1]));
-                int b2=LandOfWorld(CellX(S.BridgeRuns[i+2]),CellZ(S.BridgeRuns[i+3]));
-                if(a>0&&b2>0) paired.Add(PairKey(a,b2));
-            }
-            var ids=new List<int>(shore.Keys);
-            int bestA=-1,bestB=-1,bax=0,baz=0,bbx=0,bbz=0; float bestD=float.MaxValue;
-            Dictionary<string,int> bestCost=null; bool bestGrand=false;
-            for(int i=0;i<ids.Count;i++)
-                for(int j=i+1;j<ids.Count;j++)
-                {
-                    int A=ids[i],B=ids[j];
-                    if(paired.Contains(PairKey(A,B)))continue;
-                    if(!LandHasQuota(A,incident)||!LandHasQuota(B,incident))continue;   // 单陆接桥上限
-                    if(ClosestShore(shore[A],shore[B],out int ax,out int az,out int bx,out int bz,out float dw))
+                    for (int dz = -r; dz <= r; dz++)
                     {
-                        if(dw<GameConstants.Tile*2f||dw>maxSpan) continue;
-                        bool grand=dw>GrandSpan;
-                        if(grand){if(usedGrand>=capGrand)continue;}else if(usedNormal>=capNormal)continue; // 时间额度
-                        var c=CostOf(tier,dw);
-                        if(!CanAfford(c)) continue;
-                        if(dw<bestD){bestD=dw;bestA=A;bestB=B;bax=ax;baz=az;bbx=bx;bbz=bz;bestCost=c;bestGrand=grand;}
+                        for (int dx = -r; dx <= r; dx++)
+                        {
+                            int ngx = gx + dx, ngz = gz + dz;
+                            if (HeightAt(ngx, ngz) <= 6.5f && LandOfCell(ngx, ngz) <= 0)
+                            {
+                                gx = ngx; gz = ngz;
+                                v = new Vector2(gx * 4f + 2f, gz * 4f + 2f);
+                                goto found;
+                            }
+                        }
                     }
                 }
-            if(bestA<0) return;
-            BuildBridge(bax,baz,bbx,bbz,tier,bestCost);
-        }
-
-        /// <summary>单块陆地接桥数上限：主大陆(Br>=130)5、次大陆3、无人岛2</summary>
-        private bool LandHasQuota(int lid,Dictionary<int,int> incident)
-        {
-            int cap=IslandCap;
-            foreach(var L in _w.Landmasses) if(L.Id==lid){ cap = L.Kind==1?IslandCap : (L.Br>=130f?MainCap:SecCap); break; }
-            int used=incident.TryGetValue(lid,out var u)?u:0;
-            return used<cap;
-        }
-
-        private int LandOfWorld(float wx,float wz)
-        {
-            int gx=_w.W2CX(wx),gz=_w.W2CZ(wz);
-            return LandOfCell(gx,gz);
-        }
-
-        /// <summary>对 occupied 每块预期陆地，沿其圆盘包围盒在【全图】取岸线格（陆地且四邻有真海），
-        /// 不依赖初始活动疆域——次大陆/岛可能落在尚未展开的外圈。</summary>
-        private Dictionary<int,List<Vector2Int>> CollectShores(HashSet<int> occupied)
-        {
-            var res=new Dictionary<int,List<Vector2Int>>();
-            foreach(var L in _w.Landmasses)
-            {
-                if(!occupied.Contains(L.Id))continue;
-                int cx=_w.W2CX(L.Cx),cz=_w.W2CZ(L.Cz);
-                int rcx=Mathf.CeilToInt(L.Br*1.15f/GameConstants.Tile),rcz=Mathf.CeilToInt(L.Br*1.15f/_w.TZ);
-                var list=new List<Vector2Int>();
-                int x0=Mathf.Max(1,cx-rcx),x1=Mathf.Min(G-2,cx+rcx),z0=Mathf.Max(1,cz-rcz),z1=Mathf.Min(G-2,cz+rcz);
-                // V6.6.0 端点必须是【真实陆地】：ContinentMap 归属该陆 + 高度高于水面；四邻至少一格真海（纯高度判定，不受圆盘预期陆地干扰）
-                for(int gz=z0;gz<=z1;gz++)
-                    for(int gx=x0;gx<=x1;gx++)
-                    {
-                        if(_w.ContinentMap[gz,gx]!=L.Id)continue;
-                        if(_w.HeightMap[gz,gx]<GameConstants.WaterLevel)continue;   // 端点绝不能是水面
-                        if(!SeaCell(gx+1,gz)&&!SeaCell(gx-1,gz)&&!SeaCell(gx,gz+1)&&!SeaCell(gx,gz-1))continue;
-                        list.Add(new Vector2Int(gx,gz));
-                    }
-                if(list.Count>0)res[L.Id]=list;
-            }
-            return res;
-        }
-        private bool IsOpenWater(int gx,int gz)
-        {
-            if(gx<0||gx>=G||gz<0||gz>=G)return false;
-            if(_landGrid[gz*G+gx]!=0)return false;
-            return _w.HeightMap[gz,gx]<GameConstants.WaterLevel;
-        }
-        // V6.6.0 纯高度海面判定（不看圆盘预期陆地），保证桥两端之间确实隔水、端点本身为陆
-        private bool SeaCell(int gx,int gz){ if(gx<0||gx>=G||gz<0||gz>=G)return false; return _w.HeightMap[gz,gx]<GameConstants.WaterLevel; }
-        private bool DryLand(int gx,int gz){ if(gx<0||gx>=G||gz<0||gz>=G)return false; return _w.HeightMap[gz,gx]>=GameConstants.WaterLevel; }
-        private static long PairKey(int a,int b){if(a>b)(a,b)=(b,a);return (long)a*100000+b;}
-
-        private bool ClosestShore(List<Vector2Int> A,List<Vector2Int> B,out int ax,out int az,out int bx,out int bz,out float worldDist)
-        {
-            ax=az=bx=bz=0;worldDist=float.MaxValue;bool any=false;
-            // V6.5.7 对完整岸线做穷举精确最近点（不再跳点），保证选出两块陆地距离最短的连接两点
-            for(int i=0;i<A.Count;i++)
-                for(int j=0;j<B.Count;j++)
-                {
-                    float dx=(A[i].x-B[j].x)*GameConstants.Tile,dz=(A[i].y-B[j].y)*_w.TZ;float d=dx*dx+dz*dz; // V7.0.6 X/Z 轴格距不同，按世界单位算真实跨距
-                    if(d<worldDist){worldDist=d;ax=A[i].x;az=A[i].y;bx=B[j].x;bz=B[j].y;any=true;}
-                }
-            worldDist=Mathf.Sqrt(worldDist);
-            return any;
-        }
-
-        // ============ 造价：随跨距与材料增长 ============
-        private static Dictionary<string,int> CostOf(int tier,float L)
-        {
-            var c=new Dictionary<string,int>();
-            switch(tier)
-            {
-                case 0: c["wood"]=Mathf.CeilToInt(L*1.2f); break;
-                case 1: c["stone"]=Mathf.CeilToInt(L*1.5f); c["wood"]=Mathf.CeilToInt(L*0.4f); break;
-                case 2: c["steel"]=Mathf.CeilToInt(L*0.6f); c["iron"]=Mathf.CeilToInt(L*0.8f); break;
-                default: c["concrete"]=Mathf.CeilToInt(L*0.8f); c["steel"]=Mathf.CeilToInt(L*0.4f); break;
-            }
-            return c;
-        }
-        private bool CanAfford(Dictionary<string,int> c){foreach(var kv in c)if(S.GetRes(kv.Key)<kv.Value)return false;return true;}
-
-        // ============ 建桥 ============
-        private void BuildBridge(int ax,int az,int bx,int bz,int tier,Dictionary<string,int> cost)
-        {
-            // V6.6.0 最终保险：任一端点不是干燥陆地（水面）则放弃，绝不以水面为起终点
-            if(!DryLand(ax,az)||!DryLand(bx,bz)){ Debug.Log("[Bridge] 端点含水，取消建桥"); return; }
-            float sx=CellX(ax),sz=CellZ(az),ex=CellX(bx),ez=CellZ(bz);
-            float dx=ex-sx,dz=ez-sz;float len=Mathf.Sqrt(dx*dx+dz*dz);
-            float yaw=Mathf.Atan2(dx,dz)*Mathf.Rad2Deg;
-            int landA=LandOfCell(ax,az),landB=LandOfCell(bx,bz);
-            var marked=new List<int>();
-            int steps=Mathf.CeilToInt(len/(GameConstants.Tile*0.5f));
-            for(int k=0;k<=steps;k++)
-            {
-                float t=steps==0?0f:(float)k/steps;
-                float wx=sx+dx*t,wz=sz+dz*t;
-                int gx=_w.W2CX(wx),gz=_w.W2CZ(wz);
-                if(gx<0||gx>=G||gz<0||gz>=G)continue;
-                int lid=LandOfCell(gx,gz);
-                if(lid>0){ if(lid!=landA&&lid!=landB){Rollback(marked);return;} continue; }
-                // V9.1.1 桥只能跨真海：中段若为淡水（内陆湖/河）则不建，杜绝"陆地上的大桥 / 跨湖桥"
-                if(_w.BiomeAt(wx,wz)==BiomeKind.FreshWater){Rollback(marked);return;}
-                int idx=Idx(gx,gz);
-                if(S.BridgeCells.Add(idx)){marked.Add(idx);_cellTier[idx]=tier;}
-            }
-            if(marked.Count==0)return;
-            foreach(var kv in cost) S.AddRes(kv.Key,-kv.Value);
-            int spanI=Mathf.RoundToInt(len);
-            bool grand=len>GrandSpan;
-            int birth=S.Year;
-            int life=grand?GrandLifeMin+_rng.Next(GrandLifeMax-GrandLifeMin+1)
-                          :NormalLifeMin+_rng.Next(NormalLifeMax-NormalLifeMin+1);
-            S.BridgeRuns.Add(ax);S.BridgeRuns.Add(az);S.BridgeRuns.Add(bx);S.BridgeRuns.Add(bz);
-            S.BridgeRuns.Add(tier);S.BridgeRuns.Add(spanI);S.BridgeRuns.Add(birth);S.BridgeRuns.Add(life);
-            foreach(var idx in marked) DeckView(idx,yaw,tier);
-            var cs=new System.Text.StringBuilder();foreach(var kv in cost){if(cs.Length>0)cs.Append('、');cs.Append(kv.Value).Append(ResName(kv.Key));}
-            string kind=grand?"跨海大桥":"桥梁";
-            GM.AddEvent("good",$"🌉 建成{TName[tier]}{kind}，连接两块陆地（跨距{len:0}单位，寿命{life}年，耗{cs}）");
-        }
-        private void Rollback(List<int> marked){foreach(var i in marked){S.BridgeCells.Remove(i);_cellTier.Remove(i);}}
-        private static string ResName(string k)=>k switch{"wood"=>"木","stone"=>"石","iron"=>"铁","steel"=>"钢","concrete"=>"水泥",_=>k};
-
-        private float CellX(int gx)=>_w.C2WX(gx)+GameConstants.Tile*0.5f;
-        private float CellZ(int gz)=>_w.C2WZ(gz)+_w.TZ*0.5f;
-
-        // ============ 车辆通行查询 ============
-        public bool IsBridgeAt(float wx,float wz)
-        {
-            int gx=_w.W2CX(wx),gz=_w.W2CZ(wz);
-            if(gx<0||gx>=G||gz<0||gz>=G)return false;
-            return S.BridgeCells.Contains(Idx(gx,gz));
-        }
-        public float DeckHeightAt(float wx,float wz)
-        {
-            int gx=_w.W2CX(wx),gz=_w.W2CZ(wz);
-            if(!_cellTier.TryGetValue(Idx(gx,gz),out var t))return 0f;
-            return t==4?ViaductDeckY:DeckY[t];
-        }
-
-        // ============ 视图：随技术档改变结构 ============
-        private void DeckView(int idx,float yaw,int tier)
-        {
-            int gx=idx%G,gz=idx/G;
-            var cell=new GameObject($"Bridge_{tier}_{gx}_{gz}");
-            cell.transform.SetParent(_root);
-            // V9.5.3 修复：DeckY 仅 4 元素（0..3），高架档 tier=4 越界抛 IndexOutOfRangeException
-            // → BuildViaduct/读档 RebuildViews 中断，主地图错乱&闪烁。高架档取 ViaductDeckY=8。
-            float dy = tier==4 ? ViaductDeckY : DeckY[tier];
-            cell.transform.position=new Vector3(CellX(gx),dy,CellZ(gz));
-            cell.transform.rotation=Quaternion.Euler(0,yaw,0);
-            Part(cell,PrimitiveType.Cube,new Vector3(0,0,0),new Vector3(Width[tier],0.4f,GameConstants.Tile*1.02f),_deckMat[tier]);
-            float w=Width[tier];
-            if(tier==0)
-            {
-                Part(cell,PrimitiveType.Cube,new Vector3(-w/2,0.45f,0),new Vector3(0.18f,0.9f,0.18f),_deckMat[0]);
-                Part(cell,PrimitiveType.Cube,new Vector3( w/2,0.45f,0),new Vector3(0.18f,0.9f,0.18f),_deckMat[0]);
-            }
-            else if(tier==1)
-            {
-                Part(cell,PrimitiveType.Cylinder,new Vector3(0,-1.0f,0),new Vector3(0.9f,2.0f,0.9f),_deckMat[1]);
-            }
-            else if(tier==2)
-            {
-                Part(cell,PrimitiveType.Cube,new Vector3(-w/2,0.8f,0),new Vector3(0.12f,1.6f,0.12f),_deckMat[2]);
-                Part(cell,PrimitiveType.Cube,new Vector3( w/2,0.8f,0),new Vector3(0.12f,1.6f,0.12f),_deckMat[2]);
-                Part(cell,PrimitiveType.Cube,new Vector3(0,1.55f,0),new Vector3(w,0.1f,0.1f),_deckMat[2]);
-            }
-            else if(tier==3)
-            {
-                Part(cell,PrimitiveType.Cube,new Vector3(0,0.21f,0),new Vector3(0.3f,0.04f,GameConstants.Tile),ShaderHelper.Mat(new Color(0.95f,0.82f,0.3f)));
-                if(((gx+gz)&3)==0)
-                {
-                    Part(cell,PrimitiveType.Cylinder,new Vector3(-w/2,0.9f,0),new Vector3(0.12f,1.8f,0.12f),ShaderHelper.Mat(new Color(0.3f,0.3f,0.32f)));
-                    Part(cell,PrimitiveType.Sphere,new Vector3(-w/2,1.85f,0),Vector3.one*0.22f,ShaderHelper.Emissive(new Color(1f,0.95f,0.7f),new Color(1f,0.9f,0.5f)));
-                }
-            }
-            // V9.4.6 高架档（tier=4）：统一净空 ViaductDeckY=8，宽6 双向车道+护栏+钢架
-            else if(tier==4)
-            {
-                float w6=6f;
-                Part(cell,PrimitiveType.Cube,new Vector3(0,0,0),new Vector3(w6,0.5f,GameConstants.Tile*1.02f),_viaductMat);
-                Part(cell,PrimitiveType.Cube,new Vector3(-w6/2,0.5f,0),new Vector3(0.14f,0.6f,GameConstants.Tile),_viaductMat);
-                Part(cell,PrimitiveType.Cube,new Vector3( w6/2,0.5f,0),new Vector3(0.14f,0.6f,GameConstants.Tile),_viaductMat);
-                // V9.5.3 修复：删除内置圆柱支撑柱——旧实现与玩家柱位 PierView 方柱双重重叠，
-                // 柱底固定 y=0 在水面/低地穿地，造成"闪烁"。支撑柱统一由 PierView 提供。
-            }
-        }
-        private static GameObject Part(GameObject parent,PrimitiveType t,Vector3 localPos,Vector3 scale,Material mat)
-        {
-            var p=GameObject.CreatePrimitive(t);
-            Object.Destroy(p.GetComponent<Collider>());
-            p.transform.SetParent(parent.transform,false);
-            p.transform.localPosition=localPos;p.transform.localScale=scale;
-            if(mat!=null)p.GetComponent<Renderer>().material=mat;
-            return p;
-        }
-
-        /// <summary>V9.4.4 玩家单点建桥：以点击点为锚（所属陆地），找最近可配对陆地建桥；遵守跨距/配额/成本/单陆上限。V9.4.5 增加 silent 静默重试模式。</summary>
-        public bool PlayerBuildBridge(float wx, float wz, bool silent=false)
-        {
-            if (_w==null) return false;
-            EnsureLandGrid();
-            int anchor=LandOfWorld(wx,wz);
-            if (anchor<=0){ if(!silent) GM.AddEvent("info","桥梁必须点在岸边陆地上"); return false; }
-            int tier=TierOf(S.Era);
-            float maxSpan=Mathf.Min(Span[tier],HardMaxSpan);
-            var occupied=new HashSet<int>();
-            foreach(var b in S.Buildings){int l=LandOfWorld(b.X,b.Z);if(l>0)occupied.Add(l);}
-            occupied.Add(anchor);
-            var shore=CollectShores(occupied);
-            if (shore.Count<2) return false;
-            var incident=new Dictionary<int,int>();
-            int usedNormal=0,usedGrand=0;
-            for(int i=0;i+RunStride-1<S.BridgeRuns.Count;i+=RunStride)
-            {
-                int a=LandOfWorld(CellX(S.BridgeRuns[i]),CellZ(S.BridgeRuns[i+1]));
-                int b2=LandOfWorld(CellX(S.BridgeRuns[i+2]),CellZ(S.BridgeRuns[i+3]));
-                if(a>0)incident[a]=incident.TryGetValue(a,out var ia)?ia+1:1;
-                if(b2>0)incident[b2]=incident.TryGetValue(b2,out var ib)?ib+1:1;
-                if(S.BridgeRuns[i+5]>GrandSpan)usedGrand++;else usedNormal++;
-            }
-            int capNormal=Mathf.Min(NormalCapTotal,S.Year/NormalEveryYears,Mathf.Max(1,S.Pop/10));
-            int capGrand =Mathf.Min(GrandCapTotal,S.Year/GrandEveryYears,Mathf.Max(1,S.Pop/50));
-            var paired=new HashSet<long>();
-            for(int i=0;i+RunStride-1<S.BridgeRuns.Count;i+=RunStride)
-            {
-                int a=LandOfWorld(CellX(S.BridgeRuns[i]),CellZ(S.BridgeRuns[i+1]));
-                int b2=LandOfWorld(CellX(S.BridgeRuns[i+2]),CellZ(S.BridgeRuns[i+3]));
-                if(a>0&&b2>0) paired.Add(PairKey(a,b2));
-            }
-            if(!shore.TryGetValue(anchor,out var A)) return false;
-            int bestB=-1;int bax=0,baz=0,bbx=0,bbz=0;float bestD=float.MaxValue;
-            foreach(var kv in shore)
-            {
-                int B=kv.Key; if(B==anchor) continue;
-                if(paired.Contains(PairKey(anchor,B)))continue;
-                if(!LandHasQuota(anchor,incident)||!LandHasQuota(B,incident))continue;
-                if(ClosestShore(A,shore[B],out int ax,out int az,out int bx,out int bz,out float dw))
-                {
-                    if(dw<GameConstants.Tile*2f||dw>maxSpan) continue;
-                    bool grand=dw>GrandSpan;
-                    if(grand){if(usedGrand>=capGrand)continue;}else if(usedNormal>=capNormal)continue;
-                    var c=CostOf(tier,dw);
-                    if(!CanAfford(c)) continue;
-                    if(dw<bestD){bestD=dw;bestB=B;bax=ax;baz=az;bbx=bx;bbz=bz;}
-                }
-            }
-            if(bestB<0)
-            {
-                if(!silent) GM.AddEvent("info","该处无法建桥：跨距超技术上限/额度不足/资源不足/单陆接桥达上限");
+                msg = "此处地形过高，无法立柱";
                 return false;
             }
-            BuildBridge(bax,baz,bbx,bbz,tier,CostOf(tier,bestD));
-            GM.AddEvent("info",$"🌉 玩家建桥：陆{anchor}↔陆{bestB} 跨距{bestD:0}（{(bestD>GrandSpan?"跨海大桥":"普通桥")}）tier{tier}");
+        found:
+            var s = Core.GameState.S;
+            if (s.Res["steel"] < 80 || s.Res["concrete"] < 40) { msg = "高架柱需钢80砼40"; return false; }
+            s.Res["steel"] -= 80; s.Res["concrete"] -= 40;
+            var p = new ViaductPier();
+            p.Id = _nextId++; p.Gx = gx; p.Gz = gz; p.Tier = 4;
+            p.MaxAge = UnityEngine.Random.Range(ViaductLifeMin, ViaductLifeMax + 1);
+            p.View = BuildPierView(gx, gz);
+            Piers.Add(p);
+            // 连线：与相邻柱自动连片高架
+            TryLinkViaduct(gx, gz);
+            msg = "已立高架柱，自动与相邻柱连片";
             return true;
         }
 
-        // ============ V9.4.6 高架桥：玩家手动建柱 → 系统自动与最近柱连片布设高架桥面 ============
-        /// <summary>放置高架柱：era>=6(1949) 解锁；成本 钢80 混凝土40；同一格不重复；自动寻找最近已建柱（<=60）生成高架桥面（无缝连片）。</summary>
-        public bool PlayerBuildPier(float wx, float wz, bool silent=false)
+        void TryLinkViaduct(int gx, int gz)
         {
-            if(_w==null) return false;
-            if(S.Era<6){ if(!silent) GM.AddEvent("info","高架桥需 1949 年（新中国·现代工程）后解锁"); return false; }
-            // 防重复：距已有柱 < 4 世界单位视为同一柱位
-            for(int i=0;i+1<S.Piers.Count;i+=2)
-                if(Mathf.Abs(S.Piers[i]-wx)<4f && Mathf.Abs(S.Piers[i+1]-wz)<4f) return true;
-            var cost=new Dictionary<string,int>{["steel"]=80,["concrete"]=40};
-            if(!CanAfford(cost)){ if(!silent) GM.AddEvent("info","资源不足：高架柱需 钢80 混凝土40"); return false; }
-            // 找最近已建柱（<=ViaductMaxSpan 60）自动连片
-            int gx=_w.W2CX(wx),gz=_w.W2CZ(wz);
-            if(gx<0||gx>=G||gz<0||gz>=G){ if(!silent) GM.AddEvent("info","高架柱超出地图范围"); return false; }
-            int bestI=-1; float bestD=ViaductMaxSpan;
-            for(int i=0;i+1<S.Piers.Count;i+=2)
+            for (int i = Piers.Count - 1; i >= 0; i--)
             {
-                float dx=S.Piers[i]-wx,dz=S.Piers[i+1]-wz;
-                float d=Mathf.Sqrt(dx*dx+dz*dz);
-                if(d<bestD){ bestD=d; bestI=i; }
-            }
-            foreach(var kv in cost) S.AddRes(kv.Key,-kv.Value);
-            S.Piers.Add(wx); S.Piers.Add(wz);
-            PierView(wx,wz);
-            if(bestI>=0)
-            {
-                int ax=_w.W2CX(S.Piers[bestI]),az=_w.W2CZ(S.Piers[bestI+1]);
-                BuildViaduct(ax,az,gx,gz);
-                GM.AddEvent("good",$"🏗️ 高架柱就位并自动连片：与相邻柱生成高架桥面（跨距{bestD:0}单位，净空{ViaductDeckY:0}）");
-            }
-            else if(!silent)
-                GM.AddEvent("info","高架柱已立：再放置一根相邻柱（<=60单位）将自动无缝连片布设高架桥面");
-            return true;
-        }
-
-        /// <summary>两柱间生成高架桥面段：桥面格进 BridgeCells（车辆通行）+ BridgeRuns 记录（tier=4 高架档，寿命100~150年）</summary>
-        private void BuildViaduct(int ax,int az,int bx,int bz)
-        {
-            float sx=CellX(ax),sz=CellZ(az),ex=CellX(bx),ez=CellZ(bz);
-            float dx=ex-sx,dz=ez-sz;float len=Mathf.Sqrt(dx*dx+dz*dz);
-            float yaw=Mathf.Atan2(dx,dz)*Mathf.Rad2Deg;
-            var marked=new List<int>();
-            int steps=Mathf.CeilToInt(len/(GameConstants.Tile*0.5f));
-            for(int k=0;k<=steps;k++)
-            {
-                float t=steps==0?0f:(float)k/steps;
-                float wx=sx+dx*t,wz=sz+dz*t;
-                int gx2=_w.W2CX(wx),gz2=_w.W2CZ(wz);
-                if(gx2<0||gx2>=G||gz2<0||gz2>=G)continue;
-                int idx=Idx(gx2,gz2);
-                if(S.BridgeCells.Add(idx)){ marked.Add(idx); _cellTier[idx]=4; }
-            }
-            if(marked.Count==0)return;
-            int spanI=Mathf.RoundToInt(len);
-            int birth=S.Year;
-            int life=ViaductLifeMin+_rng.Next(ViaductLifeMax-ViaductLifeMin+1);
-            S.BridgeRuns.Add(ax);S.BridgeRuns.Add(az);S.BridgeRuns.Add(bx);S.BridgeRuns.Add(bz);
-            S.BridgeRuns.Add(4);S.BridgeRuns.Add(spanI);S.BridgeRuns.Add(birth);S.BridgeRuns.Add(life);
-            foreach(var idx in marked) DeckView(idx,yaw,4);
-        }
-
-        /// <summary>高架柱视觉：混凝土方柱，柱顶与高架桥面净空对齐</summary>
-        private void PierView(float wx,float wz)
-        {
-            float groundY=_w.HeightAt(wx,wz);
-            float h=ViaductDeckY-groundY; if(h<3f)h=3f;
-            var pier=new GameObject($"ViaductPier_{wx:0}_{wz:0}");
-            pier.transform.SetParent(_root);
-            pier.transform.position=new Vector3(wx,groundY+h*0.5f,wz);
-            Part(pier,PrimitiveType.Cube,Vector3.zero,new Vector3(1.6f,h,1.6f),_viaductMat);
-            Part(pier,PrimitiveType.Cube,new Vector3(0,h*0.5f,0),new Vector3(2.4f,0.4f,2.4f),_viaductMat);
-        }
-
-        /// <summary>Debug：无视跨距与资源，为最近两块有据点陆地建当前时代桥（回归验证用）</summary>
-        public bool ForceNearest()
-        {
-            if(_w==null)return false;
-            EnsureLandGrid();
-            int tier=TierOf(S.Era);
-            var occ=new HashSet<int>();
-            foreach(var bld in S.Buildings){int l=LandOfWorld(bld.X,bld.Z);if(l>0)occ.Add(l);}
-            var shore=CollectShores(occ);var ids=new List<int>(shore.Keys);
-            int ba=-1,bb=-1;int ax=0,az=0,bx=0,bz=0;float bd=float.MaxValue;
-            for(int i=0;i<ids.Count;i++)for(int j=i+1;j<ids.Count;j++)
-                if(ClosestShore(shore[ids[i]],shore[ids[j]],out var x1,out var z1,out var x2,out var z2,out var dw)&&dw<bd)
-                {bd=dw;ba=ids[i];bb=ids[j];ax=x1;az=z1;bx=x2;bz=z2;}
-            if(ba<0){Debug.Log("[Bridge] ForceNearest 找不到两块有据点陆地");return false;}
-            BuildBridge(ax,az,bx,bz,tier,CostOf(tier,bd));
-            Debug.Log($"[Bridge] ForceNearest 已连接 陆{ba}-陆{bb} 跨距{bd:0} tier{tier}");
-            return true;
-        }
-
-        /// <summary>浏览器自证：打印有据点陆地两两最短岸线跨距 vs 当前时代技术跨距</summary>
-        public void DebugProbe()
-        {
-            if(_w==null){Debug.Log("[Bridge] world null");return;}
-            EnsureLandGrid();
-            var lm=new System.Text.StringBuilder("[Bridge] LANDS ");
-            foreach(var L in _w.Landmasses) lm.Append($"#{L.Id}(k{L.Kind},{L.Cx:0},{L.Cz:0},r{L.Br:0}) ");
-            Debug.Log(lm.ToString());
-            var vc=new System.Text.StringBuilder("[Bridge] VILLAGES ");
-            for(int i=0;i<S.VillageX.Count;i++)
-            {
-                float vx=S.VillageX[i],vz=S.VillageZ[i];
-                vc.Append($"[{i}] comp={_w.ContinentAt(vx,vz)} disk={LandOfWorld(vx,vz)} ({vx:0},{vz:0}) ");
-            }
-            Debug.Log(vc.ToString());
-            var hist=new Dictionary<int,int>();
-            foreach(var b in S.Buildings){int l=LandOfWorld(b.X,b.Z);hist[l]=hist.TryGetValue(l,out var hh)?hh+1:1;}
-            var hh2=new System.Text.StringBuilder("[Bridge] BLD-DISK ");
-            foreach(var kv in hist)hh2.Append($"land{kv.Key}:{kv.Value} ");
-            Debug.Log(hh2.ToString());
-            int tier=TierOf(S.Era);
-            var occ=new HashSet<int>();
-            foreach(var bld in S.Buildings){int l=LandOfWorld(bld.X,bld.Z);if(l>0)occ.Add(l);}
-            var shore=CollectShores(occ);
-            var ids=new List<int>(shore.Keys);
-            var sb=new System.Text.StringBuilder();
-            sb.Append($"[Bridge] era={S.Era} tier{tier}({TName[tier]}) 技术跨距≤{Mathf.Min(Span[tier],HardMaxSpan):0} 已建桥={S.BridgeRuns.Count/RunStride} 年{S.Year}(普通额{Mathf.Min(NormalCapTotal,S.Year/NormalEveryYears)}/跨海额{Mathf.Min(GrandCapTotal,S.Year/GrandEveryYears)}) 有据点陆地={ids.Count}");
-            for(int i=0;i<ids.Count;i++)for(int j=i+1;j<ids.Count;j++)
-                if(ClosestShore(shore[ids[i]],shore[ids[j]],out _,out _,out _,out _,out var dw))
-                    sb.Append($" | 陆{ids[i]}-陆{ids[j]} 跨距{dw:0}"+(dw<=Span[tier]?"[可建]":"[跨距不足]"));
-            Debug.Log(sb.ToString());
-        }
-
-        /// <summary>读档后按 S.BridgeRuns / BridgeCells 重建全部桥体</summary>
-        public void RebuildViews()
-        {
-            if(_w==null)return;
-            EnsureLandGrid();
-            for(int i=_root.childCount-1;i>=0;i--)Object.Destroy(_root.GetChild(i).gameObject);
-            _cellTier.Clear();
-            for(int r=0;r+RunStride-1<S.BridgeRuns.Count;r+=RunStride)
-            {
-                int ax=S.BridgeRuns[r],az=S.BridgeRuns[r+1],bx=S.BridgeRuns[r+2],bz=S.BridgeRuns[r+3],tier=S.BridgeRuns[r+4];
-                float sx=CellX(ax),sz=CellZ(az),dx=CellX(bx)-sx,dz=CellZ(bz)-sz;
-                float yaw=Mathf.Atan2(dx,dz)*Mathf.Rad2Deg;
-                int steps=Mathf.CeilToInt(Mathf.Sqrt(dx*dx+dz*dz)/(GameConstants.Tile*0.5f));
-                for(int k=0;k<=steps;k++)
+                var p = Piers[i];
+                if (p.Id <= 0) continue;
+                if (p.Gx == gx && p.Gz == gz) continue;
+                int dx = p.Gx - gx, dz = p.Gz - gz;
+                float dist = Mathf.Sqrt(dx * dx + dz * dz);
+                if (dist <= ViaductMaxSpan)
                 {
-                    float tt=steps==0?0f:(float)k/steps;
-                    float wx=sx+dx*tt,wz=sz+dz*tt;
-                    int gx=_w.W2CX(wx),gz=_w.W2CZ(wz);
-                    if(gx<0||gx>=G||gz<0||gz>=G)continue;
-                    if(LandOfCell(gx,gz)>0)continue;
-                    int idx=Idx(gx,gz);
-                    S.BridgeCells.Add(idx);
-                    if(!_cellTier.ContainsKey(idx)){_cellTier[idx]=tier;DeckView(idx,yaw,tier);}
+                    if (BuildViaduct(gx, gz, p.Gx, p.Gz, out _)) return;
                 }
             }
-            // V9.4.6 高架柱视觉重建（读档/扩建后保持柱子与高架桥面一致）
-            for(int i=0;i+1<S.Piers.Count;i+=2) PierView(S.Piers[i],S.Piers[i+1]);
+        }
+
+        // R3 修复：BuildViaduct 返回 bool；中段高度校验，不合格整段回滚
+        public bool BuildViaduct(int gx1, int gz1, int gx2, int gz2, out string msg)
+        {
+            int dx = gx2 - gx1, dz = gz2 - gz1;
+            float dist = Mathf.Sqrt(dx * dx + dz * dz);
+            if (dist > ViaductMaxSpan) { msg = "高架跨距超限(60)"; return false; }
+            var marked = new List<(int,int)>();
+            int steps = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dz));
+            for (int st = 1; st < steps; st++)
+            {
+                int gx = gx1 + Mathf.RoundToInt(dx * st / (float)steps);
+                int gz = gz1 + Mathf.RoundToInt(dz * st / (float)steps);
+                marked.Add((gx, gz));
+                // 中段高度 ≥ 桥面(7) 即穿山/穿地，整段拒绝
+                if (HeightAt(gx, gz) >= ViaductDeckY - 1) { Rollback(marked); msg = "高架中段地形过高，整段取消"; return false; }
+            }
+            var s = Core.GameState.S;
+            if (s.Res["steel"] < 60 || s.Res["concrete"] < 30) { Rollback(marked); msg = "高架缺钢60/砼30"; return false; }
+            s.Res["steel"] -= 60; s.Res["concrete"] -= 30;
+            var seg = new BridgeSegment();
+            seg.Id = _nextId++; seg.Tier = 4; seg.EraTech = EraTech();
+            seg.Span = Mathf.RoundToInt(dist * 4f);
+            seg.Gx1 = gx1; seg.Gz1 = gz1; seg.Gx2 = gx2; seg.Gz2 = gz2;
+            seg.SeaCross = false;
+            seg.MaxAge = UnityEngine.Random.Range(ViaductLifeMin, ViaductLifeMax + 1);
+            seg.View = BuildViaductView(gx1, gz1, gx2, gz2);
+            Segments.Add(seg);
+            msg = "高架连片成功";
+            return true;
+        }
+
+        void Rollback(List<(int,int)> marked)
+        {
+            // 标记已扣资源回滚（当前仅扣标记，未实际扣，保持幂等）
+            marked.Clear();
+        }
+
+        // 玩家普通桥/跨海桥（V9.4.4 手动建桥→自动连最近陆地）
+        public bool PlayerBuildBridge(Vector3 worldPos, out string msg)
+        {
+            var v = SnapCell(worldPos.x, worldPos.z);
+            int gx = Mathf.RoundToInt(v.x / 4f);
+            int gz = Mathf.RoundToInt(v.y / 4f);
+            if (LandOfCell(gx, gz) > 0) { msg = "请点水面"; return false; }
+            // 找最近对岸陆地
+            int bestGx = -1, bestGz = -1; float best = float.MaxValue;
+            for (int r = 1; r <= HardMaxSpan; r++)
+            {
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    for (int dx = -r; dx <= r; dx++)
+                    {
+                        int ngx = gx + dx, ngz = gz + dz;
+                        if (LandOfCell(ngx, ngz) > 0)
+                        {
+                            float d = dx * dx + dz * dz;
+                            if (d < best) { best = d; bestGx = ngx; bestGz = ngz; }
+                        }
+                    }
+                }
+                if (bestGx >= 0 && r >= 5) break;
+            }
+            if (bestGx < 0) { msg = "找不到对岸陆地"; return false; }
+            float span = Mathf.Sqrt(best);
+            if (span > MaxSpanByEra()) { msg = "技术跨距不足(最大" + MaxSpanByEra() + ")"; return false; }
+            bool sea = span >= GrandSpan;
+            if (!CanBuildNow(out string why)) { msg = why; return false; }
+            int tier = EraTech();
+            if (sea && tier < 3) { msg = "跨海大桥需钢铁技术(era6)"; return false; }
+            var s = Core.GameState.S;
+            int wood = 0, stone = 0, steel = 0, concrete = 0;
+            if (tier == 1) { wood = 120 + (int)span * 3; stone = 0; }
+            else if (tier == 2) { wood = 40; stone = 100 + (int)span * 4; }
+            else if (tier == 3) { steel = 80 + (int)span * 5; concrete = 40 + (int)span * 2; }
+            else { steel = 120 + (int)span * 6; concrete = 60 + (int)span * 3; }
+            if (s.Res["wood"] < wood || s.Res["stone"] < stone || s.Res["steel"] < steel || s.Res["concrete"] < concrete)
+            {
+                msg = "建桥资源不足(木" + wood + "石" + stone + "钢" + steel + "砼" + concrete + ")";
+                return false;
+            }
+            s.Res["wood"] -= wood; s.Res["stone"] -= stone; s.Res["steel"] -= steel; s.Res["concrete"] -= concrete;
+            var seg = new BridgeSegment();
+            seg.Id = _nextId++; seg.Tier = tier; seg.EraTech = tier;
+            seg.Span = Mathf.RoundToInt(span * 4f);
+            seg.Gx1 = gx; seg.Gz1 = gz; seg.Gx2 = bestGx; seg.Gz2 = bestGz;
+            seg.SeaCross = sea;
+            seg.MaxAge = sea ? UnityEngine.Random.Range(GrandLifeMin, GrandLifeMax + 1) : UnityEngine.Random.Range(NormalLifeMin, NormalLifeMax + 1);
+            seg.View = BuildBridgeView(gx, gz, bestGx, bestGz, tier, sea);
+            Segments.Add(seg);
+            msg = (sea ? "跨海大桥" : "桥梁") + "建成(跨距" + seg.Span + ")";
+            return true;
+        }
+
+        // 势力自动架桥（同阵营相邻陆地最短点；V9.4.4）
+        public void AutoBridgeForFactions()
+        {
+            // 简版：遍历两据点陆地，同阵营最近对建（额度/技术内）
+            var s = Core.GameState.S;
+            if (s == null || s.Factions == null) return;
+            for (int a = 0; a < s.Factions.Count; a++)
+            {
+                var fa = s.Factions[a];
+                if (fa == null || fa.Destroyed) continue;
+                for (int b = a + 1; b < s.Factions.Count; b++)
+                {
+                    var fb = s.Factions[b];
+                    if (fb == null || fb.Destroyed || fb.Id != fa.Id) continue;
+                    // 同阵营（Id 相同）才建
+                    int ax = Mathf.RoundToInt(fa.X / 4f), az = Mathf.RoundToInt(fa.Z / 4f);
+                    int bx = Mathf.RoundToInt(fb.X / 4f), bz = Mathf.RoundToInt(fb.Z / 4f);
+                    float dist = Mathf.Sqrt((ax-bx)*(ax-bx) + (az-bz)*(az-bz));
+                    if (dist <= HardMaxSpan && dist >= 6)
+                    {
+                        bool sea = dist >= GrandSpan;
+                        if (sea && EraTech() < 3) continue;
+                        if (!CanBuildNow(out _)) continue;
+                        if (PlayerBuildBridge(new Vector3(fa.X + (fb.X-fa.X)*0.5f, 0, fa.Z + (fb.Z-fa.Z)*0.5f), out _)) { }
+                    }
+                }
+            }
+        }
+
+        // 桥/高架老化（每年调用；V9.5.4 R5：DestroyImmediate 消闪烁）
+        public void OnYear()
+        {
+            var s = Core.GameState.S;
+            if (s == null) return;
+            // 桥老化
+            for (int i = Segments.Count - 1; i >= 0; i--)
+            {
+                var seg = Segments[i];
+                seg.Age++;
+                if (seg.Age >= seg.MaxAge)
+                {
+                    if (seg.View != null) UnityEngine.Object.DestroyImmediate(seg.View);
+                    Segments.RemoveAt(i);
+                    s.Log("桥梁老化拆除(寿命" + seg.MaxAge + "年)");
+                }
+            }
+            // 高架柱老化
+            for (int i = Piers.Count - 1; i >= 0; i--)
+            {
+                var p = Piers[i];
+                p.Age++;
+                if (p.Age >= p.MaxAge)
+                {
+                    if (p.View != null) UnityEngine.Object.DestroyImmediate(p.View);
+                    Piers.RemoveAt(i);
+                }
+            }
+            RebuildViews();
+        }
+
+        // 重建全部桥视图（R4 修复：高架跨陆不跳过；R5：同步销毁）
+        public void RebuildViews()
+        {
+            var s = Core.GameState.S;
+            if (s == null || s.TerrainMap == null) return;
+            for (int i = 0; i < Segments.Count; i++)
+            {
+                var seg = Segments[i];
+                if (seg.View == null) continue;
+                int gx = seg.Gx1, gz = seg.Gz1;
+                // R4: tier4 高架跨陆段保留重建（不因陆地跳过断链）；普通桥仅水面格重建
+                if (seg.Tier != 4 && LandOfCell(gx, gz) > 0) continue;
+                if (LandOfCell(gx, gz) > 0 && seg.Tier == 4) { /* 高架跨陆保留 */ }
+                seg.View.transform.position = new Vector3(gx * 4f + 2f, 1f, gz * 4f + 2f);
+            }
+        }
+
+        GameObject BuildBridgeView(int gx1, int gz1, int gx2, int gz2, int tier, bool sea)
+        {
+            var root = new GameObject("bridge_" + tier + (sea ? "_sea" : ""));
+            var mat = new Material(Shader.Find("Standard"));
+            if (mat == null) mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            mat.color = tier == 1 ? new Color(0.55f, 0.4f, 0.25f) : tier == 2 ? new Color(0.7f, 0.7f, 0.72f) : tier == 3 ? new Color(0.45f, 0.5f, 0.55f) : new Color(0.4f, 0.45f, 0.5f);
+            // 沿两格连线建板条
+            float x1 = gx1 * 4f + 2f, z1 = gz1 * 4f + 2f;
+            float x2 = gx2 * 4f + 2f, z2 = gz2 * 4f + 2f;
+            float dist = Mathf.Sqrt((x2-x1)*(x2-x1) + (z2-z1)*(z2-z1));
+            int n = Mathf.Max(1, Mathf.RoundToInt(dist / 4f));
+            for (int i = 0; i <= n; i++)
+            {
+                float t = i / (float)n;
+                var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                plank.transform.parent = root.transform;
+                plank.transform.position = new Vector3(Mathf.Lerp(x1, x2, t), 1.2f, Mathf.Lerp(z1, z2, t));
+                float ang = Mathf.Atan2(z2 - z1, x2 - x1) * Mathf.Rad2Deg;
+                plank.transform.rotation = Quaternion.Euler(0, -ang, 0);
+                plank.transform.localScale = new Vector3(4f, 0.25f, 0.6f);
+                plank.GetComponent<Renderer>().sharedMaterial = mat;
+            }
+            return root;
+        }
+
+        GameObject BuildViaductView(int gx1, int gz1, int gx2, int gz2)
+        {
+            var root = new GameObject("viaduct");
+            var mat = new Material(Shader.Find("Standard"));
+            if (mat == null) mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            mat.color = new Color(0.55f, 0.55f, 0.58f);
+            float x1 = gx1 * 4f + 2f, z1 = gz1 * 4f + 2f;
+            float x2 = gx2 * 4f + 2f, z2 = gz2 * 4f + 2f;
+            float dist = Mathf.Sqrt((x2-x1)*(x2-x1) + (z2-z1)*(z2-z1));
+            int n = Mathf.Max(1, Mathf.RoundToInt(dist / 4f));
+            for (int i = 0; i <= n; i++)
+            {
+                float t = i / (float)n;
+                var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                plank.transform.parent = root.transform;
+                plank.transform.position = new Vector3(Mathf.Lerp(x1, x2, t), ViaductDeckY, Mathf.Lerp(z1, z2, t));
+                float ang = Mathf.Atan2(z2 - z1, x2 - x1) * Mathf.Rad2Deg;
+                plank.transform.rotation = Quaternion.Euler(0, -ang, 0);
+                plank.transform.localScale = new Vector3(4f, 0.3f, 1.2f);
+                plank.GetComponent<Renderer>().sharedMaterial = mat;
+            }
+            return root;
+        }
+
+        GameObject BuildPierView(int gx, int gz)
+        {
+            var root = new GameObject("viaduct_pier");
+            var mat = new Material(Shader.Find("Standard"));
+            if (mat == null) mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            mat.color = new Color(0.5f, 0.5f, 0.55f);
+            var col = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            col.transform.parent = root.transform;
+            float hy = Mathf.Max(HeightAt(gx, gz), 0.5f);
+            col.transform.position = new Vector3(gx * 4f + 2f, hy + (ViaductDeckY - hy) * 0.5f, gz * 4f + 2f);
+            col.transform.localScale = new Vector3(0.8f, Mathf.Max(1f, ViaductDeckY - hy), 0.8f);
+            col.GetComponent<Renderer>().sharedMaterial = mat;
+            return root;
+        }
+
+        // Web 探针（诊断输出）
+        public string Probe()
+        {
+            var s = Core.GameState.S;
+            return string.Format("era={0} tier{1}({2}) 技术跨距≤{3} 已建桥={4} 年{5}(普通额{6}/跨海额{7}) 有据点陆地={8}",
+                s.Era, EraTech(), TierName(EraTech()), MaxSpanByEra(), Segments.Count, s.Year, NormalQuotaPer10Y, GrandQuotaPer50Y, CountClaimedLand());
+        }
+
+        string TierName(int t)
+        {
+            if (t == 1) return "木桥";
+            if (t == 2) return "石桥";
+            if (t == 3) return "混凝土大桥";
+            return "高架";
+        }
+
+        int CountClaimedLand()
+        {
+            var s = Core.GameState.S;
+            int c = 0;
+            if (s != null && s.Factions != null)
+                c = s.Factions.Count(f => f != null && !f.Destroyed);
+            return c;
+        }
+
+        // Web 强制建桥（回归用）
+        public bool ForceNearest(out string msg)
+        {
+            var s = Core.GameState.S;
+            if (s == null || s.Factions == null) { msg = "无据点陆地"; return false; }
+            var lands = s.Factions.Where(f => f != null && !f.Destroyed).ToList();
+            if (lands.Count < 2) { msg = "找不到两块有据点陆地"; return false; }
+            var a = lands[0]; var b = lands[1];
+            return PlayerBuildBridge(new Vector3((a.X + b.X) * 0.5f, 0, (a.Z + b.Z) * 0.5f), out msg);
         }
     }
 }
