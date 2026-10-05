@@ -123,10 +123,10 @@ namespace PixelToCivilization.Core
             Add(Policy = gameObject.GetComponent<PolicySystem>() ?? gameObject.AddComponent<PolicySystem>());
             Add(Military = gameObject.GetComponent<MilitarySystem>() ?? gameObject.AddComponent<MilitarySystem>());
             Add(Tide = gameObject.GetComponent<TideSystem>() ?? gameObject.AddComponent<TideSystem>());
-            Add(OceanFlow = gameObject.GetComponent<OceanCurrentSystem>() ?? gameObject.AddComponent<OceanCurrentSystem>());
-            Add(Naval = gameObject.GetComponent<NavalSystem>() ?? gameObject.AddComponent<NavalSystem>());
-            Add(Ground = gameObject.GetComponent<GroundWarfareSystem>() ?? gameObject.AddComponent<GroundWarfareSystem>()); // V9.4.6 地面作战部队
-            Add(Combat = gameObject.GetComponent<CombatSystem>() ?? gameObject.AddComponent<CombatSystem>()); // V9.4.7 统一战斗目录（置于作战单位之后，Tick 末段用最新位置重建）
+        Add(OceanFlow = gameObject.GetComponent<OceanCurrentSystem>() ?? gameObject.AddComponent<OceanCurrentSystem>());
+        Add(Naval = gameObject.GetComponent<NavalSystem>() ?? gameObject.AddComponent<NavalSystem>());
+        Add(Ground = gameObject.GetComponent<GroundWarfareSystem>() ?? gameObject.AddComponent<GroundWarfareSystem>()); // V9.4.6 地面作战部队
+        Add(Combat = gameObject.GetComponent<CombatSystem>() ?? gameObject.AddComponent<CombatSystem>()); // V9.4.7 统一战斗目录（置于作战单位之后，Tick 末段用最新位置重建）
             Add(Ocean = gameObject.GetComponent<OceanExpansionSystem>() ?? gameObject.AddComponent<OceanExpansionSystem>());
             Add(Space = gameObject.GetComponent<SpaceExpansionSystem>() ?? gameObject.AddComponent<SpaceExpansionSystem>());
             Add(Canal = gameObject.GetComponent<CanalSystem>() ?? gameObject.AddComponent<CanalSystem>());
@@ -144,7 +144,7 @@ namespace PixelToCivilization.Core
             Add(CityFinance = gameObject.GetComponent<CityFinanceSystem>() ?? gameObject.AddComponent<CityFinanceSystem>()); // V9.0.7 城市财政/等级/地价
             Add(Gods = gameObject.GetComponent<GodsSystem>() ?? gameObject.AddComponent<GodsSystem>());
             Add(Env = gameObject.GetComponent<EnvironmentSystem>() ?? gameObject.AddComponent<EnvironmentSystem>());
-            Add(Weather = gameObject.GetComponent<WeatherSystem>() ?? gameObject.AddComponent<WeatherSystem>());
+        Add(Weather = gameObject.GetComponent<WeatherSystem>() ?? gameObject.AddComponent<WeatherSystem>());
             Add(Philosophy = gameObject.GetComponent<PhilosophySystem>() ?? gameObject.AddComponent<PhilosophySystem>());
             Add(Disaster = gameObject.GetComponent<DisasterSystem>() ?? gameObject.AddComponent<DisasterSystem>());
             Add(HistoryEvent = gameObject.GetComponent<HistoryEventSystem>() ?? gameObject.AddComponent<HistoryEventSystem>());
@@ -605,6 +605,8 @@ namespace PixelToCivilization.Core
             Debug.Log(ModernTraffic.Diagnose());
         }
 
+        /// <summary>V9.0.2 城市公共服务：跳到当代，确定性落位一片紧凑现代社区（住宅+六类设施），
+        /// 回报六类覆盖率，并走年度结算与强制城市事件，验证受控/失控分支不抛异常（无参 Web 探针）。</summary>
         // ===== V9.1.0 真实地球模式 WebGL 无参探针（SendMessage 无法绑定 int 形参） =====
         public void WebNewEarth(){ NextEarthMode=true; StartNewRandomGame(); Debug.Log("[Web] NewEarth EarthMode="+State.EarthMode); }
         public void WebNewClassic(){ NextEarthMode=false; StartNewRandomGame(); Debug.Log("[Web] NewClassic EarthMode="+State.EarthMode); }
