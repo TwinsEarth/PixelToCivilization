@@ -56,17 +56,21 @@ namespace PixelToCivilization.Systems
             return t;
         }
 
-        /// <summary>注册全部建筑：attack 塔归 K_TOWER，其余归 K_BUILDING（树木不在 S.Buildings，天然不注册）</summary>
+        /// <summary>注册建筑为战斗目标：只注册防御工事（attack>0 塔 / defense>0 城墙碉堡）为 K_TOWER。
+        /// V9.5.6 治本：生产建筑（hut/farm/market 等）不再注册进统一战斗目录——否则敌方势力士兵平时即自动索敌锁定并
+        /// 拆光全部生产建筑（开局 4 势力 × 常备兵在高倍速下 20 秒可拆光 24 栋），产出归零导致粮食/金币/文化/科技
+        /// "看似乱扣"地慢性跌光。战争状态（WarActive）下 MilitarySystem.ChooseGoal 攻城逻辑仍可拆任意建筑，
+        /// 保留 V9.4.7「建筑可被破坏」语义。树木不在 S.Buildings，天然不注册。</summary>
         void RegisterBuildings()
         {
             foreach (var b in S.Buildings)
             {
                 if (b == null || b.Def == null) continue;
+                if (b.Def.GetFunc("attack") <= 0 && b.Def.GetFunc("defense") <= 0) continue;
                 int lv = Mathf.Max(1, b.Level);
-                bool tower = b.Def.GetFunc("attack") > 0;
                 float atk = b.Def.GetFunc("attack") * (1f + (lv - 1) * 0.3f);
                 float rng = b.Def.GetFunc("range") * (1f + (lv - 1) * 0.08f) * GameConstants.Tile;
-                Add(tower ? K_TOWER : K_BUILDING, b, b.X, b.Z, b.Hp, atk, rng, PlayerKey);
+                Add(K_TOWER, b, b.X, b.Z, b.Hp, atk, rng, PlayerKey);
             }
         }
 
