@@ -2,16 +2,16 @@
 
 > 一款从三皇五帝到太空时代的 **Q 版低多边形 4X 文明模拟游戏**。开局一座海边村落，看着小人出生、成长、劳作、结婚、衰老；看王朝分合、群雄争霸、扬帆殖民、迈向海洋与星辰。九位“AI 神灵”共治，目标是让文明在无人干预下延续五千年乃至一万年。
 
-- **引擎**：团结引擎 Tuanjie 2022.3.61t13（基于 Unity 2022.3 LTS）
+- **引擎**：团结引擎 Tuanjie 2022.3.62t12（基于 Unity 2022.3 LTS）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.4.7「统一跨阵营作战规则」——军舰、军车、军人、塔防、骑兵五类作战单位接入统一战斗目录，按“阵营不同”跨类型自动索敌开火，敌方各派互相攻伐；除树木外建筑均可被破坏（含 V9.4.6 体积碰撞、1949 地面装甲、高架桥柱连片）
+- **当前版本**：V9.5.2「上线硬化」——资源栏数字过万自动紧凑为“万/亿”、彻底解决图标遮挡；修复 Tuanjie 原生组件 LODGroup 假空对象 MissingComponentException；命令行构建、PlayMode 冒烟、万年存续压测与浏览器四项回归全部通过
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
 ## ▶ 立即试玩（无需安装）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.4.7_HTML5.zip`（约 88 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.5.2_HTML5.zip`（约 58 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
 
 - **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
 - **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
@@ -51,6 +51,11 @@
 - 除树木外所有建筑（含墙、房屋、设施）都可被攻击直至摧毁，摧毁不返还资源；塔的箭/火/炮投射物保留。
 - 1949 年起地面坦克、装甲车、导弹车等装甲部队参战；航母自动发射舰载机、直升机与喷气机。
 
+**上线硬化（V9.5.x）**
+- **资源栏紧凑格式**：数值不足 1 万显示完整整数；≥1 万自动以“万”、≥1 亿以“亿”显示（如 1000000 → “100万”）；配合顶部栏 item/icon/label 收紧，数字恒定落在预留宽度内、不再被图标居中劈开遮挡。
+- **LODGroup 假空修复**：Tuanjie 原生组件下 `GetComponent<LODGroup>()` 未命中时会返回 Unity 重写 `==` 判空但 CLR 引用非空的“假空对象”，`??` 无法识别、对其调用 `SetLODs` 会在原生边界抛 `MissingComponentException`；改为显式 `if (lg == null) lg = AddComponent<LODGroup>()`，并补诊断工具 LODDiag。
+- **构建/冒烟流水线**：命令行 WebGLBuilder 一键出包；新增 PlayMode 状态机冒烟 V601SmokeTest（开局/建造/逐时代跳年/渲染体检/UI 射线），覆盖 5100 年 8 个时代；长年代走 `DebugJumpTo` 逐年补结，避免全实时 Tick 卡死。
+
 **真实地球文明（V9.x，开局可选）**
 - 按现实地球地形/气候生成世界，公元 1700 年（美国建国前后）开局，现代风格建筑、大马路、铁路、飞机与城市公共设施（消防站/医院/警局/学校/公园/市场/小区）。
 - 14 个主权国、38 座城市按经纬度落位，每个地理文化分区至多 3 国；四大阵营配色；南极、北极为无人岛。
@@ -71,15 +76,15 @@
 
 ## 🛠 从源码构建
 
-1. 安装 **团结引擎 Tuanjie 2022.3.61t13**（或兼容的 Unity 2022.3 LTS）。
+1. 安装 **团结引擎 Tuanjie 2022.3.62t12**（或兼容的 Unity 2022.3 LTS）。
 2. 用 Hub “Add project from disk” 打开仓库根目录（含 `Assets`、`ProjectSettings`、`Packages`）。
 3. 等待首次导入完成。
 
 **命令行一键出 WebGL 包**（Windows 示例）：
 
 ```powershell
-& "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Tuanjie.exe" `
-  -batchmode -quit `
+& "E:\Unity\2022.3.62t12\Editor\Tuanjie.exe" `
+  -batchmode -quit -buildTarget WebGL `
   -projectPath "<本仓库路径>" `
   -executeMethod PixelToCivilization.EditorTools.WebGLBuilder.BuildCLI `
   -logFile build.log
@@ -96,7 +101,7 @@
 | 移动视角 | 鼠标拖拽 / 边缘平移（WASD） |
 | 缩放 | 鼠标滚轮 |
 | 选择 / 建造 / 种树 / 招民 | 底部快捷栏切换工具后点击地面 |
-| 时间流速 | 左下角暂停 / 倍速 / 滑条（Debug 档最高 1000×） |
+| 时间流速 | 底部暂停 / 倍速 / 滑条（Debug 档最高 1000×） |
 | 小地图 | 点击跳转、雷达显示势力与单位 |
 | 高级 Debug | 帮助界面输入密码解锁（本地单机功能） |
 | 存档 | 左下角存档/读档，自动存档 + 多槽位，读档精确恢复世界/人物年龄/副本 |
@@ -116,7 +121,7 @@ Assets/Scripts/
 ├─ UI/          极简 UI、小地图、浮窗、Debug/存档/帮助面板
 ├─ AI/          九神共治（在线 LLM + 离线规则兜底）
 ├─ Rendering/   材质/LOD/天空等渲染
-└─ Editor/      WebGLBuilder 命令行构建入口
+└─ Editor/      WebGLBuilder、PlayMode 冒烟、LOD 诊断等命令行入口
 Assets/Resources/Models3D/   Quaternius / Kenney 的 CC0 可选写实模型
 ```
 
@@ -133,7 +138,7 @@ setx PXC_ARK_API_KEY "你的方舟(Volcengine Ark)兼容接口 Key"
 export PXC_ARK_API_KEY="你的 Key"
 ```
 
-也可在游戏内帮助 / Debug / 九神面板自行填写 Key（不随包分发）。**请勿把密钥提交进仓库。**
+也可在游戏内帮助 / Debug / 九神面板点击按钮弹窗填写 Key（不随包分发）。**请勿把密钥提交进仓库。**
 
 ---
 
@@ -151,6 +156,8 @@ export PXC_ARK_API_KEY="你的 Key"
 | V9.3 | 船只系统大升级：1949 前木船、之后轮船/邮轮/油轮/驱逐舰/导弹舰/航母/潜艇/舰载机，等级决定载员/耐久/攻击/雷达与满编战斗力；现代车辆与航母舰载机 |
 | V9.4 | 界面多轮收紧、资源栏对齐、玩家手动建路/桥/铁路（自动连网）、敌船镜像与雷达追击、体积碰撞、1949 地面装甲、高架桥柱连片 |
 | V9.4.7 | 统一跨阵营作战：五类单位统一战斗目录、跨类型索敌、敌方各派互攻、建筑（除树木）可破坏 |
+| V9.5.0 | 上线五阶段硬化：项目审计、版本号统一、命令行构建、浏览器端到端回归 |
+| V9.5.2 | 资源栏“万/亿”紧凑格式彻底解决图标遮挡；LODGroup 假空 MissingComponentException 修复；PlayMode 冒烟与万年存续压测 |
 
 ## 🤝 贡献
 
