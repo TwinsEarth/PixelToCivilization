@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.IO;
 using System.Text;
@@ -22,11 +22,10 @@ namespace PixelToCivilization.EditorTools
         [MenuItem("像素到文明/④ 打包 HTML5 网页版(WebGL)")]
         public static void Build()
         {
-            // V7.0.6 构建前强制全量导入：命令行 -batchmode 下新增脚本（如对象池/帧预算）若未被
-            // AssetDatabase 导入，BuildPlayer 会漏编译导致“类型不存在”的 CS0103/CS0234 错误。
+            // V7.0.6 构建前强制全量导入
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
 
-            // 1) 切换到 WebGL 平台（缺模块时这里会返回 false 并给出明确提示）
+            // 1) 切换到 WebGL 平台
             bool switched = EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL);
             if (!switched)
                 throw new Exception("切换 WebGL 平台失败：请先在 Tuanjie Hub 为本编辑器安装「WebGL Build Support」模块。");
@@ -41,8 +40,6 @@ namespace PixelToCivilization.EditorTools
             var options = new BuildPlayerOptions
             {
                 scenes = new[]{ ScenePath },
-                // WebGL 的 locationPathName 必须是“输出目录”（Unity 会在其中生成 index.html/Build/TemplateData），
-                // 若写成 .../index.html 会被当成名为 index.html 的子目录。
                 locationPathName = outDir,
                 target = BuildTarget.WebGL,
                 targetGroup = BuildTargetGroup.WebGL,
@@ -83,12 +80,12 @@ namespace PixelToCivilization.EditorTools
             // API 级别 .NET Standard 2.1（与 C#9 兼容）
             try { PlayerSettings.SetApiCompatibilityLevel(BuildTargetGroup.WebGL, ApiCompatibilityLevel.NET_Standard); } catch {}
 
-            // 浏览器兼容：关多线程（避免需要 COOP/COEP 跨域隔离头）、压缩关闭（任意静态服务器可直接跑）
+            // 浏览器兼容：关多线程、压缩关闭
             PlayerSettings.WebGL.threadsSupport = false;
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly; // V9.0.1 Release（启动越界已修复：地形边界夹紧+降采样碰撞体）
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly; // V9.0.1 Release
             PlayerSettings.WebGL.debugSymbolMode = WebGLDebugSymbolMode.Off;
-            PlayerSettings.WebGL.dataCaching = false;   // V6.7.1fix 关闭 IndexedDB 数据缓存：同源多版本 .data 同名会与新 wasm 偏移错位，导致 _main 阶段 memory access out of bounds
+            PlayerSettings.WebGL.dataCaching = false;   // V6.7.1fix 关 IndexedDB 缓存
 
             // 默认横屏 1080p、后台运行、产品名固定
             PlayerSettings.runInBackground = true;
@@ -96,11 +93,11 @@ namespace PixelToCivilization.EditorTools
             PlayerSettings.defaultScreenWidth = 1920;
             PlayerSettings.defaultScreenHeight = 1080;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
-            PlayerSettings.productName = "从像素到文明 V9.3.12";
+            PlayerSettings.productName = "从像素到文明 V9.5.0";
             PlayerSettings.companyName = "ToFuture";
         }
 
-        /// <summary>扫描构建产物里的 loader 脚本名，生成自定义中文全屏加载页（默认横屏铺满、进度条、全屏按钮）</summary>
+        /// <summary>扫描构建产物里的 loader 脚本名，生成自定义中文全屏加载页</summary>
         static void WriteCustomIndex(string outDir)
         {
             string buildDir = Path.Combine(outDir, "Build");
@@ -110,34 +107,36 @@ namespace PixelToCivilization.EditorTools
             if (string.IsNullOrEmpty(loader)) loader = "build.loader.js";
 
             string baseName = loader.Replace(".loader.js", "");
+            // V9.4.6 AI 密钥注入；VER 唯一化追加构建时间戳强制缓存失效
+            string verStamp = BuildVer + "-" + DateTime.Now.ToString("HHmmss");
             string html = IndexTemplate
                 .Replace("__LOADER__", loader)
                 .Replace("__DATA__", baseName + ".data")
                 .Replace("__FRAME__", baseName + ".framework.js")
                 .Replace("__CODE__", baseName + ".wasm")
                 .Replace("__AIKEY__", System.Environment.GetEnvironmentVariable("PXC_AI_KEY") ?? "")
-            // V9.3.12 AI 密钥注入：构建时若设置了环境变量 PXC_AI_KEY 则写入 index.html meta ai-key（游戏启动自动读取）；未设置则留空=离线规则自治
-                .Replace("__VER__", BuildVer);
+                .Replace("__VER__", verStamp)
+                .Replace("__PV__", BuildVer);
             File.WriteAllText(Path.Combine(outDir, "index.html"), html, new UTF8Encoding(false));
             File.WriteAllText(Path.Combine(outDir, "启动网页版说明.txt"), ReadmeText, new UTF8Encoding(true));
             WriteServerScripts(outDir);
         }
 
-        /// <summary>生成本地静态服务器脚本（Windows .bat/.ps1 与 macOS .command），解决 WebGL 不能 file:// 直开的问题</summary>
+        /// <summary>生成本地静态服务器脚本（Windows .bat/.ps1 与 macOS .command）</summary>
         static void WriteServerScripts(string outDir)
         {
             File.WriteAllText(Path.Combine(outDir, "serve_web.ps1"), ServePs1, new UTF8Encoding(true));
-            // macOS .command 必须是 LF 行尾、无 BOM，否则 shebang 失效报“程序不可用”
+            // macOS .command 必须是 LF 行尾、无 BOM
             string cmd = StartCommand.Replace("\r\n", "\n");
             File.WriteAllText(Path.Combine(outDir, "start_webserver.command"), cmd, new UTF8Encoding(false));
             File.WriteAllText(Path.Combine(outDir, "Mac启动说明.txt"), ReadmeMac, new UTF8Encoding(true));
-            // Windows bat 用 GBK + CRLF，避免中文乱码
+            // Windows bat 用 GBK + CRLF
             var gbk = System.Text.Encoding.GetEncoding(936);
             string bat = StartBat.Replace("\r\n", "\n").Replace("\n", "\r\n");
             File.WriteAllBytes(Path.Combine(outDir, "start_webserver.bat"), gbk.GetBytes(bat));
         }
 
-        const string BuildVer = "9.3.12";
+        const string BuildVer = "9.5.0";
         const string IndexTemplate = @"<!doctype html>
 <html lang=""zh-CN"">
 <head>
@@ -146,7 +145,7 @@ namespace PixelToCivilization.EditorTools
 <meta http-equiv=""Cache-Control"" content=""no-store,no-cache,must-revalidate"">
 <meta http-equiv=""Pragma"" content=""no-cache"">
 <meta name=""ai-key"" content=""__AIKEY__"">
-<title>从像素到文明 V9.3.12 · HTML5 网页版 · 九神AI·DeepSeek直连</title>
+<title>从像素到文明 V9.5.0 · HTML5 网页版 · 九神AI·生产硬化版</title>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#0e72c8;overflow:hidden;font-family:'Microsoft YaHei',PingFang SC,Arial,sans-serif;}
   #game{position:fixed;inset:0;width:100%;height:100%;}
@@ -171,7 +170,7 @@ namespace PixelToCivilization.EditorTools
 <canvas id=""game""></canvas>
 <div id=""boot"">
   <h1>从 像 素 到 文 明</h1>
-  <p>V9.3.12 · HTML5 网页版 · 九神AI接入 DeepSeek-V4.1-Flash（deepseek-flash）· 联网议政 / 离线规则兜底永不灭绝 / 保留 V9.3.8 全部玩法</p>
+  <p>V9.5.0 · HTML5 网页版 · 生产上线硬化版：审计/新局作战状态全清理（敌舰·舰载机·地面部队·编队）+ 九神AI重构 + 玩家单点建路/桥/铁路联网 + 跨平台部署</p>
   <div id=""bar""><div id=""fill""></div></div>
   <div id=""pct"">正在加载 0%</div>
 </div>
@@ -180,20 +179,19 @@ namespace PixelToCivilization.EditorTools
 <script>
   var fill=document.getElementById('fill'),pct=document.getElementById('pct'),boot=document.getElementById('boot'),err=document.getElementById('err');
   function showErr(m){err.style.display='block';err.textContent=m;}
-  // V6.7.1fix 版本变化时清掉同源旧 Unity IndexedDB 缓存，杜绝旧 .data 与新 wasm 错位导致 memory access out of bounds
+  // V6.7.1fix 版本变化时清掉同源旧 Unity IndexedDB 缓存
   (function(){try{var K='pxc_build_ver',V='__VER__';if(localStorage.getItem(K)!==V){localStorage.setItem(K,V);if(window.indexedDB&&indexedDB.deleteDatabase){indexedDB.deleteDatabase('UnityCache');}}}catch(e){}})();
   var VER='?v=__VER__';
   var script=document.createElement('script');
   script.src='Build/__LOADER__'+VER;
   script.onload=function(){
-    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.3.12',productVersion:'__VER__'};
+    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.5.0',productVersion:'__PV__'};
     createUnityInstance(document.querySelector('#game'),cfg,function(progress){
       var p=Math.round(progress*100);fill.style.width=p+'%';pct.textContent='正在加载 '+p+'%';
     }).then(function(inst){window.unityInstance=inst;var _mk=document.querySelector('meta[name=""ai-key""]');if(_mk&&_mk.getAttribute('content')){inst.SendMessage('GameManager','WebAISetKey',_mk.getAttribute('content'));}
-      // V9.3.12 WebGL 输入焦点兜底：点击画布/任何按键都确保 canvas 拿到浏览器键盘焦点（否则 UGUI InputField 点击后敲键无响应）
-      // 注意：Unity 2022.3.61 loader 把 canvas 建在 body 顶层且 id 即 game（#game div 为空壳），故用 querySelector('canvas')
+      // V9.4.6 WebGL 输入焦点兜底
       var _cv=document.querySelector('canvas');if(_cv){_cv.setAttribute('tabindex','0');document.addEventListener('mousedown',function(e){var c=document.querySelector('canvas');if(c&&(e.target===c||c.contains(e.target))){c.focus();}});document.addEventListener('keydown',function(e){var c=document.querySelector('canvas');if(c&&document.activeElement!==c){c.focus();}});}
-      // V9.3.12 剪贴板桥：读取系统剪贴板并送入 Unity（WebGL 右键菜单/Ctrl+V 粘贴不可靠的兜底；Unity 侧 ApiKeyPrompt 显示时填入输入框）
+      // V9.4.6 剪贴板桥
       window.PXC_ReadClipboard=function(){
         function send(t){ if(window.unityInstance) window.unityInstance.SendMessage('GameManager','WebApplyClipboard',(t||'').trim()); }
         function fallback(){
@@ -207,7 +205,6 @@ namespace PixelToCivilization.EditorTools
         else fallback();
       };
       document.addEventListener('keydown',function(e){
-        // Ctrl/Cmd+V 兜底：不阻止默认（Unity 原生粘贴优先），若 350ms 后 JS 侧再读剪贴板补送一次（重复赋同值无可见伤害）
         if((e.ctrlKey||e.metaKey)&&(e.key==='v'||e.key==='V')){ setTimeout(function(){ try{window.PXC_ReadClipboard();}catch(e3){} },350); }
       });
       boot.style.opacity='0';setTimeout(function(){boot.style.display='none';},600);})
@@ -223,30 +220,29 @@ namespace PixelToCivilization.EditorTools
 </html>";
 
         const string ReadmeText =
-            "《从像素到文明》V9.3.12 HTML5 网页版 — 运行说明（九神AI接入 DeepSeek-V4.1-Flash）\r\n" +
+            "《从像素到文明》V9.5.0 HTML5 网页版 — 运行说明（九神AI生产硬化版；AI Key 游戏内自填，不随包分发）\r\n" +
             "==========================================\r\n\r\n" +
             "一、为什么不能直接双击 index.html？\r\n" +
             "    Unity WebGL 出于浏览器安全策略，必须通过 http(s) 访问，直接用 file:// 双击通常会被拦截。\r\n\r\n" +
             "二、最简单：使用自带本地服务器\r\n" +
-            "    1) Windows：双击本目录下的 start_webserver.bat，会自动选择空闲端口（默认 8000，被占用则顺延）并打开浏览器\r\n" +
+            "    1) Windows：双击本目录下的 start_webserver.bat，自动选择空闲端口并打开浏览器\r\n" +
             "    2) macOS：双击 start_webserver.command\r\n" +
             "    3) 或在本目录执行：python -m http.server 8000，再访问 http://localhost:8000\r\n\r\n" +
             "三、手机 / 平板\r\n" +
-            "    把整个 BuildWebGL 目录部署到任意静态网站托管（或本机服务器），手机浏览器访问对应地址，\r\n" +
-            "    默认横屏全屏；iOS Safari / 安卓 Chrome 均可，右下角按钮可切换全屏。\r\n\r\n" +
+            "    把整个 BuildWebGL 目录部署到任意静态网站托管，手机浏览器访问对应地址，默认横屏全屏。\r\n\r\n" +
             "四、性能提示\r\n" +
-            "    本版本已按网页端自动降档（程序贴图 128、关闭景深/色散/颗粒）。如仍卡顿，可在较新设备上体验。\r\n";
+            "    本版本已按网页端自动降档。如仍卡顿，可在较新设备上体验。\r\n";
 
         const string StartBat = @"@echo off
 chcp 936 >nul
-title PixelToCivilization V9.3.12 Web Server
+title PixelToCivilization V9.5.0 Web Server
 cd /d ""%~dp0""
-rem V6.7.1: auto pick free port so a stale old server cannot hijack 8000
+rem V6.7.1: auto pick free port
 set PORT=8000
 :findport
 netstat -ano -p tcp | findstr /R /C:"":%PORT% .*LISTENING"" >nul 2>nul && set /a PORT+=1 && goto findport
 echo ================================================
-echo   从像素到文明 V9.3.12 · 本地网页服务器
+echo   从像素到文明 V9.5.0 · 本地网页服务器
 echo   URL: http://localhost:%PORT%/
 echo   (8000 被旧版本占用时自动顺延到下一端口)
 echo   关闭本窗口即停止服务
@@ -271,7 +267,7 @@ pause
         const string ServePs1 = @"$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 function Get-FreePort($start){
-  for($pp=$start;$pp -lt ($start+80);$pp++){
+  for($pp=$start;$pp<($start+80);$pp++){
     try{ $tl=New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback,$pp); $tl.Start(); $tl.Stop(); return $pp }catch{ }
   }
   return $start
@@ -284,7 +280,7 @@ $mime = @{ '.html'='text/html; charset=utf-8';'.js'='application/javascript; cha
   '.data'='application/octet-stream';'.json'='application/json';'.css'='text/css';'.png'='image/png';'.ico'='image/x-icon';
   '.br'='application/brotli';'.gz'='application/gzip';'.mem'='application/octet-stream';'.bin'='application/octet-stream';'.txt'='text/plain; charset=utf-8' }
 Write-Host ""服务器已启动: http://localhost:$port/  关闭窗口即停止"" -ForegroundColor Yellow
-Start-Process ""http://localhost:$port/""
+Start-Object ""http://localhost:$port/""
 while ($listener.IsListening) {
   try {
     $ctx = $listener.GetContext()
@@ -306,13 +302,13 @@ while ($listener.IsListening) {
 ";
 
         const string StartCommand = @"#!/bin/bash
-# 从像素到文明 V9.3.12 - macOS 本地网页服务器
+# 从像素到文明 V9.5.0 - macOS 本地网页服务器
 cd ""$(dirname ""$0"")"" || exit 1
 PORT=8000
 while lsof -iTCP:$PORT -sTCP:LISTEN -nP >/dev/null 2>&1; do PORT=$((PORT+1)); done
 LANIP=""$(ipconfig getifaddr en0 2>/dev/null)""
 echo ""================================================ ""
-echo ""  从像素到文明 V9.3.12 · 本地网页服务器""
+echo ""  从像素到文明 V9.5.0 · 本地网页服务器""
 echo ""  本机浏览器: http://localhost:$PORT/""
 if [ -n ""$LANIP"" ]; then echo ""  手机同网段: http://$LANIP:$PORT/  (默认横屏全屏)""; fi
 echo ""  关闭本窗口即停止服务""
@@ -330,8 +326,8 @@ echo """"
 echo ""按回车关闭窗口...""; read -r
 ";
 
-        // macOS 排错说明（Windows 压缩包可能丢可执行位，给出右键/chmod/终端三种兜底）
-        const string ReadmeMac = @"《从像素到文明》V9.3.12 — macOS 启动说明
+        // macOS 排错说明
+        const string ReadmeMac = @"《从像素到文明》V9.5.0 — macOS 启动说明
 ========================================
 
 ★ 如果提示“已损坏，无法打开 / 您应该将它移到废纸篓”（最常见，必看）
@@ -346,30 +342,27 @@ echo ""按回车关闭窗口...""; read -r
 【首选】双击 start_webserver.command
   会自动选择空闲端口（默认 8000，被占用则顺延）并打开浏览器开始游戏；关闭弹出的终端窗口即停止服务。
 
-如果双击提示“程序不可用 / 无法打开 / 没有权限 / 来自身份不明开发者”，
-按下面任一方法即可（压缩包在 Windows 制作，个别解压工具会丢掉可执行权限）：
+如果双击提示“程序不可用 / 无法打开 / 没有权限 / 来自身份不明开发者”，按下面任一方法即可：
 
 方法一（最省事）：右键打开
   在 start_webserver.command 上点右键 → “打开” → 弹窗里再点一次“打开”。
 
 方法二：补一次可执行权限（一劳永逸）
-  1. 打开“终端”（启动台 → 其他 → 终端）
+  1. 打开“终端”
   2. 输入  chmod +x   （x 后面有一个空格，先别回车）
   3. 把 start_webserver.command 拖进终端窗口，会自动补上路径
   4. 回车，之后双击即可正常运行
 
 方法三：不用脚本，终端直接起服务
-  1. 终端输入  cd   （cd 后有空格），把“整个游戏文件夹”拖进终端，回车
+  1. 终端输入  cd  ，把“整个游戏文件夹”拖进终端，回车
   2. 输入  python3 -m http.server 8000  回车
   3. 浏览器打开 http://localhost:8000/
 
 如果提示“未找到 python3”：
-  在终端执行一次  xcode-select --install  按提示安装苹果命令行工具；
-  或已装 Homebrew 的执行  brew install python  ，之后再启动。
+  在终端执行一次  xcode-select --install  按提示安装；或已装 Homebrew 的执行  brew install python。
 
 手机 / iPad（同一 Wi-Fi）：
-  电脑启动脚本后，终端会显示“手机同网段: http://192.168.x.x:8000/”，
-  手机浏览器打开该地址即可，默认横屏全屏。
+  电脑启动脚本后，终端会显示“手机同网段: http://192.168.x.x:8000/”，手机浏览器打开该地址即可，默认横屏全屏。
 ";
     }
 }
