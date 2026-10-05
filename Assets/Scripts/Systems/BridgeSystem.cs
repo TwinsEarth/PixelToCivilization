@@ -296,7 +296,7 @@ namespace PixelToCivilization.Systems
                 if(gx<0||gx>=G||gz<0||gz>=G)continue;
                 int lid=LandOfCell(gx,gz);
                 if(lid>0){ if(lid!=landA&&lid!=landB){Rollback(marked);return;} continue; }
-                // V9.1.1 桥只能跨真海：中段若为淡水（内陆湖/河）则不建，杜绝“陆地上的大桥 / 跨湖桥”
+                // V9.1.1 桥只能跨真海：中段若为淡水（内陆湖/河）则不建，杜绝"陆地上的大桥 / 跨湖桥"
                 if(_w.BiomeAt(wx,wz)==BiomeKind.FreshWater){Rollback(marked);return;}
                 int idx=Idx(gx,gz);
                 if(S.BridgeCells.Add(idx)){marked.Add(idx);_cellTier[idx]=tier;}
