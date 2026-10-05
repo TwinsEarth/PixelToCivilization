@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
@@ -13,6 +13,8 @@ namespace PixelToCivilization.Systems
     {
         // 每秒产出（供UI显示）
         public Dictionary<string, float> ProductionRate { get; } = new();
+        public float FoodConsumptionRate;   // V9.5.6 粮食消耗率（Pop*0.02+士兵*0.05，供资源审计探针读取）
+        public float FoodProductionRate;    // V9.5.6 粮食产出率（乘数后）
         private readonly string[] _stoneBuildings = { "market","temple","well","rich_house","noble_palace","mine","altar","wall","great_wall","watchtower","barracks","palace","pagoda","granary","bank","porcelain_kiln","arsenal","grand_hall","brick_works","factory_pre","factory_modern","power_plant","data_center","skyscraper","ai_lab","space_elevator","fusion_plant","lunar_base","mars_colony","orbital_station","dyson_swarm","subway" };
         private float _warnCd;
         private float _starveAcc;   // V9.1.3 饥荒按 dt 累加器：修正 CeilToInt 每帧恒为 1 导致 60fps 每秒掉 60 人
@@ -105,6 +107,7 @@ namespace PixelToCivilization.Systems
             S.AddRes("culture", culture*dt*0.3f);
             S.AddRes("goods", goods*dt*0.2f);
 
+            FoodProductionRate = food;
             ProductionRate["food"]=food;ProductionRate["gold"]=gold+trade*0.66f;ProductionRate["wood"]=wood;
             ProductionRate["stone"]=stone;ProductionRate["iron"]=iron;ProductionRate["research"]=research;
             ProductionRate["culture"]=culture;ProductionRate["goods"]=goods;ProductionRate["bronze"]=bronze;
@@ -124,6 +127,7 @@ namespace PixelToCivilization.Systems
             foreach (var b in S.Buildings)
                 if (b.Type=="school"||b.Type=="academy_pre"||b.Type=="printing_house") foodC += 0.02f;
             S.AddRes("food", -foodC*dt*0.5f);
+            FoodConsumptionRate = foodC;
 
             float goldC = S.MilSoldiers*0.01f + (S.CurrentResearch!=null?0.05f:0) + (S.WarActive?0.1f:0);
             foreach (var b in S.Buildings)

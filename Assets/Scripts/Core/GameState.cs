@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Data;
@@ -116,6 +116,7 @@ namespace PixelToCivilization.Core
         // V6.3.9 桥梁：桥面格索引（供车辆越水通行）+ 每座桥 5 整数 [gx0,gz0,gx1,gz1,tier]
         public HashSet<int> BridgeCells = new();
         public List<int> BridgeRuns = new();
+        public List<float> Piers = new();   // V9.4.6 高架柱（玩家手动放置，成对 x,z 连续存储；自动连片生成高架桥面）
         public List<CartEntity> Carts = new(); // 马车/运输车辆，V6.1.1 四级锚点车辆系统
 
         // ---- 海洋副本 ----
@@ -175,7 +176,12 @@ namespace PixelToCivilization.Core
         {
             // V9.1.3 修复：资源键不存在且为扣减时不写入 0 值键，防止长期运行资源键只增不减
             if (!Res.TryGetValue(id, out var v)) { if (delta <= 0f) return; v = 0f; Res[id] = 0f; }
-            Res[id] = Mathf.Max(0, v + delta);
+            float nv = v + delta;
+            // V9.5.6 资源异常扣减审计：v>1000 且单次扣减超过 2%（按比例复利是"几百万骤降到几千"的主因），
+            // 用 Debug.LogWarning 由 Unity 打印调用栈（IL2CPP/WebGL 下 Debug.Log 自动附带调用栈）。
+            if (delta < 0f && v > 1000f && -delta > v * 0.02f)
+                Debug.LogWarning($"[RES-AUDIT] {id}: {v:F0} -> {nv:F0}（-{(-delta/v*100f):F1}%，年{Year}）");
+            Res[id] = Mathf.Max(0, nv);
         }
         public bool CanAfford(Dictionary<string,int> cost)
         {
@@ -228,7 +234,7 @@ namespace PixelToCivilization.Core
             Colonies.Clear(); ColonialAge=false;
             OceanExp=new ExpeditionState(){ MapType="ocean" };
             SpaceExp=new ExpeditionState(){ MapType="space" };
-            CanalSegments=0;CanalBonus=0;CanalAutoBuild=false;CanalBuildTimer=0;CanalCells.Clear(); BridgeCells.Clear(); BridgeRuns.Clear();
+            CanalSegments=0;CanalBonus=0;CanalAutoBuild=false;CanalBuildTimer=0;CanalCells.Clear(); BridgeCells.Clear(); BridgeRuns.Clear(); Piers.Clear();   // V9.4.6 高架柱随重开清理
             TideLevel=0;TidePhase=0;TideHigh=false;
             MonthlyTide=0;MonthlyFlooding=true;DayOfMonth=1;WeatherKind=0;WeatherTimer=0;WindDir=0;WindStr=0.6f;
             OceanFleets.Clear();OceanDiscovered.Clear();OceanUnlocked=false;
