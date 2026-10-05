@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
 using PixelToCivilization.Systems;
@@ -77,7 +77,11 @@ namespace PixelToCivilization.World
             _ghost.SetActive(true);
             string st=_gm.State.SelectedBuildType;
             bool ok;
-            if (st!=null && st.StartsWith("cart:")) ok=_gm.Cart.CanBuild(st.Substring(5),p.x,p.z,out _); // CanBuild 已含陆地判定
+            // V9.4.4 特殊基建：bridge/rail/intercity_road 为玩家触发型（桥梁点岸边、铁路/公路点城市），虚影恒绿
+            if (st=="bridge"||st=="rail"||st=="intercity_road") ok=true;
+            // V9.5.3 地面作战部队：列装点须为陆地（BuildGround 内部再判）
+            else if (st!=null && st.StartsWith("ground:")) ok=true;
+            else if (st!=null && st.StartsWith("cart:")) ok=_gm.Cart.CanBuild(st.Substring(5),p.x,p.z,out _); // CanBuild 已含陆地判定
             else if (st!=null && st.StartsWith("ship:")) ok=true;
             else ok=_gm.Building.CanBuild(st,p.x,p.z,out _);
             _ghost.GetComponent<Renderer>().material.color=ok?new Color(0.3f,1f,0.5f,0.4f):new Color(1f,0.3f,0.3f,0.4f);
@@ -89,10 +93,27 @@ namespace PixelToCivilization.World
             if (!GroundHit(ray,out var p)) return;
             string type=_gm.State.SelectedBuildType;
             bool ok;
+            // V9.4.4 特殊基建：桥梁（点岸边→最近对岸）/ 铁路（点城市→最近邻国跨海线）/ 城际公路（点城市→最近邻国城市）
+            if (type=="bridge") ok=_gm.Bridge!=null && _gm.Bridge.PlayerBuildBridge(p.x,p.z);
+            else if (type=="viaduct_pier") ok=_gm.Bridge!=null && _gm.Bridge.PlayerBuildPier(p.x,p.z);   // V9.4.6 高架柱（点地立柱→自动与最近柱连片）
+            else if (type=="rail") ok=_gm.Intercity!=null && _gm.Intercity.PlayerBuildRail(p.x,p.z);
+            else if (type=="intercity_road") ok=_gm.Intercity!=null && _gm.Intercity.PlayerBuildRoad(p.x,p.z);
+            // V9.5.3 地面作战部队列装：ground:tank / ground:apc / ground:missile_vehicle（公元1949 起）
+            else if (type!=null && type.StartsWith("ground:")) ok=_gm.Ground!=null && _gm.Ground.BuildGround(type.Substring(6),p.x,p.z);
             // V6.1.1 运输分类：cart:/ship: 前缀分流到车辆/船只系统，其余走建筑
-            if (type!=null && type.StartsWith("cart:")) ok=_gm.Cart.BuildCart(type.Substring(5),p.x,p.z);
+            else if (type!=null && type.StartsWith("cart:")) ok=_gm.Cart.BuildCart(type.Substring(5),p.x,p.z);
             else if (type!=null && type.StartsWith("ship:")) ok=_gm.Naval.BuildShip(type.Substring(5),p.x,p.z);
-            else ok=_gm.Building.PlaceBuilding(type,p.x,p.z);
+            else
+            {
+                ok=_gm.Building.PlaceBuilding(type,p.x,p.z);
+                // V9.4.4 玩家放置道路：40格内自动与最近路网相连（禁止系统自动铺路）
+                if (ok && _gm.ModernTraffic!=null && type!=null && ModernTrafficSystem.IsRoad(type)) _gm.ModernTraffic.OnPlayerRoadPlaced(p.x,p.z);
+                // V9.4.5 bridge_* 桥建筑：放置后触发 PlayerBuildBridge（点岸边配对岸成真桥）；失败登记 5 秒自动重试
+                if (ok && _gm.Bridge!=null && type!=null && type.StartsWith("bridge_"))
+                {
+                    if(!_gm.Bridge.PlayerBuildBridge(p.x,p.z)) _gm.Bridge.QueueBridgeRetry(p.x,p.z);
+                }
+            }
             // 连建：按住Shift保持，否则取消选择
             if (ok && !Input.GetKey(KeyCode.LeftShift)) { _gm.State.SelectedBuildType=null; HideGhost(); }
         }

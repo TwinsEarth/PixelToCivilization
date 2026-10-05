@@ -297,10 +297,34 @@ namespace PixelToCivilization.Systems
             }
         }
 
+        GroundUnit NearestEnemy(GroundUnit u,float range)
+        {
+            GroundUnit best=null; float bd=range*range;
+            foreach(var e in Enemies)
+            {
+                if(e.View==null) continue;
+                float dx=e.X-u.X,dz=e.Z-u.Z,d=dx*dx+dz*dz;
+                if(d<bd){ bd=d; best=e; }
+            }
+            return best;
+        }
+        GroundUnit NearestOurs(GroundUnit e,float range)
+        {
+            GroundUnit best=null; float bd=range*range;
+            foreach(var o in Ours)
+            {
+                if(o.View==null) continue;
+                float dx=o.X-e.X,dz=o.Z-e.Z,d=dx*dx+dz*dz;
+                if(d<bd){ bd=d; best=o; }
+            }
+            return best;
+        }
+
         void Hit(GroundUnit t,float atk)
         {
             if(t==null) return;
             t.Hp-=atk;
+            if(t.View!=null) t.View.transform.localScale=new Vector3(1,1,1);   // 命中反馈占位（保持稳定）
         }
         void DestroyUnit(GroundUnit u,List<GroundUnit> list)
         {
