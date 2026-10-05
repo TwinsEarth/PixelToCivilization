@@ -337,7 +337,6 @@ namespace PixelToCivilization.Systems
                 int gx = seg.Gx1, gz = seg.Gz1;
                 // R4: tier4 高架跨陆段保留重建（不因陆地跳过断链）；普通桥仅水面格重建
                 if (seg.Tier != 4 && LandOfCell(gx, gz) > 0) continue;
-                if (LandOfCell(gx, gz) > 0 && seg.Tier == 4) { /* 高架跨陆保留 */ }
                 seg.View.transform.position = new Vector3(gx * 4f + 2f, 1f, gz * 4f + 2f);
             }
         }
