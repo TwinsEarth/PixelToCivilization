@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
@@ -6,7 +6,7 @@ using PixelToCivilization.Actors;
 
 namespace PixelToCivilization.Systems
 {
-    /// <summary>车辆静态定义（对齐 v5.9.9 CART_DEFS，纳入四级锚点 T1-T3）</summary>
+    /// <summary>车辆静态定义（对齐 v5.9.9 CART_DEFS，纳入四级锚点 T1-T3/T4）</summary>
     public class CartDef
     {
         public string Id, Name, Icon;
@@ -14,11 +14,12 @@ namespace PixelToCivilization.Systems
         public float Speed;
         public Dictionary<string,int> Cost;
         public long ColorHex;
+        public bool Modern;   // V9.4.1 现代车（公元1949后替换马车，程序化车模、不生成可存档 CartEntity）
     }
 
     /// <summary>
-    /// 马车/车辆系统 —— 对齐 v5.9.9：小车/马车/大马车三型，四级锚点定价，只能在陆地，
-    /// 无驾驶员停靠最近建筑、有驾驶员在建筑间运输；自动建造 AI 按人口补车。
+    /// 马车/车辆系统 —— 对齐 v5.9.9：小车/马车/大马车三型 + V9.4.1 现代九型（1949 后替换马车），
+    /// 四级锚点定价，只能在陆地；现代车交 ModernTrafficSystem 建模并在道路上行驶；自动建造 AI 按人口补古代车。
     /// </summary>
     public class CartSystem : GameSystemBase
     {
@@ -36,11 +37,34 @@ namespace PixelToCivilization.Systems
             Add("small_cart","小车","🛒",1,80,0.05f,0x8B4513,new(){{"wood",15}});
             Add("medium_cart","马车","🐴",4,150,0.045f,0xC0814A,new(){{"wood",100},{"stone",30}});
             Add("large_cart","大马车","🚃",10,250,0.035f,0x9A541E,new(){{"wood",500},{"stone",200},{"gold",100}});
+            // V9.4.1 现代九型（公元1949·Era6 起直接替换马车；按功能分档，颜色/材质随车型，四级锚点定价）
+            Add("car_sedan","小车","🚗",2,120,0.07f,0x4A90D9,new(){{"wood",15}},true);
+            Add("car_police","警车","🚓",4,220,0.075f,0x2F5BB5,new(){{"wood",100},{"stone",30}},true);
+            Add("car_ambulance","救护车","🚑",4,220,0.075f,0xD9382F,new(){{"wood",100},{"stone",30}},true);
+            Add("car_truck","卡车","🚚",6,300,0.055f,0x8C9BAB,new(){{"wood",100},{"stone",30}},true);
+            Add("car_fire","消防车","🚒",5,280,0.065f,0xC62828,new(){{"wood",500},{"stone",200},{"gold",100}},true);
+            Add("car_school_bus","校车","🚌",8,300,0.05f,0xF6A800,new(){{"wood",500},{"stone",200},{"gold",100}},true);
+            Add("car_garbage","垃圾车","🗑️",3,260,0.05f,0x5D8C3B,new(){{"wood",500},{"stone",200},{"gold",100}},true);
+            Add("car_ladder","云梯消防车","🚒",5,340,0.06f,0xE53935,new(){{"wood",3000},{"stone",500},{"iron",200},{"gold",1000}},true);
+            Add("car_aerial","登高车","🏗️",5,340,0.055f,0xF57C00,new(){{"wood",3000},{"stone",500},{"iron",200},{"gold",1000}},true);
         }
-        private void Add(string id,string name,string icon,int cap,int dur,float speed,long color,Dictionary<string,int> cost)
-        => Defs[id]=new CartDef{Id=id,Name=name,Icon=icon,Capacity=cap,Durability=dur,Speed=speed,ColorHex=color,Cost=cost};
+        private void Add(string id,string name,string icon,int cap,int dur,float speed,long color,Dictionary<string,int> cost,bool modern=false)
+        => Defs[id]=new CartDef{Id=id,Name=name,Icon=icon,Capacity=cap,Durability=dur,Speed=speed,ColorHex=color,Cost=cost,Modern=modern};
 
-        /// <summary>按时代返回自动购车类型（古代小车→马车→大马车，工业后由载具体系承接）</summary>
+        /// <summary>V9.4.1 交通栏车型列表：Era>=6（公元1949）返回现代九型，否则古代三马车——直接替换而非解锁</summary>
+        public List<CartDef> AvailableCarts
+        {
+            get
+            {
+                bool modern = S!=null && S.Era>=6;
+                var list=new List<CartDef>();
+                foreach (var d in Defs.Values)
+                    if (modern==d.Modern) list.Add(d);
+                return list;
+            }
+        }
+
+        /// <summary>按时代返回自动购车类型（古代小车→马车→大马车；V9.4.1 现代车由交通系统自动生成，不在此购）</summary>
         public string AutoCartTypeForEra(int era) => era<=1?"small_cart":era<=3?"medium_cart":"large_cart";
 
         public bool CanBuild(string type,float x,float z,out string reason)
@@ -54,6 +78,14 @@ namespace PixelToCivilization.Systems
         public bool BuildCart(string type,float x,float z)
         {
             if(!Defs.TryGetValue(type,out var d)) return false;
+            // V9.4.1 现代车：交 ModernTrafficSystem 程序化建模（道路行驶、不进存档），本系统只收付款
+            if (d.Modern)
+            {
+                if(GM.ModernTraffic!=null && GM.ModernTraffic.TryBuildVehicle(type,x,z,d))
+                { GM.AddEvent("good",d.Icon+" 建造了"+d.Name); return true; }
+                GM.AddEvent("bad","交通系统未就绪，无法建造"+d.Name);
+                return false;
+            }
             if(_terrain!=null && _terrain.IsWater(x,z)){GM.AddEvent("bad","⚠ 车辆只能建在陆地");return false;}
             if(!S.CanAfford(d.Cost)){GM.AddEvent("bad","资源不足，无法建造"+d.Name);return false;}
             S.Pay(d.Cost);
@@ -102,7 +134,7 @@ namespace PixelToCivilization.Systems
         {
             if(!Defs.TryGetValue(c.CartTypeId,out var d)) return;
             int cont=_terrain!=null?_terrain.ContinentAt(c.X,c.Z):0;
-            bool roadMode=AnyRoadOnContinent(cont); // V9.2.3 有路即道路模式
+            bool roadMode=false; // V9.5.5 取消车辆必须在马路上的限制：可在任意陆地自由行驶，仅保留不能下水
             float dx=c.TargetX-c.X, dz=c.TargetZ-c.Z;
             float dist=Mathf.Sqrt(dx*dx+dz*dz);
             if(dist<1.5f)
@@ -163,7 +195,7 @@ namespace PixelToCivilization.Systems
         {
             var bs=S.Buildings;
             int homeCont=_terrain!=null?_terrain.ContinentAt(c.X,c.Z):0;   // V7.0.6 只在同一大陆内派目标，不隔海指建筑
-            if(AnyRoadOnContinent(homeCont)){ PickRoadTarget(c); return; } // V9.2.3 有路：道路目标/巡航
+            // V9.5.5 取消道路强制：不再因本大陆有道路就走 PickRoadTarget，车辆可自由前往同大陆建筑/陆地
             if(bs.Count==0){ PickLandWander(c); return; }
             // 找同大陆、与当前目标不同的最近建筑；同大陆没有则陆地游走，绝不把目标指向水里/海外
             BuildingEntity best=null;float bd=99999;
@@ -270,6 +302,8 @@ namespace PixelToCivilization.Systems
         // 对齐 v5.9.9 第七类自动建造：每80人1辆车，资源足够时概率补车
         private void AutoPurchase(float dt)
         {
+            // V9.4.1 公元1949后（Era>=6）现代车由交通系统自动生成，古代马车自动购置停用
+            if (S!=null && S.Era>=6) return;
             _autoCd-=dt; if(_autoCd>0) return; _autoCd=2f;
             int target=Mathf.CeilToInt(S.Pop/80f);
             if(S.Carts.Count>=target) return;
