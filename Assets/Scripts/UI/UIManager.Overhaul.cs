@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -83,23 +83,27 @@ private void BuildTopBarV2(Transform parent)
             foreach (var (key,label) in ResBarV2)
             {
                 var item=UITheme.Panel("Res_"+key,bar.transform,new Color(0,0,0,0));
-                var ile=item.AddComponent<LayoutElement>();ile.preferredWidth=92;ile.preferredHeight=38;ile.minWidth=84;
-                var ih=item.AddComponent<HorizontalLayoutGroup>();ih.spacing=4;ih.padding=new RectOffset(4,4,0,0);
-                ih.childControlWidth=false;ih.childControlHeight=true;ih.childForceExpandWidth=false;ih.childForceExpandHeight=false;ih.childAlignment=TextAnchor.MiddleCenter;
-                UITheme.Icon(item.transform,key,20);
-                var v=UITheme.Label("v",item.transform,"0",14,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold);
-                var vle=v.gameObject.AddComponent<LayoutElement>();vle.preferredWidth=52;
+                // V9.5.2 二次收紧（紧凑万/亿格式，数字恒定≤~56px）：item 110→88，图标固定22，标签78→58，
+                // 标签 minWidth=56 保证即使窄栏压缩，数字也不向左溢出压到图标；图标 minWidth=22 永不收缩。
+                var ile=item.AddComponent<LayoutElement>();ile.preferredWidth=88;ile.preferredHeight=38;ile.minWidth=84;
+                var ih=item.AddComponent<HorizontalLayoutGroup>();ih.spacing=2;ih.padding=new RectOffset(2,2,0,0);
+                ih.childControlWidth=true;ih.childControlHeight=true;ih.childForceExpandWidth=false;ih.childForceExpandHeight=false;ih.childAlignment=TextAnchor.MiddleCenter;
+                var ico=UITheme.Icon(item.transform,key,11);
+                var icoLe=ico.GetComponent<LayoutElement>(); if(icoLe!=null){icoLe.minWidth=22;icoLe.preferredWidth=22;}
+                var v=UITheme.Label("v",item.transform,"0",14,TextAnchor.MiddleRight,UITheme.Gold,FontStyle.Bold);
+                v.horizontalOverflow=HorizontalWrapMode.Overflow;
+                var vle=v.gameObject.AddComponent<LayoutElement>();vle.preferredWidth=58;vle.minWidth=56;
                 _resTexts[key]=v;
                 string tip=$"{label}｜{ResDesc[key]}";
                 AddHover(item,tip);
             }
             var tsp=UITheme.Panel("tsp",bar.transform,new Color(0,0,0,0));tsp.AddComponent<LayoutElement>().flexibleWidth=1;
-            _eraTag=Pill(bar.transform,"",UITheme.HexA(0xf0d9a8,0.97f),118);
-            _dynastyTag=Pill(bar.transform,"",UITheme.Chip,88);
-            _timeText=Pill(bar.transform,"第1年",UITheme.Chip,66);
-            _gregText=Pill(bar.transform,"公元前3000年",UITheme.Chip,118,UITheme.Sky);
-            _popText=Pill(bar.transform,"80",UITheme.Chip,112); _popText.horizontalOverflow=HorizontalWrapMode.Overflow; // V6.3.6 加宽+不换行，避免“人口88/162”折成两行误读为8
-            _envText=Pill(bar.transform,"晴天",UITheme.Chip,228,UITheme.Sky);
+            _eraTag=Pill(bar.transform,"",UITheme.HexA(0xf0d9a8,0.97f),96);
+            _dynastyTag=Pill(bar.transform,"",UITheme.Chip,72);
+            _timeText=Pill(bar.transform,"第1年",UITheme.Chip,56);
+            _gregText=Pill(bar.transform,"公元前3000年",UITheme.Chip,96,UITheme.Sky);
+            _popText=Pill(bar.transform,"80",UITheme.Chip,92); _popText.horizontalOverflow=HorizontalWrapMode.Overflow; // V6.3.6 加宽+不换行，避免“人口88/162”折成两行误读为8
+            _envText=Pill(bar.transform,"晴天",UITheme.Chip,176,UITheme.Sky);
 
             _resTipGo=UITheme.Surface("ResTip",parent,new Color(0.99f,0.98f,0.95f,0.98f));
             UITheme.SetOutline(_resTipGo,UITheme.Gold,1);
@@ -189,7 +193,7 @@ private void BuildTopBarV2(Transform parent)
             _autoHoverCd=1f;
             if(_hud!=null)AutoBindHovers(_hud.transform);
         }
-        // 悬浮字跟随当前鼠标位置，并自动避开屏幕四边
+        // 悬浮字跟随鼠标位置，并自动避开屏幕四边
         private void FollowTip()
         {
             if(!_resTipGo||!_resTipGo.activeSelf||_hud==null)return;
@@ -324,7 +328,8 @@ private void BuildTopBarV2(Transform parent)
                 case "shipyard_pre": case "treasure_shipyard": case "sea_port":
                 case "customs_house": case "compass_shop": case "dockyard_modern":
 
-                case "bridge_wood": case "bridge_stone": case "bridge_steel": case "bridge_concrete": return "交通";
+                case "bridge_wood": case "bridge_stone": case "bridge_steel": case "bridge_concrete":
+                case "viaduct_pier": return "交通";
                 case "telegraph": return "科技";
             }
             return d.Cat switch
@@ -348,15 +353,26 @@ private void BuildTopBarV2(Transform parent)
             for(int i=_buildList.childCount-1;i>=0;i--)Destroy(_buildList.GetChild(i).gameObject);
             RefreshTabColors();
             int n=0;
+            // V9.4.4 特殊基建（全分类顶部常驻）：桥梁/铁路 玩家单点建造→系统自动就近联网（禁止系统自动建造）
+            UITheme.Label("si",_buildList,"— 特殊基建 —",12,TextAnchor.MiddleCenter,UITheme.Gold)
+                .gameObject.AddComponent<LayoutElement>().preferredHeight=20;
+            MakeBuildCard(_buildList,"bridge","桥梁",null,"点岸边·自动就近对岸建桥",GM.Bridge!=null&&S.Era>=1,()=>
+            { S.SelectedBuildType="bridge";S.Tool="build";RecordUsage("x:bridge"); });
+            MakeBuildCard(_buildList,"viaduct_pier","高架柱",new Dictionary<string,int>{["steel"]=80,["concrete"]=40},"点地立柱·自动与相邻柱连片高架",GM.Bridge!=null&&S.Era>=6,()=>
+            { S.SelectedBuildType="viaduct_pier";S.Tool="build";RecordUsage("x:pier"); });
+            MakeBuildCard(_buildList,"rail","铁路",null,"点城市·自动跨海一线一车",GM.Intercity!=null&&S.Era>=5,()=>
+            { S.SelectedBuildType="rail";S.Tool="build";RecordUsage("x:rail"); });
+            MakeBuildCard(_buildList,"intercity_road","城际公路",null,"点城市·自动连邻国城市",GM.Intercity!=null&&S.Era>=5,()=>
+            { S.SelectedBuildType="intercity_road";S.Tool="build";RecordUsage("x:road"); });
             // V6.3.4 交通类：车辆、船只排在最前，交通类建筑排在其后
             if(_activeCat=="交通")
             {
                 UITheme.Label("ct",_buildList,"— 车辆（陆地）—",12,TextAnchor.MiddleCenter,UITheme.Gold)
                     .gameObject.AddComponent<LayoutElement>().preferredHeight=20;
-                foreach(var kv in GM.Cart.Defs)
+                foreach(var d in GM.Cart.AvailableCarts)   // V9.4.1 车辆时代替换：公元1949(era6)前古代三马车、之后现代九型直接替换（unlocked 恒真=不灰显）
                 {
-                    var d=kv.Value;string id=d.Id;
-                    MakeBuildCard(_buildList,"cart",d.Name,d.Cost,"陆地运输",true,()=>
+                    string id=d.Id;
+                    MakeBuildCard(_buildList,"cart",d.Name,d.Cost,d.Modern?"现代车辆":"陆地运输",true,()=>
                     { S.SelectedBuildType="cart:"+id;S.Tool="build";RecordUsage("c:"+id); });
                 }
                 UITheme.Label("st",_buildList,"— 船只（水域）—",12,TextAnchor.MiddleCenter,UITheme.Gold)
@@ -627,13 +643,39 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
         private void BuildHelpModals(Transform parent)
         {
             _helpModal=MakeModal("HelpModal","游戏帮助 · 从像素到文明",out _,false);
-            var hb=_helpModal.transform.Find("Box").GetComponent<RectTransform>();hb.sizeDelta=new Vector2(720,620);
+            var hb=_helpModal.transform.Find("Box").GetComponent<RectTransform>();hb.sizeDelta=new Vector2(864,620);   // V9.4.2 左右扩展20%：720×1.2=864
             _logModal=MakeModal("LogModal","编年史 / 事件日志",out _,false);
             var lb=_logModal.transform.Find("Box").GetComponent<RectTransform>();lb.sizeDelta=new Vector2(680,620);
         }
         private void OpenHelp(){ FillHelp();_helpModal.SetActive(true); }
         /// <summary>V9.3.9 WebGL 无参入口：打开帮助界面（浏览器 SendMessage 回归用）</summary>
         public void WebOpenHelp(){ OpenHelp(); }
+        /// <summary>V9.3.13 浏览器回归：关闭全部面板，保证逐面板截图不被 UGUI sibling 层级叠加干扰</summary>
+        public void WebCloseAllModal()
+        {
+            GameObject[] ms = { _techModal,_policyModal,_godsModal,_oceanModal,_spaceModal,_campaignModal,_colonyModal,_cityModal,_philosophyModal };
+            foreach(var m in ms) if(m!=null) m.SetActive(false);
+        }
+        /// <summary>V9.3.13 浏览器回归统一入口：按名称打开各面板（SendMessage 可传 string）</summary>
+        public void WebOpenModal(string w)
+        {
+            switch(w)
+            {
+                case "tech": OpenTechModal(); break;
+                case "policy": OpenPolicyModal(); break;
+                case "gods": OpenGodsModal(); break;
+                case "city": OpenCityModal(); break;
+                case "philosophy": OpenPhilosophyModal(); break;
+                case "colony": OpenColonyModal(); break;
+                case "ocean": OpenOceanModal(); break;
+                case "space": OpenSpaceModal(); break;
+                case "campaign": OpenCampaignModal(); break;
+                case "help": OpenHelp(); break;
+                case "log": OpenLog(); break;
+                case "save": OpenSaveModal(); break;
+                case "debug": OnClickDebug(); break;
+            }
+        }
         /// <summary>V9.3.10 程序化输入链验证：弹出 AI 密钥弹窗并赋值（触发 onValueChanged→[AIKey] 探针日志），
         /// 证明 WebGL 构建内 InputField 组件完整可用（弹窗出现即聚焦，配合浏览器焦点兜底=实体键盘可输入）</summary>
         public void WebKeyTest()
@@ -645,7 +687,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
         }
         private void FillHelp()
         {
-            var hb=_helpModal.transform.Find("Box").GetComponent<RectTransform>();hb.sizeDelta=new Vector2(720,600);   // V9.3.10 760×660→720×600
+            var hb=_helpModal.transform.Find("Box").GetComponent<RectTransform>();hb.sizeDelta=new Vector2(700,580);   // V9.3.13 720×600→700×580
             var body=ModalBody(_helpModal);Clear(body);
             var helpSr=UITheme.VerticalScroll("HelpScroll",body.transform,out var c,4);   // V9.3.12 6→4
             c.GetComponent<VerticalLayoutGroup>().childControlHeight=true;
@@ -653,16 +695,16 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             void Section(string e,string t)
             {
                 // 固定行高（按字数预算行数），避免嵌套 ContentSizeFitter/动态 preferred 高度形成每帧布局反馈环导致卡帧
-                int cpl=64; // 每行约容纳字符数（正文 11 号、内容宽约 690）V9.3.10 54→64 减少换行留白
+                int cpl=80; // V9.3.13 72→80 更少换行
                 int lines=0; foreach(var seg in t.Split('\n')){ lines+=Math.Max(1,Mathf.CeilToInt(seg.Length/(float)cpl)); }
-                int bodyH=lines*14;   // V9.3.12 15→14
-                int secH=12+16+2+bodyH;   // V9.3.12 14+18+3→12+16+2
+                int bodyH=lines*12;   // V9.3.13 14→12
+                int secH=10+14+2;   // V9.3.13 12+16+2→10+14+2
                 var row=UITheme.Surface("hs",c,UITheme.HexA(0x232e50,0.9f));
                 var hrle=row.AddComponent<LayoutElement>();hrle.flexibleWidth=1;hrle.preferredHeight=secH;
-                var vg=row.AddComponent<VerticalLayoutGroup>();vg.spacing=2;vg.padding=new RectOffset(8,8,6,6);
+                var vg=row.AddComponent<VerticalLayoutGroup>();vg.spacing=1;vg.padding=new RectOffset(6,6,4,4);   // V9.3.13
                 vg.childControlWidth=true;vg.childForceExpandWidth=true;vg.childControlHeight=true;vg.childForceExpandHeight=false;vg.childAlignment=TextAnchor.UpperCenter;
-                UITheme.Label("e",row.transform,e,14,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=20;   // V9.3.12 15→14 / 22→20
-                var tx=UITheme.Label("t",row.transform,t,12,TextAnchor.UpperLeft);
+                UITheme.Label("e",row.transform,e,13,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=16;   // V9.3.13 14→13 / 20→16
+                var tx=UITheme.Label("t",row.transform,t,11,TextAnchor.UpperLeft);   // V9.3.13 12→11
                 tx.horizontalOverflow=HorizontalWrapMode.Wrap;
                 tx.gameObject.AddComponent<LayoutElement>().preferredHeight=bodyH;
             }
@@ -671,12 +713,12 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
                 var cou=GM.Council;
                 string keyShow2 = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
                 var aiCard=UITheme.Surface("hs",c,UITheme.HexA(0x232e50,0.9f));
-                var al2=aiCard.AddComponent<LayoutElement>();al2.flexibleWidth=1;al2.preferredHeight=80;   // V9.3.12 92→80
-                var avg=aiCard.AddComponent<VerticalLayoutGroup>();avg.spacing=2;avg.padding=new RectOffset(7,7,5,5);   // V9.3.12 4→2 / (9,9,7,7)→(7,7,5,5)
+                var al2=aiCard.AddComponent<LayoutElement>();al2.flexibleWidth=1;al2.preferredHeight=64;   // V9.3.13 80→64
+                var avg=aiCard.AddComponent<VerticalLayoutGroup>();avg.spacing=1;avg.padding=new RectOffset(6,6,4,4);   // V9.3.13 2→1
                 avg.childControlWidth=true;avg.childForceExpandWidth=true;avg.childControlHeight=true;avg.childForceExpandHeight=false;avg.childAlignment=TextAnchor.UpperCenter;
-                UITheme.Label("e",aiCard.transform,"AI 密钥设置 · 九神联网议政",14,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=16;   // V9.3.12 22→16
-                UITheme.Label("k",aiCard.transform,"状态："+keyShow2+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://","")+"；点击下方按钮弹窗粘贴 DeepSeek API Key，保存即联网议政，清空即离线规则自治",10,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=20;   // V9.3.12 24→20
-                var hr=Row(aiCard.transform,26);   // V9.3.12 28→26
+                UITheme.Label("e",aiCard.transform,"AI 密钥设置 · 九神联网议政",13,TextAnchor.UpperLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=14;   // V9.3.13 14→13 / 16→14
+                UITheme.Label("k",aiCard.transform,"状态："+keyShow2+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://","")+"；点击下方按钮弹窗粘贴 DeepSeek API Key，保存即联网议政，清空即离线规则自治",10,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=16;   // V9.3.13 20→16
+                var hr=Row(aiCard.transform,22);   // V9.3.13 26→22
                 var kbtn=UITheme.Btn("aikey",hr.transform,"设置 AI 密钥（弹窗输入）",12);
                 kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
                 kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{ if(_helpModal!=null && _helpModal.activeSelf) FillHelp(); },_hud!=null?_hud.transform:null); });
@@ -684,18 +726,19 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             Section("游戏目标","从三皇五帝起步，历经 16 朝代、8 大时代发展到地球联盟；建设、科研、军事、航海、太空多线并进。九位 AI 神灵共治，允许饥荒、灾难、动乱与倒退，但保证文明 5000~10000 年不断绝。");
             Section("基本操作","左键：选择 / 放置建筑、种树、招民（先用底栏切换工具）；右键或 Esc：取消工具、关闭浮窗；拖拽：旋转 / 平移视角；滚轮：缩放。底栏从左到右为 暂停·减速·倍速·加速·速度滑条·选择·建造·种树·招民·常用·军事·副本·全屏，鼠标悬停图标显示说明。左下角为 存档·中心视角·Debug·帮助·声音。");
             Section("资源与建造","顶部为 粮食·木材·石头·金币·钢铁·青铜 与 经济/文化/科技 实力，悬停查看说明。左侧建造面板分 居住/农业/工业/经济/文化/军事/交通/科技/能源/太空 十类，按四级锚点定价（T1 15木 → T4 3000木500石200铁1000金），住房随等级提升。点世界中的建筑可看实拍内视图、寿命、耐久、居住人数，并可升级或拆除（拆除返还 50%）。");
-            Section("军事与群雄争霸","可征兵、训练骑兵（需马厩）；箭塔/火塔/炮塔/碉堡自动索敌防御，骑兵克步兵、防御塔克骑兵。地图上随机 2~5 股割据势力，每 20 游戏年相互攻伐兼并，进入分裂期（3~7 国）或大一统王朝；可出师讨伐、兼并势力获得金粮与人口。");
+            Section("军事与群雄争霸","可征兵、训骑兵（需马厩）；箭塔/火塔/炮塔/碉堡自动索敌防御，骑兵克步兵、防御塔克骑兵。地图上随机 2~5 股割据势力，每 20 游戏年相互攻伐兼并，进入分裂期（3~7 国）或大一统王朝；可出师讨伐、兼并势力获得金粮与人口。");
             Section("海洋 · 殖民 · 太空","公元 1000 年大航海时代开启，此前各大陆被海洋隔绝、无法跨洋作战；之后可造风帆战舰、建立 贸易站→殖民地→领地 三级海外领地并获得上贡。海洋 / 太空为 9×9 迷雾探索副本，逐格探索、获取资源、建港口与月球/火星前哨，补给耗尽自动返航。");
             Section("自然系统","月度潮汐（1-15 涨潮、16-30 退潮）；雨/雪/晴/多云/雾/晚霞/雷电/龙卷风天气；洋流与海风为帆船提供动力、引导鱼群洄游。地图每 100 年自然延展 10%、每 1000 年翻倍；植被分乔木/灌木/草本/地被四层，村落大榕树随年代生长，鸟群鱼群按 LOD 按需渲染。");
             Section("铁路系统","公元 1800 年起聚落旁铺设铁路廊道，红色标志的蒸汽机车（黑锅炉+红饰驾驶室+绿客车编组）在廊道上往返行驶；随年代自动升级：1900 内燃机车（橙）、1950 电力机车（银蓝）、1990 高速列车（白）、2010 磁悬浮（悬浮无轮）。列车为装饰性往返行驶，仅在陆地/疆域内铺设。");
             Section("加速冷冻","加速累计推进满 100 游戏年后，强制进入 300 现实秒冷冻冷却，期间倍速封顶 10；收到解冻指令后重新累计。画面中顶显示倒计时。");
             Section("快捷键 / 存档","空格 暂停，+/- 调整倍速，F11 或 Alt+Enter 全屏；游戏每 5 分钟自动存档，也可在左下角手动存/读 5 个手动槽、导出导入 JSON 跨设备迁移。");
-            var row=UITheme.Panel("hb",c,new Color(0,0,0,0));row.AddComponent<LayoutElement>().preferredHeight=34;   // V9.3.12 40→34
+            var row=UITheme.Panel("hb",c,new Color(0,0,0,0));row.AddComponent<LayoutElement>().preferredHeight=30;   // V9.3.13 34→30
             var hg=row.AddComponent<HorizontalLayoutGroup>();hg.spacing=8;hg.childForceExpandWidth=true;
             UITheme.Btn("debug",row.transform,"Debug 高级解锁",12).onClick.AddListener(()=>{_helpModal.SetActive(false);OnClickDebug();});
             UITheme.Btn("save",row.transform,"存档管理",12).onClick.AddListener(()=>{_helpModal.SetActive(false);OpenSaveModal();});
             UITheme.Btn("log",row.transform,"Log 日志显示",12).onClick.AddListener(()=>{_helpModal.SetActive(false);OpenLog();});
             UITheme.Btn("close",row.transform,"关闭",12).onClick.AddListener(()=>_helpModal.SetActive(false));
+            FitModal(_helpModal, 300, 520);
         }
         private void OpenLog(){ FillLog();_logModal.SetActive(true); }
         private void FillLog()
@@ -705,6 +748,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             var sb=new StringBuilder();int n=0;
             for(int i=S.EventLog.Count-1;i>=0;i--){var e=S.EventLog[i];sb.Append('[').Append(e.Year).Append("年] ").Append(e.Text).Append('\n');if(++n>=200)break;}
             UITheme.Label("all",c,sb.Length==0?"（暂无事件）":sb.ToString(),12,TextAnchor.UpperLeft);
+            FitModal(_logModal, 120, 520);
         }
 
         // ============================================================
