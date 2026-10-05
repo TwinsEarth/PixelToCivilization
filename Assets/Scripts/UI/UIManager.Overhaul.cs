@@ -44,9 +44,9 @@ namespace PixelToCivilization.UI
         private GameObject _helpModal, _logModal;
         // V9.3.10：帮助界面 AI 密钥改弹窗输入（ApiKeyPrompt），行内输入字段已移除
 
-        // 用户指定的 10 个建造分类（显示顺序）
+        // V9.5.3 用户指定 11 个建造分类（显示顺序）：新增"基建"——桥梁/高架/铁路/机场/高铁站
         private static readonly string[] BuildTabsV2 =
-            {"居住","农业","工业","经济","文化","军事","交通","科技","能源","太空"};
+            {"居住","农业","工业","经济","文化","军事","基建","交通","科技","能源","太空"};
         // 用户指定的顶部 9 项资源（顺序即显示顺序；后三项为“实力”）
         private static readonly (string key,string label)[] ResBarV2 =
         {
@@ -193,7 +193,7 @@ private void BuildTopBarV2(Transform parent)
             _autoHoverCd=1f;
             if(_hud!=null)AutoBindHovers(_hud.transform);
         }
-        // 悬浮字跟随鼠标位置，并自动避开屏幕四边
+        // 悬浮字跟随当前鼠标位置，并自动避开屏幕四边
         private void FollowTip()
         {
             if(!_resTipGo||!_resTipGo.activeSelf||_hud==null)return;
@@ -323,13 +323,14 @@ private void BuildTopBarV2(Transform parent)
             switch(d.Id)
             {
                 case "well": case "granary": case "water_mill": return "农业";
-                case "road": case "highway": case "canal": case "railway_pre":
-                case "high_speed_rail": case "highway_modern": case "airport": case "caravanserai":
+                case "road": case "highway": case "canal": case "highway_modern":
+                case "caravanserai":
                 case "shipyard_pre": case "treasure_shipyard": case "sea_port":
-                case "customs_house": case "compass_shop": case "dockyard_modern":
-
+                case "customs_house": case "compass_shop": case "dockyard_modern": return "交通";
+                // V9.5.3 基建分类：桥梁（含 bridge_* 建筑）/高架柱/铁路廊道/机场/高铁站
+                case "airport": case "high_speed_rail": case "railway_pre":
                 case "bridge_wood": case "bridge_stone": case "bridge_steel": case "bridge_concrete":
-                case "viaduct_pier": return "交通";
+                case "viaduct_pier": return "基建";
                 case "telegraph": return "科技";
             }
             return d.Cat switch
@@ -342,7 +343,7 @@ private void BuildTopBarV2(Transform parent)
         private static string TabIcon(string tab)=>tab switch
         {
             "居住"=>"house","农业"=>"farm","工业"=>"factory","经济"=>"bank","文化"=>"culture",
-            "军事"=>"military","交通"=>"road","科技"=>"research","能源"=>"power","太空"=>"rocket",_=>"house",
+            "军事"=>"military","基建"=>"road","交通"=>"road","科技"=>"research","能源"=>"power","太空"=>"rocket",_=>"house",
         };
 
         private void RebuildBuildListV2()
@@ -353,17 +354,38 @@ private void BuildTopBarV2(Transform parent)
             for(int i=_buildList.childCount-1;i>=0;i--)Destroy(_buildList.GetChild(i).gameObject);
             RefreshTabColors();
             int n=0;
-            // V9.4.4 特殊基建（全分类顶部常驻）：桥梁/铁路 玩家单点建造→系统自动就近联网（禁止系统自动建造）
-            UITheme.Label("si",_buildList,"— 特殊基建 —",12,TextAnchor.MiddleCenter,UITheme.Gold)
-                .gameObject.AddComponent<LayoutElement>().preferredHeight=20;
-            MakeBuildCard(_buildList,"bridge","桥梁",null,"点岸边·自动就近对岸建桥",GM.Bridge!=null&&S.Era>=1,()=>
-            { S.SelectedBuildType="bridge";S.Tool="build";RecordUsage("x:bridge"); });
-            MakeBuildCard(_buildList,"viaduct_pier","高架柱",new Dictionary<string,int>{["steel"]=80,["concrete"]=40},"点地立柱·自动与相邻柱连片高架",GM.Bridge!=null&&S.Era>=6,()=>
-            { S.SelectedBuildType="viaduct_pier";S.Tool="build";RecordUsage("x:pier"); });
-            MakeBuildCard(_buildList,"rail","铁路",null,"点城市·自动跨海一线一车",GM.Intercity!=null&&S.Era>=5,()=>
-            { S.SelectedBuildType="rail";S.Tool="build";RecordUsage("x:rail"); });
-            MakeBuildCard(_buildList,"intercity_road","城际公路",null,"点城市·自动连邻国城市",GM.Intercity!=null&&S.Era>=5,()=>
-            { S.SelectedBuildType="intercity_road";S.Tool="build";RecordUsage("x:road"); });
+            // V9.5.3 基建分类（独立标签栏）：桥梁/高架柱/铁路/城际公路 玩家单点建造→系统自动就近联网（禁止系统自动建造）
+            if(_activeCat=="基建")
+            {
+                UITheme.Label("inf1",_buildList,"— 桥梁 & 高架 —",12,TextAnchor.MiddleCenter,UITheme.Gold)
+                    .gameObject.AddComponent<LayoutElement>().preferredHeight=20;
+                MakeBuildCard(_buildList,"military","桥梁",null,"点岸边·自动就近对岸建桥",GM.Bridge!=null&&S.Era>=1,()=>
+                { S.SelectedBuildType="bridge";S.Tool="build";RecordUsage("x:bridge"); });
+                MakeBuildCard(_buildList,"military","高架柱",new Dictionary<string,int>{["steel"]=80,["concrete"]=40},"点地立柱·自动与相邻柱连片高架",GM.Bridge!=null&&S.Era>=6,()=>
+                { S.SelectedBuildType="viaduct_pier";S.Tool="build";RecordUsage("x:pier"); });
+                UITheme.Label("inf2",_buildList,"— 铁路 & 公路 —",12,TextAnchor.MiddleCenter,UITheme.Gold)
+                    .gameObject.AddComponent<LayoutElement>().preferredHeight=20;
+                MakeBuildCard(_buildList,"road","铁路",null,"点城市·自动跨海一线一车",GM.Intercity!=null&&S.Era>=5,()=>
+                { S.SelectedBuildType="rail";S.Tool="build";RecordUsage("x:rail"); });
+                MakeBuildCard(_buildList,"road","城际公路",null,"点城市·自动连邻国城市",GM.Intercity!=null&&S.Era>=5,()=>
+                { S.SelectedBuildType="intercity_road";S.Tool="build";RecordUsage("x:road"); });
+            }
+            // V9.5.3 军事分类顶部：地面作战部队（坦克/装甲车/导弹车，公元1949=游戏年4949 解锁）
+            if(_activeCat=="军事" && GM.Ground!=null)
+            {
+                UITheme.Label("grd",_buildList,"— 地面作战部队（1949 起）—",12,TextAnchor.MiddleCenter,UITheme.Gold)
+                    .gameObject.AddComponent<LayoutElement>().preferredHeight=20;
+                bool gUnlocked=GM.Ground!=null&&S.Year>=4949;
+                foreach(var gd in GM.Ground.Defs.Values)
+                {
+                    string gid=gd.Id; string gName=gd.Name;
+                    MakeBuildCard(_buildList,"military",gName,
+                        new Dictionary<string,int>{["steel"]=gd.CostSteel,["gold"]=gd.CostGold},
+                        "射程"+gd.Range+"格·耐久"+gd.Durability,gUnlocked,()=>
+                        { S.SelectedBuildType="ground:"+gid;S.Tool="build";RecordUsage("g:"+gid); });
+                    n++;
+                }
+            }
             // V6.3.4 交通类：车辆、船只排在最前，交通类建筑排在其后
             if(_activeCat=="交通")
             {
@@ -389,6 +411,8 @@ private void BuildTopBarV2(Transform parent)
             {
                 var d=kv.Value;
                 if(TabOf(d)!=_activeCat)continue;
+                // V9.5.3 基建分类：viaduct_pier/bridge_* 由触发型卡片承接，避免普通建筑卡片重复
+                if(_activeCat=="基建" && (d.Id=="viaduct_pier" || d.Id.StartsWith("bridge_"))) continue;
                 bool unlocked=d.Era<=S.Era;
                 string id=d.Id;
                 MakeBuildCard(_buildList,BuildingIconKey(d),d.Name,d.Cost,CapText(d),unlocked,()=>
@@ -397,7 +421,7 @@ private void BuildTopBarV2(Transform parent)
                 });
                 n++;
             }
-            if(n==0 && _activeCat!="交通")
+            if(n==0 && _activeCat!="交通" && _activeCat!="基建")
                 UITheme.Label("empty",_buildList,"（当前时代暂无此类建筑）",12,TextAnchor.MiddleCenter,UITheme.HexA(0x999999,1));
         }
 
@@ -676,6 +700,37 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
                 case "debug": OnClickDebug(); break;
             }
         }
+        /// <summary>V9.5.3 浏览器回归：按分类名切换建造分类（SendMessage string 入口，绕开 OCR 坐标漂移）。
+        /// 支持中英文别名（JS→WebGL 中文参数存在转码风险，英文别名兜底）。</summary>
+        public void WebOpenBuildTab(string w)
+        {
+            string target=w;
+            switch(w)
+            {
+                case "infra": case "jijian": target="基建"; break;
+                case "military": case "junshi": target="军事"; break;
+                case "transport": case "jiaotong": target="交通"; break;
+                case "house": case "juzhu": target="居住"; break;
+                case "farm": case "nongye": target="农业"; break;
+                case "factory": case "gongye": target="工业"; break;
+                case "economy": case "jingji": target="经济"; break;
+                case "culture": case "wenhua": target="文化"; break;
+                case "tech": case "keji": target="科技"; break;
+                case "power": case "nengyuan": target="能源"; break;
+                case "space": case "taikong": target="太空"; break;
+            }
+            for(int i=0;i<BuildTabsV2.Length;i++)
+            {
+                if(BuildTabsV2[i]==target)
+                {
+                    if(_leftCollapsed)ToggleLeftPanel();
+                    _activeCat=target;RebuildBuildListV2();RefreshTabColors();
+                    Debug.Log("[WEB] BuildTab="+target);
+                    return;
+                }
+            }
+            Debug.Log("[WEB] BuildTab not found:"+w);
+        }
         /// <summary>V9.3.10 程序化输入链验证：弹出 AI 密钥弹窗并赋值（触发 onValueChanged→[AIKey] 探针日志），
         /// 证明 WebGL 构建内 InputField 组件完整可用（弹窗出现即聚焦，配合浏览器焦点兜底=实体键盘可输入）</summary>
         public void WebKeyTest()
@@ -698,7 +753,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
                 int cpl=80; // V9.3.13 72→80 更少换行
                 int lines=0; foreach(var seg in t.Split('\n')){ lines+=Math.Max(1,Mathf.CeilToInt(seg.Length/(float)cpl)); }
                 int bodyH=lines*12;   // V9.3.13 14→12
-                int secH=10+14+2;   // V9.3.13 12+16+2→10+14+2
+                int secH=10+14+2+bodyH;   // V9.3.13 12+16+2→10+14+2
                 var row=UITheme.Surface("hs",c,UITheme.HexA(0x232e50,0.9f));
                 var hrle=row.AddComponent<LayoutElement>();hrle.flexibleWidth=1;hrle.preferredHeight=secH;
                 var vg=row.AddComponent<VerticalLayoutGroup>();vg.spacing=1;vg.padding=new RectOffset(6,6,4,4);   // V9.3.13
@@ -726,7 +781,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             Section("游戏目标","从三皇五帝起步，历经 16 朝代、8 大时代发展到地球联盟；建设、科研、军事、航海、太空多线并进。九位 AI 神灵共治，允许饥荒、灾难、动乱与倒退，但保证文明 5000~10000 年不断绝。");
             Section("基本操作","左键：选择 / 放置建筑、种树、招民（先用底栏切换工具）；右键或 Esc：取消工具、关闭浮窗；拖拽：旋转 / 平移视角；滚轮：缩放。底栏从左到右为 暂停·减速·倍速·加速·速度滑条·选择·建造·种树·招民·常用·军事·副本·全屏，鼠标悬停图标显示说明。左下角为 存档·中心视角·Debug·帮助·声音。");
             Section("资源与建造","顶部为 粮食·木材·石头·金币·钢铁·青铜 与 经济/文化/科技 实力，悬停查看说明。左侧建造面板分 居住/农业/工业/经济/文化/军事/交通/科技/能源/太空 十类，按四级锚点定价（T1 15木 → T4 3000木500石200铁1000金），住房随等级提升。点世界中的建筑可看实拍内视图、寿命、耐久、居住人数，并可升级或拆除（拆除返还 50%）。");
-            Section("军事与群雄争霸","可征兵、训骑兵（需马厩）；箭塔/火塔/炮塔/碉堡自动索敌防御，骑兵克步兵、防御塔克骑兵。地图上随机 2~5 股割据势力，每 20 游戏年相互攻伐兼并，进入分裂期（3~7 国）或大一统王朝；可出师讨伐、兼并势力获得金粮与人口。");
+            Section("军事与群雄争霸","可征兵、训练骑兵（需马厩）；箭塔/火塔/炮塔/碉堡自动索敌防御，骑兵克步兵、防御塔克骑兵。地图上随机 2~5 股割据势力，每 20 游戏年相互攻伐兼并，进入分裂期（3~7 国）或大一统王朝；可出师讨伐、兼并势力获得金粮与人口。");
             Section("海洋 · 殖民 · 太空","公元 1000 年大航海时代开启，此前各大陆被海洋隔绝、无法跨洋作战；之后可造风帆战舰、建立 贸易站→殖民地→领地 三级海外领地并获得上贡。海洋 / 太空为 9×9 迷雾探索副本，逐格探索、获取资源、建港口与月球/火星前哨，补给耗尽自动返航。");
             Section("自然系统","月度潮汐（1-15 涨潮、16-30 退潮）；雨/雪/晴/多云/雾/晚霞/雷电/龙卷风天气；洋流与海风为帆船提供动力、引导鱼群洄游。地图每 100 年自然延展 10%、每 1000 年翻倍；植被分乔木/灌木/草本/地被四层，村落大榕树随年代生长，鸟群鱼群按 LOD 按需渲染。");
             Section("铁路系统","公元 1800 年起聚落旁铺设铁路廊道，红色标志的蒸汽机车（黑锅炉+红饰驾驶室+绿客车编组）在廊道上往返行驶；随年代自动升级：1900 内燃机车（橙）、1950 电力机车（银蓝）、1990 高速列车（白）、2010 磁悬浮（悬浮无轮）。列车为装饰性往返行驶，仅在陆地/疆域内铺设。");
