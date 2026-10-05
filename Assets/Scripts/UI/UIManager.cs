@@ -4,357 +4,999 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
-using PixelToCivilization.Systems;
-using PixelToCivilization.World;
 
 namespace PixelToCivilization.UI
 {
     /// <summary>
-    /// V6.1.9(i) 界面系统重构（对齐 7 张参考图）：
-    /// 1 建筑面板 10 分类 + 卡片 + 最大/最小化；2 顶部 9 资源 + 悬浮说明；3 底部常用按钮(按使用次数)；
-    /// 4 帮助界面；5 左下按钮组；6 国家状态面板最大/最小化；7 世界建筑浮标 + 建筑详情(实拍内视图/寿命/耐久/升级拆除/居住/塔)。
+    /// UI总管理器 —— 运行时UGUI 1:1 复刻 v5.9.9 界面：
+    /// 开始页/顶部资源时间栏/左侧建造面板/右侧国家状态与操作/底部速度栏/事件日志/通知/时代过场。模态面板见 UIManager.Panels.cs
     /// </summary>
     public partial class UIManager : MonoBehaviour
     {
-        public static UIManager Instance;
-        public GameManager GM => GameManager.Instance;
-        public GameState S => GameManager.Instance?.State;
+        public static UIManager Instance { get; private set; }
+        private GameManager GM;
+        private GameState S =>GM.State;
 
-        private GameObject _hud, _splash, _splashMsg;
-        private Text _eraTag, _dynastyTag, _timeText, _gregText, _popText, _envText, _speedText, _eventText, _saveCountdown;
-        private GameObject _leftPanel, _rightRtGo;
+        private GameObject _splash, _hud;
+        private Text _eraTag,_dynastyTag,_timeText,_gregText,_popText,_envText;
+        private readonly Dictionary<string,Text>_resTexts=new();
         private Transform _buildList;
-        private readonly Dictionary<string,Text> _resTexts = new();
-        private string _activeCat = "居住";
-        private string _tool = "select";
-        private Slider _speedSlider; private bool _suppressSlider;
-        private GameObject _oceanBtn, _spaceBtn;
-        private bool[] _statOpen = { true, true, true, true };
-        private Text _statBasic, _statMil, _statSoc, _statEra;
-        private GameObject _buildingModal; private Text _bmName,_bmLv,_bmAge,_bmDura,_bmPop,_bmCap;
-        private Button _bmUp,_bmDel,_bmClose; private BuildingEntity _bmB;
-        private GameObject _shipCard; private Text _scName,_scCrew,_scDura,_scLv,_scCap,_scAtt; private Button _scUp,_scDel,_scClose; private ShipEntity _scShip;
-        private GameObject _cartCard; private Text _ccName,_ccCrew,_ccCap,_ccDura; private Button _ccClose; private CartEntity _ccCart;
-        private GameObject _treeCard; private Text _tcName,_tcAge; private Button _tcClose; private PixelToCivilization.World.BanyanTree _tcTree;
+        private GameObject _leftPanel;
+        // V9.3.6 左建造面板是否展开（世界对象点击守卫用：面板展开时屏蔽 OnMouseDown 弹属性栏）
+        public bool LeftPanelOpen => _leftPanel!=null && _leftPanel.activeSelf;
+        private readonly Dictionary<string,Button> _toolBtns=new();
+        private bool _muted;
+        // V6.1.2 存档面板
+        private GameObject _saveModal;
+        private RectTransform _saveSlotBox;
+        private Text _saveCountdown;
+        private InputField _importField;
+        private Text _eventText;
+        // V6.1.1 国家状态四组可折叠（📊基础/⚔️军事/👥社会/🏛️时代），对齐 v5.9.9
+        private Text _statBasic,_statMil,_statSoc,_statEra;
+        private readonly bool[] _statOpen={true,true,true,true};
+        private Text _speedText;
+        private Slider _speedSlider;
+        private GameObject _oceanBtn,_spaceBtn;
+        private Text _toast,_eraTitle,_eraDesc; private GameObject _eraTransition;
+        // V6.1.9 画面中顶冷冻冷却倒计时条
         private GameObject _cryoBar; private Text _cryoText;
-        private GameObject _techModal,_policyModal,_godsModal,_oceanModal,_spaceModal,_campaignModal,_colonyModal,_cityModal,_philosophyModal,_wonderModal;
-        private GameObject _saveModal,_debugModal;
-        private float _refreshCd, _splashCd;
+        private float _refreshCd;
+        private string _activeCat="居住";
+        // V6.1.2 开始页：继续上次游戏 + 10 秒无操作自动开新局
+        private Text _startLabel;
+        private Button _continueBtn;
+        private Button _mapModeBtn;   // V9.1.0 开始页地图模式切换
+        private const float AutoStartSeconds=10f;
+        private float _autoCd=AutoStartSeconds;
         private bool _splashArmed;
+        private Vector3 _lastMousePos;
 
-        private void Awake(){ Instance=this; }
-        private void Start(){ BuildAll(); }
-
-        private void BuildAll()
+        public void Boot(GameManager gm)
         {
-            _hud=new GameObject("HUD"); _hud.transform.SetParent(transform,false);
-            var hc=_hud.AddComponent<RectTransform>(); hc.anchorMin=Vector2.zero; hc.anchorMax=Vector2.one; hc.offsetMin=Vector2.zero; hc.offsetMax=Vector2.zero;
+            Instance=this; GM=gm;
+            Build();
+            GM.OnStateChanged += OnStateChanged;
+            GM.OnEventLogged += _=>RefreshEventLog();
+            GM.Time.OnEraChanged += (n,o)=>ShowEraTransition(GM.Eras[n].Name,GM.Eras[n].Feature);
+        }
+
+        // ============ 搭建 ============
+        private void Build()
+        {
+            var canvas=UITheme.CreateCanvas("UICanvas");
+            BuildSplash(canvas.transform);
+            _hud=UITheme.Panel("HUD",canvas.transform,new Color(0,0,0,0));
+            Stretch(_hud);
+            // 关键修复：HUD 为全屏透明底板，Image 默认 raycastTarget=true 会拦截全部指针射线，
+            // 导致 IsPointerOverGameObject() 恒为 true —— 相机旋转/平移与地面建造点击全部失效
+            _hud.GetComponent<Image>().raycastTarget=false;
             BuildTopBarV2(_hud.transform);
+            BuildCryoBar(_hud.transform);   // V6.1.9 中顶冷冻倒计时
             BuildLeftPanelV2(_hud.transform);
             BuildRightPanelV2(_hud.transform);
             BuildBottomBarV2(_hud.transform);
             BuildLeftBottomCluster(_hud.transform);
-            BuildHelpModals(_hud.transform);
-            BuildSaveModal(_hud.transform);
-            BuildDebugModal(_hud.transform);
-            BuildToastAndEra(_hud.transform);
             BuildMarkerLayer(_hud.transform);
-            BuildShipCard(_hud.transform);
-            BuildCartCard(_hud.transform);
-            BuildTreeCard(_hud.transform);
-            BuildCryoBar(_hud.transform);
-            BuildSubModals(_hud.transform);
-            Refresh();
+            BuildModals(_hud.transform);          // 先建 _modalLayer，帮助/日志弹窗才能正确挂到 Canvas 下
+            BuildHelpModals(_hud.transform);
+            BuildToastAndEra(_hud.transform);
+            BuildMinimap(_hud.transform);
+            _hud.SetActive(false);
         }
 
-        // ============ 建造面板子模态：科技/政策/九神/城市/百家/殖民/海洋/太空/讨伐/奇观 ============
-        private void BuildSubModals(Transform parent)
+        private void Stretch(GameObject go)
         {
-            _techModal=MakeModal("TechModal","科技研究",out _,false);
-            _policyModal=MakeModal("PolicyModal","政策与制度",out _,false);
-            _godsModal=MakeModal("GodsModal","九神共治",out _,false);
-            _cityModal=MakeModal("CityModal","城市管理",out _,false);
-            _philosophyModal=MakeModal("PhilosophyModal","诸子百家",out _,false);
-            _colonyModal=MakeModal("ColonyModal","海外殖民",out _,false);
-            _oceanModal=MakeModal("OceanModal","海洋大开发",out _,false);
-            _spaceModal=MakeModal("SpaceModal","太空探索",out _,false);
-            _campaignModal=MakeModal("CampaignModal","出师讨伐",out _,false);
-            _wonderModal=MakeModal("WonderModal","世界奇观",out _,false);
+            var rt=go.GetComponent<RectTransform>();
+            rt.anchorMin=Vector2.zero;rt.anchorMax=Vector2.one;rt.offsetMin=Vector2.zero;rt.offsetMax=Vector2.zero;
         }
 
-        // ============ 建造列表辅助 ============
-        private void SetTool(string t){ _tool=t; S.Tool=t; if(t!="build")S.SelectedBuildType=null; }
-        private void ToolBtn(Transform parent,string name,string iconKey)
+        // ---- 开始页 ----
+        private void BuildSplash(Transform parent)
         {
-            var b=UITheme.Btn("tool_"+name,parent,"",12,UITheme.Chip);
-            b.GetComponent<LayoutElement>().preferredWidth=46;b.GetComponent<LayoutElement>().preferredHeight=44;b.GetComponent<LayoutElement>().minWidth=46;
-            var tx=b.transform.Find("Text"); if(tx)Destroy(tx.gameObject);
-            var ic=UITheme.Icon(b.transform,iconKey,12); ic.rectTransform.anchorMin=Vector2.zero;ic.rectTransform.anchorMax=Vector2.one;
-            ic.rectTransform.offsetMin=new Vector2(11,10);ic.rectTransform.offsetMax=new Vector2(-11,-10);
-            string tip=name switch{"select"=>"选择：点选建筑/船只/树木查看属性","build"=>"建造：先点左侧分类，再点地面放置","tree"=>"种树：点击地面种植树木","npc"=>"招民：点击地面招募流民"};
-            AddHover(b.gameObject,tip);
-            b.onClick.AddListener(()=>{ SetTool(name); Toast(tip); });
+            _splash=UITheme.Panel("Splash",parent,new Color(0.07f,0.45f,0.80f,0.98f));Stretch(_splash); // V7.0.2 海蓝
+            // 全屏底板不得拦截射线：只让按钮自身的 Image 参与射线（否则整屏挡住场景点击）
+            _splash.GetComponent<Image>().raycastTarget=false;
+            var title=UITheme.Label("Title",_splash.transform,"从 像 素 到 文 明",64,TextAnchor.MiddleCenter,UITheme.HexA(0xffffff,1));
+            Place(title.rectTransform,new Vector2(0.5f,0.68f),new Vector2(0.5f,0.68f),new Vector2(-400,-40),new Vector2(400,40));
+            var sub=UITheme.Label("Sub",_splash.transform,"V9.5.6 · 资源异常扣减审计 · 地面部队编队修复 · 存档空槽 · 车辆越野 · 九神AI · 真实地球",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
+            Place(sub.rectTransform,new Vector2(0.5f,0.56f),new Vector2(0.5f,0.56f),new Vector2(-400,-18),new Vector2(400,18));
+            // 主按钮：开始新游戏（带 10 秒无操作自动开局倒计时）
+            var start=UITheme.Btn("Start",_splash.transform,"",26,UITheme.BtnGold); // V7.0.2 橙色主按钮
+            Place(start.GetComponent<RectTransform>(),new Vector2(0.5f,0.44f),new Vector2(0.5f,0.44f),new Vector2(-130,-42),new Vector2(130,42));
+            _startLabel=start.GetComponentInChildren<Text>();
+            start.onClick.AddListener(OnClickStart);
+            // 次按钮：继续上次游戏（无 0 号存档时置灰）
+            _continueBtn=UITheme.Btn("Continue",_splash.transform,"继续上次游戏",20,UITheme.HexA(0xf6f4ee,0.97f));
+            Place(_continueBtn.GetComponent<RectTransform>(),new Vector2(0.5f,0.36f),new Vector2(0.5f,0.36f),new Vector2(-130,-34),new Vector2(130,34));
+            bool hasSave = GM.SaveSystem!=null && GM.SaveSystem.LatestSlot()>=0;
+            _continueBtn.interactable=hasSave;
+            _continueBtn.GetComponent<Image>().color = hasSave ? UITheme.HexA(0xf6f4ee,0.97f) : UITheme.HexA(0xc2c8d0,0.85f); // V7.0.2
+            _continueBtn.onClick.AddListener(OnClickContinue);
+            // V9.1.0 地图模式切换：经典随机 / 真实地球
+            _mapModeBtn=UITheme.Btn("MapMode",_splash.transform,"地图：经典随机",18,UITheme.HexA(0xf6f4ee,0.97f));
+            Place(_mapModeBtn.GetComponent<RectTransform>(),new Vector2(0.5f,0.305f),new Vector2(0.5f,0.305f),new Vector2(-130,-28),new Vector2(130,28));
+            _mapModeBtn.onClick.AddListener(OnClickMapMode);
+            // 自动开局倒计时武装
+            ArmAutoStart();
+            var ver=UITheme.Label("Ver",_splash.transform,"v9.5.6 · Unity / Tuanjie 2022.3.62t12 · URP 高清 · 资源审计/地面部队修复/存档空槽",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
+            Place(ver.rectTransform,new Vector2(0.5f,0.22f),new Vector2(0.5f,0.22f),new Vector2(-300,-15),new Vector2(300,15));
+            var hint=UITheme.Label("FullHint",_splash.transform,"提示：界面太小时，按 F11 或点底部「全屏」按钮 · 10 秒无操作将自动开新局",14,TextAnchor.MiddleCenter,UITheme.HexA(0xd0e6ff,1));
+            Place(hint.rectTransform,new Vector2(0.5f,0.28f),new Vector2(0.5f,0.28f),new Vector2(-360,-12),new Vector2(360,12));
         }
-        private void BarSep(Transform parent)
+        private void OnClickStart()
         {
-            var s=UITheme.Panel("sep",parent,UITheme.HexA(0x9aa3b2,0.5f));
-            s.AddComponent<LayoutElement>().preferredWidth=2; s.AddComponent<LayoutElement>().preferredHeight=36;
+            // V6.1.2：每次开始都随机重新生成大地图，并生成初始聚落/人口/飞鸟（方法内部完成重置与PopulateInitial）
+            _splashArmed=false;
+            GM.StartNewRandomGame();
         }
-        private Text Pill(Transform parent,string txt,Color bg,float w,Color? fc=null)
+        private void OnClickMapMode()
         {
-            var p=UITheme.Panel("pill",parent,bg);
-            p.AddComponent<LayoutElement>().preferredWidth=w;
-            var t=UITheme.Label("t",p.transform,txt,12,TextAnchor.MiddleCenter,fc??UITheme.Text);
-            Stretch(t.gameObject); t.rectTransform.offsetMin=new Vector2(4,0);t.rectTransform.offsetMax=new Vector2(-4,0);
+            GameManager.NextEarthMode=!GameManager.NextEarthMode;
+            var t=_mapModeBtn!=null?_mapModeBtn.GetComponentInChildren<Text>():null;
+            if(t!=null) t.text=GameManager.NextEarthMode?"地图：真实地球":"地图：经典随机";
+        }
+        private void OnClickContinue()
+        {
+            _splashArmed=false;
+            if (!GM.ContinueLastGame())
+            {   // 存档失效则回退为新游戏
+                GM.StartNewRandomGame();
+            }
+        }
+
+        // —— 10 秒无操作自动开新局 ——
+        private void ArmAutoStart()
+        {
+            _autoCd=AutoStartSeconds; _splashArmed=true;
+            _lastMousePos=Input.mousePosition;
+            RefreshAutoStartLabel();
+        }
+        private void RefreshAutoStartLabel()
+        {
+            if (_startLabel!=null)
+                _startLabel.text = _splashArmed ? $"开始新游戏  ({Mathf.CeilToInt(_autoCd)})" : "开始新游戏";
+        }
+        /// <summary>开始页每帧推进自动开局倒计时；任意键鼠/触摸操作都会重置 10 秒。返回是否处于开始页。</summary>
+        private void TickSplashAutoStart()
+        {
+            if (_splash==null || !_splash.activeSelf) { _splashArmed=false; return; }
+            if (!_splashArmed) ArmAutoStart();
+            // 任意操作即重置：按键、鼠标按下、鼠标移动、触摸
+            Vector3 mp=Input.mousePosition;
+            bool interacted = Input.anyKeyDown || Input.GetMouseButtonDown(0)||Input.GetMouseButtonDown(1)||Input.GetMouseButtonDown(2)
+                              || (mp-_lastMousePos).sqrMagnitude>4f || Input.touchCount>0;
+            _lastMousePos=mp;
+            if (interacted) _autoCd=AutoStartSeconds;
+            _autoCd-=Time.unscaledDeltaTime;
+            RefreshAutoStartLabel();
+            if (_autoCd<=0f)
+            {
+                _splashArmed=false;
+                GM.StartNewRandomGame();
+            }
+        }
+        private void OnStateChanged(GameStateType t)
+        {
+            bool playing = t!=GameStateType.Menu;
+            _splash.SetActive(!playing); _hud.SetActive(playing);
+            if (playing) { _splashArmed=false; RebuildBuildListV2(); }
+            else ArmAutoStart();
+        }
+
+        // ---- 顶部栏 ----
+        private void BuildTopBarLegacy(Transform parent)
+        {
+            var bar=UITheme.Panel("TopBar",parent,UITheme.PanelBg);
+            var rt=bar.GetComponent<RectTransform>();
+            rt.anchorMin=new Vector2(0,1);rt.anchorMax=new Vector2(1,1);rt.pivot=new Vector2(0.5f,1);
+            rt.sizeDelta=new Vector2(0,48);rt.anchoredPosition=Vector2.zero; // v5.9.9 topBar 高48
+            var h=bar.AddComponent<HorizontalLayoutGroup>();
+            h.padding=new RectOffset(20,20,4,4);h.spacing=18;h.childAlignment=TextAnchor.MiddleLeft;
+            h.childControlWidth=true;h.childControlHeight=true;h.childForceExpandHeight=true;h.childForceExpandWidth=false;
+
+            // 资源
+            var resBox=UITheme.Panel("ResBar",bar.transform,new Color(0,0,0,0));
+            var rl=resBox.AddComponent<HorizontalLayoutGroup>();rl.spacing=9;rl.childControlWidth=true;rl.childControlHeight=true;
+            var rle=resBox.AddComponent<LayoutElement>();rle.flexibleWidth=1;
+            foreach (var id in ResourceDatabase.Order)
+            {
+                var item=UITheme.Panel("Res_"+id,resBox.transform,new Color(0,0,0,0));
+                var le=item.AddComponent<LayoutElement>();le.preferredWidth=78;
+                var icon=UITheme.Icon(item.transform,id,18);
+                Place(icon.rectTransform,new Vector2(0,0),new Vector2(0,1),new Vector2(2,-2),new Vector2(24,2));
+                var v=UITheme.Label("v",item.transform,"0",13,TextAnchor.MiddleRight);
+                Place(v.rectTransform,new Vector2(0,0),new Vector2(1,1),new Vector2(24,0),new Vector2(0,0));
+                _resTexts[id]=v;
+            }
+            // 时代/朝代/年/公历/人口
+            // v5.9.9：era-tag 棕色渐变块、dynasty-tag 金色描边块
+            _eraTag=Pill(bar.transform,"",UITheme.HexA(0x8B4513,0.92f),120);
+            _dynastyTag=Pill(bar.transform,"",UITheme.HexA(0xFFD700,0.15f),90);
+            _timeText=Pill(bar.transform,"第1年",new Color(0,0,0,0.3f),70);
+            _gregText=Pill(bar.transform,"公元前3000年",new Color(0,0,0,0.3f),120,UITheme.Sky);
+            _popText=Pill(bar.transform,"80",new Color(0,0,0,0.3f),112); _popText.horizontalOverflow=HorizontalWrapMode.Overflow;
+            _envText=Pill(bar.transform,"☀晴天",new Color(0,0,0,0.3f),248,UITheme.Sky); // V6.1.9(i) 天气/潮汐/海风
+        }
+        private Text Pill(Transform p,string s,Color bg,float w,Color? tc=null)
+        {
+            var box=UITheme.Surface("Pill",p,bg);box.AddComponent<LayoutElement>().preferredWidth=w;
+            var t=UITheme.Label("t",box.transform,s,13,TextAnchor.MiddleCenter,tc??UITheme.Text,FontStyle.Bold);
+            t.rectTransform.anchorMin=Vector2.zero;t.rectTransform.anchorMax=Vector2.one;
+            t.rectTransform.offsetMin=Vector2.zero;t.rectTransform.offsetMax=Vector2.zero;
             return t;
         }
 
-        // ============ 速度滑条 ============
-        private void BuildSpeedSlider(Transform parent)
-        {
-            _speedSlider=UITheme.Slider("speed",parent,1f,GM.MaxSpeed,GM.State.Speed,GM.SetSpeedClamped);
-            var le=_speedSlider.gameObject.AddComponent<LayoutElement>();le.preferredWidth=110;le.preferredHeight=40;
-        }
-        private void SyncSlider(){ _suppressSlider=true; _speedSlider.value=GM.State.Speed; _suppressSlider=false; }
-
-        // ============ 通用模态骨架 ============
-        private GameObject MakeModal(string name,string title,out GameObject box,bool autoFit=true)
-        {
-            var m=UITheme.Modal(name,_hud.transform,title,out box);
-            return m;
-        }
-        private Transform ModalBody(GameObject modal)=>modal.transform.Find("Box/Body");
-        private void Clear(Transform t){ for(int i=t.childCount-1;i>=0;i--)Destroy(t.GetChild(i).gameObject); }
-        private void FitModal(GameObject m,float minH,float maxH)
-        {
-            if(m==null)return;
-            var b=m.transform.Find("Box") as RectTransform; if(b==null)return;
-            Canvas.ForceUpdateCanvases();
-            var body=m.transform.Find("Box/Body") as RectTransform; if(body==null)return;
-            float h=Mathf.Clamp(body.rect.height+56,minH,maxH);
-            b.sizeDelta=new Vector2(b.sizeDelta.x,h);
-        }
-        private GameObject Row(Transform parent,float h)
-        {
-            var r=UITheme.Panel("row",parent,new Color(0,0,0,0));
-            r.AddComponent<LayoutElement>().preferredHeight=h;
-            var g=r.AddComponent<HorizontalLayoutGroup>();g.spacing=6;g.childControlWidth=true;g.childControlHeight=true;g.childForceExpandWidth=true;g.childForceExpandHeight=false;g.childAlignment=TextAnchor.MiddleCenter;
-            return r;
-        }
-        private static void Stretch(GameObject go)
-        {
-            var r=go.GetComponent<RectTransform>(); r.anchorMin=Vector2.zero; r.anchorMax=Vector2.one; r.offsetMin=Vector2.zero; r.offsetMax=Vector2.zero;
-        }
-
-        // ============ Debug 面板 ============
-        private void BuildDebugModal(Transform parent)
-        {
-            _debugModal=MakeModal("DebugModal","Debug 控制台",out _,false);
-        }
-        private void OnClickDebug()
-        {
-            if(_debugModal==null)return;
-            FillDebug(); _debugModal.SetActive(true);
-            _debugModal.transform.SetAsLastSibling();
-        }
-
-        private void FillDebug()
-        {
-            var box=_debugModal.transform.Find("Box").GetComponent<RectTransform>();
-            box.sizeDelta=new Vector2(816,560);   // V9.4.2 左右扩展20%：680×1.2=816
-            var body=ModalBody(_debugModal); Clear(body);
-            var dbgSr=UITheme.VerticalScroll("DbgScroll",body.transform,out var content,3);
-            var cvg=content.GetComponent<VerticalLayoutGroup>();cvg.childControlHeight=true;
-            // —— Debug 密码门（ToFuture 解锁 1000 倍速）——
-            var gate=Row(content.transform,34);
-            UITheme.Label("gt",gate.transform,"Debug 密码（解锁 1000× 与全部修改）",12,TextAnchor.MiddleLeft,UITheme.Gold).gameObject.AddComponent<LayoutElement>().flexibleWidth=1;
-            var ip=UITheme.Input("pw",gate.transform,"输入密码…",14);ip.GetComponent<LayoutElement>().flexibleWidth=1;
-            var ok=UITheme.Btn("unlock",gate.transform,"解锁",12);ok.onClick.AddListener(()=>{
-                if(GM.TryUnlockDebug(ip.text)){ Refresh(); ip.text=""; FillDebug(); }
-                else Toast("密码错误",false);
-            });
-            void Section(string e){ UITheme.Label("sec",content.transform,e,13,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold).gameObject.AddComponent<LayoutElement>().preferredHeight=18; }
-            void DBtn(string label,Action act){ var b=UITheme.Btn("d",content.transform,label,12); b.gameObject.AddComponent<LayoutElement>().flexibleWidth=1; b.onClick.AddListener(()=>{ try{act();}catch(Exception ex){ Debug.LogError("[DBTN] "+label+" : "+ex.Message); Toast("执行失败，见日志",false); } }); }
-            if(S.DebugLevel>=2)
-            {
-                // —— 资源 ——
-                Section("资源"); var g=Row(content.transform,34);
-                var all=UITheme.Btn("all1m",g.transform,"全部资源 +100 万",12); all.gameObject.AddComponent<LayoutElement>().flexibleWidth=1; all.onClick.AddListener(()=>GM.WebAddResources1M());
-                var tof=UITheme.Btn("tofuture",g.transform,"跳到公元 3000（Debug 档）",12); tof.gameObject.AddComponent<LayoutElement>().flexibleWidth=1; tof.onClick.AddListener(()=>{GM.Time.DebugJumpTo(6000);Toast("已跳到 6000 年");});
-                // —— 时间 ——
-                Section("时间"); var g2=Row(content.transform,34);
-                var adv=UITheme.Btn("adv",g2.transform,"推进 1 时代",12); adv.onClick.AddListener(()=>GM.WebAdvanceEra());
-                var next=UITheme.Btn("next",g2.transform,"下一个朝代",12); next.onClick.AddListener(()=>GM.WebNextDynasty());
-                var cryo=UITheme.Btn("cryo",g2.transform,"加速冷冻（测试）",12); cryo.onClick.AddListener(()=>GM.WebCryoFreeze());
-                // —— 海洋 / 太空 副本 ——
-                Section("海洋大开发 · 太空探索 副本");
-                DBtn("解锁海洋大开发",()=>GM.Ocean.UnlockExpansion());
-                DBtn("解锁太空探索",()=>GM.Space.UnlockExploration());
-                DBtn("开启大航海时代",()=>{S.AgeOfSail=true;if(S.Era<4)S.Era=4;GM.AddEvent("good","Debug：开启大航海时代");});
-                DBtn("海图自动探索×5",()=>{GM.Expedition.Prepare("ocean");for(int i=0;i<5;i++)GM.Expedition.AutoExplore("ocean");});
-                DBtn("星图自动探索×5",()=>{GM.Expedition.Prepare("space");for(int i=0;i<5;i++)GM.Expedition.AutoExplore("space");});
-                DBtn("当前格建立殖民地",()=>{if(!GM.Expedition.ColonizeHere())Toast("此处不可殖民",false);});
-                DBtn("当前格建前哨基地",()=>{if(!GM.Expedition.BuildOutpostHere())Toast("此处不可建前哨",false);});
-                DBtn("两支队伍全部返航",()=>{GM.Expedition.ReturnHome("ocean");GM.Expedition.ReturnHome("space");});
-                // —— 社会 ——
-                Section("社会");
-                DBtn("人口补满",()=>S.Pop=GameConstants.MaxPop);
-                DBtn("人口 +50",()=>S.Pop=Mathf.Min(GameConstants.MaxPop,S.Pop+50));
-                DBtn("民心/天命回满",()=>{S.DynastyMorale=100;S.Happiness=Mathf.Max(S.Happiness,90);});
-                DBtn("完成全部科技",()=>{foreach(var t in GM.Techs.Keys)S.ResearchedTechs.Add(t);});
-                DBtn("住房 +200",()=>S.Housing+=200);
-                DBtn("九神强制议事一次",()=>GM.Council.CouncilNow());
-                // —— 世界 / 军事 / AI ——
-                Section("世界 · 军事 · 天气 · AI");
-                DBtn("清除树木",()=>GM.Env.ClearTrees());
-                DBtn("触发战争/群雄",()=>{GM.Military.InitFactions();S.WarActive=true;GM.AddEvent("bad","Debug：战争爆发！");});
-                DBtn("敌方舰队 ×3",()=>{for(int i=0;i<3;i++)GM.Naval.DebugSpawnEnemy();});
-                DBtn("我方战船",()=>GM.Naval.DebugSpawnOwnShip());
-                DBtn("切换下一天气",()=>GM.Weather.ForceNext());
-                DBtn("九智能体 开/关",()=>GM.Council.ToggleEnabled());
-                DBtn("九智能体联网",()=>GM.Council.SetOnline(true));
-                DBtn("九智能体离线",()=>GM.Council.SetOnline(false));
-                // —— 结局 / 存档 ——
-                Section("结局 / 存档");
-                DBtn("直接胜利",()=>{S.Victory=true;S.VictoryType="debug";GM.AddEvent("good","Debug：达成文明胜利！");});
-                DBtn("快速存档(槽1)",()=>GM.SaveSystem.SaveToSlot(1));
-                DBtn("快速读档(槽1)",()=>{if(GM.SaveSystem.LoadFromSlot(1))Refresh();});
-            }
-            else
-            {
-                UITheme.Label("lock",content.transform,"输入上方密码解锁全部 Debug 功能（密码见帮助界面）",12,TextAnchor.MiddleLeft,UITheme.Sub)
-                    .gameObject.AddComponent<LayoutElement>().preferredHeight=28;
-            }
-            var foot=Row(content.transform,30);
-            var cb=UITheme.Btn("close",foot.transform,"关闭控制台",13);cb.onClick.AddListener(()=>_debugModal.SetActive(false));
-            Canvas.ForceUpdateCanvases();dbgSr.verticalNormalizedPosition=1f;
-            AutoBindHovers(_debugModal.transform);
-            FitModal(_debugModal,360,520);
-        }
-
-        // ============ 存档界面（V9.5.3 完全重做，参照参考图）============
-        private void BuildSaveModal(Transform parent)
-        {
-            _saveModal=MakeModal("SaveModal","存档管理",out _,false);
-        }
-        private void OpenSaveModal()
-        {
-            if(_saveModal==null)return;
-            RenderSaveSlots();
-            _saveModal.SetActive(true);
-            _saveModal.transform.SetAsLastSibling();   // V9.5.3 置顶：存档界面永远位于最上层，不被其他浮窗遮挡
-        }
-        private void RenderSaveSlots()
-        {
-            if(_saveModal==null)return;
-            var box=_saveModal.transform.Find("Box").GetComponent<RectTransform>();
-            box.sizeDelta=new Vector2(888,780);   // V9.5.3 完全重做：参照参考图（三格空存档槽）加宽加高
-            var body=ModalBody(_saveModal); Clear(body);
-            var vg=body.gameObject.AddComponent<VerticalLayoutGroup>(); vg.spacing=4; vg.padding=new RectOffset(6,6,6,6);
-            vg.childControlWidth=true; vg.childForceExpandWidth=true; vg.childControlHeight=true; vg.childForceExpandHeight=false;
-            var top=Row(body.transform,34);
-            UITheme.Btn("qs",top.transform,"快速存档",13).onClick.AddListener(()=>{GM.SaveSystem.SaveToSlot(1);RenderSaveSlots();Toast("已快速存档");});
-            UITheme.Btn("ql",top.transform,"快速读档",13).onClick.AddListener(()=>{if(GM.SaveSystem.LoadFromSlot(1)){Refresh();RenderSaveSlots();Toast("已快速读档");}else Toast("该槽位为空",false);});
-            UITheme.Btn("rf",top.transform,"刷新列表",13).onClick.AddListener(()=>RenderSaveSlots());
-            UITheme.Btn("ex",top.transform,"导出 JSON",13).onClick.AddListener(()=>{GM.SaveSystem.ExportJson();Toast("已导出到本地（浏览器下载）");});
-            UITheme.Btn("im",top.transform,"导入 JSON",13).onClick.AddListener(()=>{GM.SaveSystem.ImportJson();RenderSaveSlots();Toast("导入完成（若失败请用浏览器的打开文件选择）");});
-            var auto=Row(body.transform,40);
-            UITheme.Label("a",auto.transform,"自动存档（每 5 分钟自动覆盖，读档不中断）",12,TextAnchor.MiddleLeft,UITheme.Gold).gameObject.AddComponent<LayoutElement>().flexibleWidth=1;
-            _saveCountdown=UITheme.Label("cd",auto.transform,"",12,TextAnchor.MiddleRight,UITheme.Sub); _saveCountdown.gameObject.AddComponent<LayoutElement>().preferredWidth=150;
-            for(int i=1;i<=5;i++)
-            {
-                var slot=GM.SaveSystem.GetSlotMeta(i);
-                var row=Row(body.transform,46);
-                var info=slot==null?"【空】手动存档槽 "+i:"手动存档槽 "+i+"·第"+slot.Year+"年·"+slot.Dynasty+"·建筑"+slot.Buildings+"·"+slot.When;
-                UITheme.Label("n",row.transform,info,12,TextAnchor.MiddleLeft).gameObject.AddComponent<LayoutElement>().flexibleWidth=1;
-                int idx=i;
-                UITheme.Btn("ov"+i,row.transform,"覆盖",11).onClick.AddListener(()=>{GM.SaveSystem.SaveToSlot(idx);RenderSaveSlots();Toast("已存入槽 "+idx);});
-                UITheme.Btn("ld"+i,row.transform,"读档",11).onClick.AddListener(()=>{if(GM.SaveSystem.LoadFromSlot(idx)){Refresh();RenderSaveSlots();Toast("已从槽 "+idx+" 读档");}else Toast("该槽位为空",false);});
-                UITheme.Btn("dl"+i,row.transform,"删除",11).onClick.AddListener(()=>{GM.SaveSystem.DeleteSlot(idx);RenderSaveSlots();Toast("已删除槽 "+idx);});
-            }
-            FitModal(_saveModal,520,860);
-        }
-
-        // ============ 建筑 / 船只 / 车辆 / 树木 属性面板（V9.3.8 全物属性化）============
-        private void BuildShipCard(Transform parent)
-        {
-            _shipCard=UITheme.Card("ShipCard",parent);
-            _scName=AddRow(_shipCard.transform,"名称"); _scLv=AddRow(_shipCard.transform,"等级");
-            _scCrew=AddRow(_shipCard.transform,"船员"); _scDura=AddRow(_shipCard.transform,"耐久");
-            _scCap=AddRow(_shipCard.transform,"载量"); _scAtt=AddRow(_shipCard.transform,"攻击");
-            var row=Row(_shipCard.transform,30);
-            _scUp=UITheme.Btn("up",row.transform,"升级",12);_scUp.onClick.AddListener(()=>{GM.Naval.TryUpgradeShip(_scShip);RenderShipCard();});
-            _scDel=UITheme.Btn("del",row.transform,"退役",12);_scDel.onClick.AddListener(()=>{GM.Naval.ScrapShip(_scShip);CloseShipCard();});
-            _scClose=UITheme.Btn("x",row.transform,"关闭",12);_scClose.onClick.AddListener(CloseShipCard);
-            _shipCard.SetActive(false);
-        }
-        private void BuildCartCard(Transform parent)
-        {
-            _cartCard=UITheme.Card("CartCard",parent);
-            _ccName=AddRow(_cartCard.transform,"名称"); _ccCrew=AddRow(_cartCard.transform,"载客"); _ccCap=AddRow(_cartCard.transform,"载货"); _ccDura=AddRow(_cartCard.transform,"耐久");
-            var row=Row(_cartCard.transform,30);
-            _ccClose=UITheme.Btn("x",row.transform,"关闭",12);_ccClose.onClick.AddListener(CloseCart);
-            _cartCard.SetActive(false);
-        }
-        private void BuildTreeCard(Transform parent)
-        {
-            _treeCard=UITheme.Card("TreeCard",parent);
-            _tcName=AddRow(_treeCard.transform,"名称"); _tcAge=AddRow(_treeCard.transform,"树龄");
-            var row=Row(_treeCard.transform,30);
-            _tcClose=UITheme.Btn("x",row.transform,"关闭",12);_tcClose.onClick.AddListener(CloseTree);
-            _treeCard.SetActive(false);
-        }
-        private Text AddRow(Transform parent,string label)
-        {
-            var r=Row(parent,24);
-            UITheme.Label("l",r.transform,label,12,TextAnchor.MiddleLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredWidth=56;
-            var t=UITheme.Label("v",r.transform,"",12,TextAnchor.MiddleLeft); t.horizontalOverflow=HorizontalWrapMode.Wrap; t.gameObject.AddComponent<LayoutElement>().flexibleWidth=1;
-            return t;
-        }
-        public void ShowShip(ShipEntity s)
-        {
-            _scShip=s;_shipCard.SetActive(true);RenderShipCard();
-            _shipCard.transform.SetAsLastSibling();
-        }
-        private void RenderShipCard()
-        {
-            if(_scShip==null)return;
-            var s=_scShip;
-            _scName.text=s.Name; _scLv.text="Lv"+s.Level;
-            _scCrew.text=Mathf.RoundToInt(s.Crew)+"/"+GM.Naval.Capacity(s);
-            _scDura.text=Mathf.RoundToInt(s.Hp)+"/"+GM.Naval.MaxDurability(s);
-            _scCap.text=GM.Naval.Capacity(s)+" 人"; _scAtt.text=GM.Naval.AttackOf(s)+" 攻·"+GM.Naval.RangeOf(s).ToString("0")+" 射程";
-        }
-        public void CloseShipCard(){ if(_shipCard)_shipCard.SetActive(false); }
-        public void ShowCart(CartEntity c){ _ccCart=c;_cartCard.SetActive(true);
-            _ccName.text=c.Name; _ccCrew.text=c.Crew+"/"+c.Capacity+" 人"; _ccCap.text=c.Cargo+"/"+c.MaxCargo; _ccDura.text=c.Hp+"/"+c.MaxHp;
-            _cartCard.transform.SetAsLastSibling(); }
-        public void CloseCart(){ if(_cartCard)_cartCard.SetActive(false); }
-        public void ShowTree(BanyanTree t){ _tcTree=t;_treeCard.SetActive(true);
-            _tcName.text="大榕树"; _tcAge.text=t.Age.ToString("0")+" 年"; _treeCard.transform.SetAsLastSibling(); }
-        public void CloseTree(){ if(_treeCard)_treeCard.SetActive(false); }
-
-        // ============ 建筑内视图 / 属性 ============
-        private void BuildBuildingModal(Transform parent)
-        {
-            _buildingModal=UITheme.Modal("BuildingModal","建筑",parent,out _);
-        }
-
-        // ============ 冷冻冷却条（V6.1.9）============
+        // ---- V6.1.9 画面中间顶部：加速冷冻冷却倒计时（仅冷冻时显示，不拦截指针）----
         private void BuildCryoBar(Transform parent)
         {
-            _cryoBar=UITheme.Surface("CryoBar",parent,new Color(0.10f,0.14f,0.24f,0.92f));
+            _cryoBar=UITheme.Surface("CryoBar",parent,new Color(0.18f,0.60f,0.92f,0.95f));
+            var img=_cryoBar.GetComponent<Image>(); if(img!=null) img.raycastTarget=false;
             var rt=_cryoBar.GetComponent<RectTransform>();
             rt.anchorMin=new Vector2(0.5f,1);rt.anchorMax=new Vector2(0.5f,1);rt.pivot=new Vector2(0.5f,1);
-            rt.anchoredPosition=new Vector2(0,-56);rt.sizeDelta=new Vector2(560,34);
-            _cryoText=UITheme.Label("t",_cryoBar.transform,"",13,TextAnchor.MiddleCenter,UITheme.Hex(0x7fd0ff));
+            rt.anchoredPosition=new Vector2(0,-54); rt.sizeDelta=new Vector2(440,34);
+            _cryoText=UITheme.Label("CryoText",_cryoBar.transform,"",14,TextAnchor.MiddleCenter,UITheme.HexA(0xbfe9ff,1));
             Stretch(_cryoText.gameObject);
             _cryoBar.SetActive(false);
         }
 
-        private void ToggleSound(){ GM.ToggleSound(); Toast(GM.SoundOn?"声音开":"声音关"); }
+        // ---- 左侧建造面板 ----
+        private void BuildLeftPanelLegacy(Transform parent)
+        {
+            var panel=UITheme.Panel("LeftPanel",parent,UITheme.PanelBg);
+            _leftPanel=panel;
+            var rt=panel.GetComponent<RectTransform>();
+            // v5.9.9：left:10 top:58 宽220，距底70
+            rt.anchorMin=new Vector2(0,1);rt.anchorMax=new Vector2(0,1);rt.pivot=new Vector2(0,1);
+            rt.offsetMin=new Vector2(10,-1010);rt.offsetMax=new Vector2(230,-58);
+            var vl=panel.AddComponent<VerticalLayoutGroup>();vl.spacing=4;vl.padding=new RectOffset(6,6,6,6);
+            vl.childControlWidth=true;vl.childForceExpandWidth=true;
+            UITheme.Label("Title",panel.transform,"建  造",16,TextAnchor.MiddleCenter,UITheme.Gold);
+            var tabs=UITheme.Panel("CatTabs",panel.transform,new Color(0,0,0,0));
+            var tg=tabs.AddComponent<GridLayoutGroup>();tg.constraint=GridLayoutGroup.Constraint.FixedColumnCount;tg.constraintCount=4;
+            tg.cellSize=new Vector2(50,24);tg.spacing=new Vector2(3,3);
+            tabs.AddComponent<LayoutElement>().preferredHeight=108;
+            foreach (var cat in new[]{"居住","基础","食物","资源","经济","文化","工业","军事","海洋","能源","科技","太空","运输"})
+            {
+                var b=UITheme.Btn("tab_"+cat,tabs.transform,cat,11,new Color(1,1,1,0.06f));
+                string c=cat;b.onClick.AddListener(()=>{_activeCat=c;RebuildBuildListLegacy();});
+            }
+            var buildScroll=UITheme.VerticalScroll("BuildScroll",panel.transform,out var content,3);
+            _buildList=content;
+            var le=buildScroll.gameObject.AddComponent<LayoutElement>();le.flexibleHeight=1;
+        }
+
+        private void RebuildBuildListLegacy()
+        {
+            if (_buildList==null) return;
+            for (int i=_buildList.childCount-1;i>=0;i--) Destroy(_buildList.GetChild(i).gameObject);
+            if (_activeCat=="运输"){ BuildTransportListLegacy(); return; }
+            foreach (var kv in GM.Buildings)
+            {
+                var b=kv.Value;
+                if (b.Cat!=_activeCat) continue;
+                bool unlocked=b.Era<=S.Era;
+                string label=b.Name+(unlocked?"":"·锁定");
+                var btn=UITheme.BtnIcon("b_"+b.Id,_buildList,CatIconLegacy(b.Cat,b.Id),label,12,
+                    unlocked?UITheme.BtnGold:new Color(0.3f,0.3f,0.3f,0.3f));
+                btn.interactable=unlocked;
+                string id=b.Id;
+                btn.onClick.AddListener(()=>{ S.SelectedBuildType=id; S.Tool="build"; });
+            }
+        }
+
+        /// <summary>V6.1.1 运输分类：四级锚点车辆 + 九型船只，选中后在地图点击放置（前缀 cart:/ship: 由输入控制器分流）</summary>
+        private void BuildTransportListLegacy()
+        {
+            UITheme.Label("ct",_buildList,"— 车辆（陆地）—",12,TextAnchor.MiddleCenter,UITheme.Gold);
+            foreach (var kv in GM.Cart.Defs)
+            {
+                var d=kv.Value;
+                var btn=UITheme.Btn("cart_"+d.Id,_buildList,$"{d.Icon} {d.Name}  {CostText(d.Cost)}",12,UITheme.BtnGold);
+                string id=d.Id;
+                btn.onClick.AddListener(()=>{S.SelectedBuildType="cart:"+id;S.Tool="build";});
+            }
+            UITheme.Label("st",_buildList,"— 船只（水域）—",12,TextAnchor.MiddleCenter,UITheme.Gold);
+            foreach (var kv in GM.Naval.Defs)
+            {
+                var d=kv.Value;
+                bool unlocked=d.Era<=S.Era;
+                var btn=UITheme.Btn("ship_"+d.Id,_buildList,$"{d.Icon} {d.Name}{(unlocked?"":"·锁定")}  {CostText(d.Cost)}",12,
+                    unlocked?UITheme.BtnGold:new Color(0.3f,0.3f,0.3f,0.3f));
+                btn.interactable=unlocked;
+                string id=d.Id;
+                btn.onClick.AddListener(()=>{S.SelectedBuildType="ship:"+id;S.Tool="build";});
+            }
+        }
+
+        /// <summary>建筑分类→矢量图标 key（个别特殊建筑按 id 精确匹配）</summary>
+        private static string CatIconLegacy(string cat,string id)
+        {
+            switch (id)
+            {
+                case "great_wall": case "watchtower": case "tower": return "tower";
+                case "canal": return "canal";
+                case "highway": case "road": case "railway_pre": case "high_speed_rail": return "road";
+                case "airport": return "airplane";
+                case "space_elevator": case "rocket": return "rocket";
+                case "temple": case "pagoda": return "temple";
+                case "market": case "bank": return "market";
+                case "farm": return "farm";
+            }
+            return cat switch
+            {
+                "居住"=>"house","基础"=>"house","食物"=>"food","资源"=>"iron","经济"=>"bank",
+                "文化"=>"culture","工业"=>"factory","军事"=>"military","海洋"=>"ship",
+                "能源"=>"power","科技"=>"research","太空"=>"rocket",_=>"house",
+            };
+        }
+
+        // ---- 右侧面板 ----
+        private void BuildRightPanelLegacy(Transform parent)
+        {
+            var panel=UITheme.Panel("RightPanel",parent,UITheme.PanelBg);
+            var rt=panel.GetComponent<RectTransform>();
+            // v5.9.9：right:10 top:58 宽240，距底70
+            rt.anchorMin=new Vector2(1,1);rt.anchorMax=new Vector2(1,1);rt.pivot=new Vector2(1,1);
+            rt.offsetMin=new Vector2(-250,-1010);rt.offsetMax=new Vector2(-10,-58);
+            var vl=panel.AddComponent<VerticalLayoutGroup>();vl.spacing=6;vl.padding=new RectOffset(8,8,8,8);
+            vl.childControlWidth=true;vl.childForceExpandWidth=true;
+            UITheme.Label("T",panel.transform,"国 家 状 态",16,TextAnchor.MiddleCenter,UITheme.Gold);
+            BuildStatsSections(panel.transform);
+            // 操作按钮（V6.1.1 矢量图标）
+            var actions=UITheme.Panel("Actions",panel.transform,new Color(0,0,0,0));
+            var ag=actions.AddComponent<GridLayoutGroup>();ag.constraint=GridLayoutGroup.Constraint.FixedColumnCount;ag.constraintCount=3;
+            ag.cellSize=new Vector2(72,30);ag.spacing=new Vector2(4,4);
+            actions.AddComponent<LayoutElement>().preferredHeight=136;
+            UITheme.BtnIcon("tech",actions.transform,"research","科技",12).onClick.AddListener(OpenTechModal);
+            UITheme.BtnIcon("policy",actions.transform,"culture","政策",12).onClick.AddListener(OpenPolicyModal);
+            UITheme.BtnIcon("gods",actions.transform,"god","九神",12).onClick.AddListener(OpenGodsModal);
+            UITheme.BtnIcon("city",actions.transform,"market","城市",12).onClick.AddListener(OpenCityModal);
+            UITheme.BtnIcon("philosophy",actions.transform,"culture","百家",12).onClick.AddListener(OpenPhilosophyModal);
+            UITheme.BtnIcon("army",actions.transform,"military","征兵",12).onClick.AddListener(()=>GM.Military.TrainSoldiers());
+            UITheme.BtnIcon("cavalry",actions.transform,"military","骑兵",12).onClick.AddListener(()=>GM.Military.TrainCavalry());
+            UITheme.BtnIcon("campaign",actions.transform,"military","讨伐",12).onClick.AddListener(OpenCampaignModal);
+            UITheme.BtnIcon("colony",actions.transform,"ship","殖民",12).onClick.AddListener(OpenColonyModal);
+            UITheme.BtnIcon("auto",actions.transform,"setting","自动",12).onClick.AddListener(()=>GM.Building.AutoBuildEnabled=!GM.Building.AutoBuildEnabled);
+            _oceanBtn=UITheme.BtnIcon("ocean",actions.transform,"ship","海洋",12).gameObject;
+            _oceanBtn.GetComponent<Button>().onClick.AddListener(OpenOceanModal);_oceanBtn.SetActive(false);
+            _spaceBtn=UITheme.BtnIcon("space",actions.transform,"rocket","太空",12).gameObject;
+            _spaceBtn.GetComponent<Button>().onClick.AddListener(OpenSpaceModal);_spaceBtn.SetActive(false);
+            // 事件日志
+            UITheme.Label("LogT",panel.transform,"编 年 史",13,TextAnchor.MiddleLeft,UITheme.Gold);
+            var logScroll=UITheme.VerticalScroll("LogScroll",panel.transform,out var logContent,2);
+            logScroll.gameObject.AddComponent<LayoutElement>().preferredHeight=240;
+            _eventText=UITheme.Label("log",logContent,"",11,TextAnchor.UpperLeft);
+            _eventText.gameObject.AddComponent<LayoutElement>().preferredHeight=600;
+        }
+
+        // ---- 底部操作栏（V6.1.2 对齐 v5.9.9：全宽贴底、高56、38×38 方按钮、分段）----
+        private void BuildBottomBarLegacy(Transform parent)
+        {
+            var bar=UITheme.Panel("BottomBar",parent,UITheme.PanelBg);
+            var rt=bar.GetComponent<RectTransform>();
+            rt.anchorMin=new Vector2(0,0);rt.anchorMax=new Vector2(1,0);rt.pivot=new Vector2(0.5f,0);
+            rt.offsetMin=Vector2.zero;rt.offsetMax=new Vector2(0,56); // v5.9.9 bottomBar 全宽高56贴底
+            var h=bar.AddComponent<HorizontalLayoutGroup>();h.spacing=8;h.padding=new RectOffset(16,16,9,9);
+            h.childControlHeight=true;h.childAlignment=TextAnchor.MiddleCenter;
+
+            // 左段：速度控制（对齐 v5.9.9：暂停/继续 − 滑条 + xN）
+            var bPause=SquareBtn(bar.transform,"pause","暂停",GM.TogglePause);
+            SquareBtn(bar.transform,"down","−",SpeedDown);
+            _speedText=Pill(bar.transform,"1x",new Color(0,0,0,0.3f),56);
+            _speedText.gameObject.AddComponent<LayoutElement>().preferredHeight=38;
+            SquareBtn(bar.transform,"up","+",SpeedUp);
+            BuildSpeedSlider(bar.transform);   // v5.9.9 连续倍速滑条
+            BarSep(bar.transform);
+            // 工具组（对齐 v5.9.9 bbTools：选择 / 建造 / 种树 / 招民）
+            ToolBtn(bar.transform,"select","select");
+            ToolBtn(bar.transform,"build","build");
+            ToolBtn(bar.transform,"tree","tree");
+            ToolBtn(bar.transform,"npc","person");
+            SetTool("select");
+            BarSep(bar.transform);
+            // 中段弹性占位
+            var spacer=UITheme.Panel("spacer",bar.transform,new Color(0,0,0,0));
+            spacer.AddComponent<LayoutElement>().flexibleWidth=1;
+            // 右段：存档 / 回中心 / Debug / 声音 / 全屏
+            SquareBtn(bar.transform,"save","存档",OpenSaveModal);
+            SquareBtn(bar.transform,"center","回中心",()=>{var rig=UnityEngine.Object.FindObjectOfType<World.CameraRig>();rig?.CenterView();});
+            SquareBtn(bar.transform,"debug","Debug",OnClickDebug);
+            SquareBtn(bar.transform,"sound","声音",ToggleSound);
+            SquareBtn(bar.transform,"fullscreen","全屏",()=>GM.ToggleFullscreen());
+        }
+
+        // V6.1.2 工具按钮（选中态金色高亮，对齐 v5.9.9 bb-btn.active）
+        private Button ToolBtn(Transform parent,string tool,string iconKey)
+        {
+            var b=UITheme.Btn("tool_"+tool,parent,"",12,UITheme.Chip);
+            var le=b.GetComponent<LayoutElement>();le.preferredWidth=46;le.preferredHeight=44;le.minWidth=46;
+            var txt=b.transform.Find("Text"); if(txt)Destroy(txt.gameObject);
+            var ic=UITheme.Icon(b.transform,iconKey,12);
+            ic.rectTransform.anchorMin=Vector2.zero;ic.rectTransform.anchorMax=Vector2.one;
+            ic.rectTransform.offsetMin=new Vector2(11,10);ic.rectTransform.offsetMax=new Vector2(-11,-10);
+            ic.gameObject.SetActive(true);
+            var tip=tool switch{"select"=>"选择：点选建筑/单位查看详情","build"=>"建造：展开左侧建造面板",
+                "tree"=>"种树：在点击的空地种一棵树","npc"=>"招民：在点击处生成一名村民",_=>tool};
+            AddHover(b.gameObject,tip);
+            b.onClick.AddListener(()=>SetTool(tool));
+            _toolBtns[tool]=b;
+            return b;
+        }
+        /// <summary>纯矢量图标方钮（WebGL 不渲染 Emoji，统一走 IconFactory）</summary>
+        private Button IconSquare(Transform parent,string iconKey,System.Action onClick)
+        {
+            var b=UITheme.Btn("is_"+iconKey,parent,"",12,UITheme.Chip);
+            var le=b.GetComponent<LayoutElement>();le.preferredWidth=40;le.preferredHeight=40;le.minWidth=40;
+            var txt=b.transform.Find("Text"); if(txt)Destroy(txt.gameObject);
+            var ic=UITheme.Icon(b.transform,iconKey,20);
+            ic.rectTransform.anchorMin=Vector2.zero;ic.rectTransform.anchorMax=Vector2.one;
+            ic.rectTransform.offsetMin=new Vector2(10,10);ic.rectTransform.offsetMax=new Vector2(-10,-10);
+            b.onClick.AddListener(()=>onClick());
+            return b;
+        }
+        private void SetTool(string tool)
+        {
+            GM.Tool=tool=="build"?"select":tool;   // 建造按钮只负责展开/收起左面板
+            GM.State.SelectedBuildType=null;
+            if (tool=="build") ToggleLeftPanel();  // V7.0.4 走雷达式整窗收起/恢复，保证恢复钮状态同步
+            foreach(var kv in _toolBtns)
+            {
+                bool on=kv.Key==tool && tool!="build";
+                var timg=kv.Value.GetComponent<Image>();timg.color = on?UITheme.ChipActive:UITheme.Chip;
+                var ttx=kv.Value.GetComponentInChildren<Text>();if(ttx)ttx.color=on?UITheme.ChipActiveText:UITheme.Text;
+            }
+        }
+        private void ToggleSound()
+        {
+            _muted=!_muted;
+            // V7.1.0 统一走 AudioManager（持久化 + 与环境声一致），无实例时回退直接控 AudioListener
+            var am=PixelToCivilization.Audio.AudioManager.I;
+            if(am!=null) am.SetMuted(_muted); else AudioListener.volume=_muted?0f:1f;
+            GM.AddEvent("info",_muted?"🔇 已静音":"🔊 声音开启");
+        }
+        // V6.1.2 简易存档面板（快速存/读 0 号槽 + 导出 JSON）
+        // ============ 存档管理（V6.1.2 对齐 v5.9.9：自动槽+5手动槽/覆盖/读档/删除/导出/导入） ============
+        private void OpenSaveModal()
+        {
+            _saveModal=CreateModal("存档管理");
+            _saveModal.transform.SetAsLastSibling();   // V9.5.3 置顶：防被其他浮窗/属性栏遮挡导致"按钮无效"
+            _saveModal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(888,780);   // V9.4.5 加高至780：6行存档槽全显（V9.4.2 888 宽保留）
+            var body=ModalBody(_saveModal);Clear(body);
+            var root=body.AddComponent<VerticalLayoutGroup>();root.spacing=8;root.padding=new RectOffset(4,4,4,4);
+            // V9.5.6 根因修复：childControlHeight 必须为 true——槽位 ScrollRect 是拉伸锚点（VerticalScroll 内强制
+            // anchorMin=0/anchorMax=1），若布局组不控高度，它会与父高冲突塌缩为 0（表现为"没有空存档列表"）。
+            // 所有子元素均已带明确 LayoutElement.preferredHeight，故可由布局组统一驱动高度。
+            root.childControlWidth=true;root.childForceExpandWidth=true;root.childControlHeight=true;root.childForceExpandHeight=false;
+
+            var quick=UITheme.Panel("Quick",body.transform,new Color(0,0,0,0));quick.AddComponent<LayoutElement>().preferredHeight=38;
+            var qh=quick.AddComponent<HorizontalLayoutGroup>();qh.spacing=8;qh.childForceExpandWidth=true;
+            UITheme.Btn("qs",quick.transform,"快速存档",12).onClick.AddListener(()=>{GM.SaveSystem.SaveToSlot(1);RenderSaveSlots();Toast("已存入手动槽 1");});
+            UITheme.Btn("ql",quick.transform,"快速读档",12).onClick.AddListener(()=>{if(GM.SaveSystem.LoadFromSlot(1)){RenderSaveSlots();Refresh();Toast("已读取手动槽 1");}});
+            UITheme.Btn("refresh",quick.transform,"刷新列表",12).onClick.AddListener(RenderSaveSlots);
+            UITheme.Btn("export",quick.transform,"导出存档",12).onClick.AddListener(()=>{
+                var json=GM.SaveSystem.Export();
+                PixelToCivilization.Platform.WebFile.DownloadJson("文明_第"+S.Year+"年.json",json);
+                GUIUtility.systemCopyBuffer=json;Toast("已导出并复制到剪贴板");});
+            // V9.5.3 对齐参考图：底部"导入存档"按钮（聚焦下方粘贴输入框，无粘贴内容则提示）
+            UITheme.Btn("impBtn",quick.transform,"导入存档",12).onClick.AddListener(()=>{
+                if(string.IsNullOrWhiteSpace(_importField!=null?_importField.text:"")){Toast("请先将存档 JSON 粘贴到下方输入框",false);return;}
+                if(GM.SaveSystem.Import(_importField.text)){RenderSaveSlots();Refresh();Toast("导入成功");}else Toast("导入失败：格式错误",false);});
+
+            var autoBar=UITheme.Surface("AutoBar",body.transform,UITheme.HexA(0x0a3d1a,0.85f));autoBar.AddComponent<LayoutElement>().preferredHeight=34;
+            var ah=autoBar.AddComponent<HorizontalLayoutGroup>();ah.padding=new RectOffset(12,12,4,4);ah.childControlWidth=true;ah.childForceExpandWidth=true;ah.childAlignment=TextAnchor.MiddleCenter;
+            UITheme.Label("al",autoBar.transform,"自动存档已开启（每 5 分钟覆盖自动槽 0，读档不中断）",12,TextAnchor.MiddleLeft,UITheme.HexA(0x7dff9a,1));
+            _saveCountdown=UITheme.Label("ar",autoBar.transform,"",12,TextAnchor.MiddleRight,UITheme.HexA(0x7dff9a,1));
+
+            var slotSr=UITheme.VerticalScroll("SlotScroll",body.transform,out _saveSlotBox,6);
+            // V9.5.5 根因修复：FitModal 给 Box 加了 ContentSizeFitter(PreferredSize)，ScrollRect 只有 flexibleHeight
+            // 不贡献 preferredHeight，槽位区域被压成 0（表现为"没有空存档列表"）。给明确 preferredHeight/minHeight。
+            var slotLe=slotSr.gameObject.AddComponent<LayoutElement>();
+            slotLe.preferredHeight=310; slotLe.minHeight=210; slotLe.flexibleHeight=1;
+            _saveSlotBox.GetComponent<VerticalLayoutGroup>().childControlHeight=true;
+
+            var imp=UITheme.Surface("Import",body.transform,new Color(0.05f,0.12f,0.16f,0.08f));imp.AddComponent<LayoutElement>().preferredHeight=96;
+            var il=imp.AddComponent<VerticalLayoutGroup>();il.spacing=4;il.padding=new RectOffset(8,8,6,6);il.childControlWidth=true;il.childForceExpandWidth=true;
+            UITheme.Label("impt",imp.transform,"粘贴存档 JSON 后导入（跨设备迁移用）：",11,TextAnchor.MiddleLeft,UITheme.Sub);
+            var inputGo=UITheme.Panel("ImportInput",imp.transform,new Color(0.93f,0.96f,0.98f,1f));inputGo.AddComponent<LayoutElement>().preferredHeight=30;
+            _importField=inputGo.AddComponent<InputField>();
+            var itxt=UITheme.Label("itxt",inputGo.transform,"",11,TextAnchor.UpperLeft);itxt.rectTransform.offsetMin=new Vector2(6,2);itxt.rectTransform.offsetMax=new Vector2(-6,-2);
+            _importField.textComponent=itxt;_importField.lineType=InputField.LineType.MultiLineNewline;
+            UITheme.Btn("importBtn",imp.transform,"导入粘贴的存档",12).onClick.AddListener(()=>{
+                if(string.IsNullOrWhiteSpace(_importField.text)){Toast("请先粘贴存档 JSON",false);return;}
+                if(GM.SaveSystem.Import(_importField.text)){RenderSaveSlots();Refresh();Toast("导入成功");}else Toast("导入失败：格式错误",false);});
+
+            // V9.5.3 对齐参考图：底部 Debug 控制台 · 密码解锁（ToFuture）入口
+            var dbg=UITheme.Surface("DbgBar",body.transform,new Color(0.08f,0.05f,0.10f,0.25f));dbg.AddComponent<LayoutElement>().preferredHeight=36;
+            var dh=dbg.AddComponent<HorizontalLayoutGroup>();dh.padding=new RectOffset(12,12,4,4);dh.childControlWidth=true;dh.childForceExpandWidth=true;dh.childAlignment=TextAnchor.MiddleCenter;
+            UITheme.Label("dbt",dbg.transform,S.DebugLevel>=2?"Debug 控制台已解锁（全权限）":"Debug 控制台 · 输入密码解锁高级功能",12,TextAnchor.MiddleLeft,S.DebugLevel>=2?UITheme.Gold:UITheme.Sub);
+            UITheme.Btn("dbgUnlock",dbg.transform,S.DebugLevel>=2?"打开 Debug":"解锁 Debug",12,UITheme.Chip).onClick.AddListener(()=>{
+                _saveModal.SetActive(false);OnClickDebug();
+                if(S.DebugLevel>=2) OpenSaveModal();   // 解锁后回存档面板
+            });
+            RenderSaveSlots();
+            FitModal(_saveModal, 380, 700);   // V9.5.3 700 高：容纳 6 行槽 + Debug 解锁行全显
+        }
+        private void RenderSaveSlots()
+        {
+            if(_saveSlotBox==null)return;
+            // 只销毁子槽位行，绝不能用 Clear()：Clear 会连同 content 自身的 VerticalLayoutGroup 一起销毁，导致整列塌缩
+            for(int i=_saveSlotBox.childCount-1;i>=0;i--) Destroy(_saveSlotBox.GetChild(i).gameObject);
+            for(int slot=0;slot<=SaveSystem.ManualSlots;slot++) SaveSlotRow(_saveSlotBox,GM.SaveSystem.Summarize(slot));
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_saveSlotBox);
+        }
+        private void SaveSlotRow(Transform parent,SlotSummary sum)
+        {
+            var row=UITheme.Surface("Slot"+sum.Slot,parent,UITheme.HexA(0xffffff,0.06f));
+            var rle=row.AddComponent<LayoutElement>();rle.preferredHeight=46;rle.layoutPriority=1;   // V9.4.5 行高58→46：6 行槽（自动+5 手动）一屏全显
+            var h=row.AddComponent<HorizontalLayoutGroup>();h.padding=new RectOffset(10,8,6,6);h.spacing=8;h.childControlWidth=true;h.childControlHeight=true;h.childForceExpandWidth=true;h.childForceExpandHeight=true;
+            var info=UITheme.Panel("info",row.transform,new Color(0,0,0,0));var ile=info.AddComponent<LayoutElement>();ile.flexibleWidth=1;ile.minHeight=46;
+            var iv=info.AddComponent<VerticalLayoutGroup>();iv.spacing=2;iv.childControlWidth=true;iv.childForceExpandWidth=true;iv.childControlHeight=true;iv.childForceExpandHeight=false;iv.childAlignment=TextAnchor.MiddleLeft;
+            // V9.5.5 对齐参考图：简洁的"自动存档/存档N/空存档槽N"，空槽不显示副信息
+            string head;
+            if(sum.Damaged) head="【损坏】存档"+sum.Slot;
+            else if(!sum.Exists) head=sum.Slot==0?"自动存档":"空存档槽 "+sum.Slot;
+            else head=sum.Slot==0?"自动存档":"存档"+sum.Slot;
+            Color headCol=sum.Damaged?UITheme.Bad:(sum.Exists?(sum.Slot==0?UITheme.Text:UITheme.Gold):UITheme.Sub);
+            var nameL=UITheme.Label("name",info.transform,head,13,TextAnchor.MiddleLeft,headCol);
+            nameL.gameObject.AddComponent<LayoutElement>().preferredHeight=22;
+            string detail;
+            if(sum.Damaged)detail="数据损坏，建议删除";
+            else if(sum.Exists)
+            {
+                var dt=DateTimeOffset.FromUnixTimeSeconds(sum.Time).LocalDateTime;
+                string when=dt.ToString("yyyy/M/d HH:mm:ss");
+                detail=sum.Slot==0
+                    ?"第"+sum.Year+"年 · "+sum.Dynasty+" · "+when
+                    :"第"+sum.Year+"年 · "+sum.Dynasty+" · 建筑"+sum.BuildingCount+" · "+when;
+            }
+            else detail="";
+            var detL=UITheme.Label("detail",info.transform,detail,11,TextAnchor.MiddleLeft,UITheme.Sub);
+            detL.gameObject.AddComponent<LayoutElement>().preferredHeight=18;
+            var btns=UITheme.Panel("btns",row.transform,new Color(0,0,0,0));var ble=btns.AddComponent<LayoutElement>();ble.preferredWidth=sum.Slot==0?96:258;ble.minHeight=46;
+            btns.GetComponent<RectTransform>().localScale=Vector3.one;
+            var bh=btns.AddComponent<HorizontalLayoutGroup>();bh.spacing=6;bh.childControlWidth=true;bh.childForceExpandWidth=true;
+            if(sum.Damaged)
+            {
+                if(sum.Slot!=0)UITheme.Btn("del",btns.transform,"删除",11).onClick.AddListener(()=>{GM.SaveSystem.DeleteSlot(sum.Slot);RenderSaveSlots();});
+                return;
+            }
+            if(sum.Slot==0)
+            {
+                UITheme.Btn("load",btns.transform,"读档",11).onClick.AddListener(()=>{if(GM.SaveSystem.LoadFromSlot(0))Refresh();});
+            }
+            else
+            {
+                UITheme.Btn("save",btns.transform,sum.Exists?"覆盖":"存档",11).onClick.AddListener(()=>{GM.SaveSystem.SaveToSlot(sum.Slot);RenderSaveSlots();});
+                UITheme.Btn("load",btns.transform,"读档",11).onClick.AddListener(()=>{if(GM.SaveSystem.LoadFromSlot(sum.Slot))Refresh();});
+                UITheme.Btn("del",btns.transform,"删除",11).onClick.AddListener(()=>{GM.SaveSystem.DeleteSlot(sum.Slot);RenderSaveSlots();});
+            }
+        }
+        /// <summary>v5.9.9 底部 38×38 方形按钮（UITheme.Btn 已自带 LayoutElement，复用而非重复添加，避免 UGUI 每帧重建异常）</summary>
+        private Button SquareBtn(Transform parent,string key,string label,System.Action onClick)
+        {
+            var b=UITheme.Btn(key,parent,label,12,UITheme.Chip);
+            var le=b.GetComponent<LayoutElement>();
+            le.preferredWidth=label.Length>=3?72:38;le.preferredHeight=38;le.minWidth=38;
+            b.onClick.AddListener(()=>onClick());
+            return b;
+        }
+        private void BarSep(Transform parent)
+        {
+            var sep=UITheme.Panel("sep",parent,new Color(0.10f,0.20f,0.25f,0.18f));
+            var le=sep.AddComponent<LayoutElement>();le.preferredWidth=1;le.preferredHeight=32;
+        }
+        /// <summary>速度滑条（1→当前等级上限 100/300/1000），对齐 v5.9.9 speedSlider</summary>
+        private void BuildSpeedSlider(Transform parent)
+        {
+            var go=UITheme.Panel("speedSlider",parent,new Color(0,0,0,0.25f));
+            var le=go.AddComponent<LayoutElement>();le.preferredWidth=140;le.preferredHeight=26;le.minWidth=110;
+            var slider=go.AddComponent<Slider>();
+            slider.minValue=1;slider.maxValue=GM.MaxSpeed;slider.wholeNumbers=true;slider.value=1;
+            // 背景
+            var bg=UITheme.Panel("Background",go.transform,UITheme.HexA(0x000000,0.4f));
+            Stretch(bg);
+            // Fill
+            var fillArea=UITheme.Panel("Fill Area",go.transform,new Color(0,0,0,0));
+            var fa=fillArea.GetComponent<RectTransform>();fa.anchorMin=Vector2.zero;fa.anchorMax=Vector2.one;fa.offsetMin=new Vector2(6,4);fa.offsetMax=new Vector2(-6,-4);
+            var fill=UITheme.Panel("Fill",fillArea.transform,UITheme.Gold);
+            var fr=fill.GetComponent<RectTransform>();fr.anchorMin=Vector2.zero;fr.anchorMax=Vector2.one;fr.offsetMin=Vector2.zero;fr.offsetMax=Vector2.zero;
+            // Handle
+            var harea=UITheme.Panel("Handle Slide Area",go.transform,new Color(0,0,0,0));
+            var ha=harea.GetComponent<RectTransform>();ha.anchorMin=Vector2.zero;ha.anchorMax=Vector2.one;ha.offsetMin=new Vector2(8,0);ha.offsetMax=new Vector2(-8,0);
+            var handle=UITheme.Panel("Handle",harea.transform,UITheme.Hex(0xffe9b0));
+            var hr=handle.GetComponent<RectTransform>();hr.sizeDelta=new Vector2(14,0);
+            slider.targetGraphic=handle.GetComponent<Image>();
+            slider.fillRect=fr;slider.handleRect=hr;
+            slider.direction=Slider.Direction.LeftToRight;
+            slider.onValueChanged.AddListener(v=>{ if(!_suppressSlider) GM.SetSpeedClamped(v); });
+            _speedSlider=slider;
+        }
+        private bool _suppressSlider;
+        private void SpeedUp(){GM.SpeedUp();SyncSlider();}
+        private void SpeedDown(){GM.SpeedDown();SyncSlider();}
+        private void SyncSlider(){ if(_speedSlider){_suppressSlider=true;_speedSlider.maxValue=GM.MaxSpeed;_speedSlider.value=S.Speed;_suppressSlider=false;} }
+        private void OnClickDebug()
+        {
+            if (S.DebugLevel>=2) { OpenDebugModal(); return; }
+            var prompt=gameObject.AddComponent<DebugPasswordPrompt>();
+            prompt.Show(GM, OpenDebugModal, _hud!=null?_hud.transform:null);
+        }
+
+        /// <summary>V6.3.5 Debug 控制台（密码 ToFuture 解锁后 Lv2 全权限）：状态总览 + 全部15资源 + 时间进度 + 海洋/太空副本 + 社会 + 世界军事AI + 结局存档。</summary>
+        private void OpenDebugModal()
+        {
+            var modal=CreateModal("Debug 控制台（Lv"+S.DebugLevel+" 全权限 · 最高 "+GM.MaxSpeed+" 倍速）");
+            modal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(816,560);   // V9.4.2 左右扩展20%：680×1.2=816
+            var outer=ModalBody(modal);Clear(outer);
+            var ol=outer.AddComponent<VerticalLayoutGroup>();ol.spacing=2;ol.padding=new RectOffset(1,1,1,1);   // V9.3.12 4→2
+            ol.childControlWidth=true;ol.childForceExpandWidth=true;ol.childControlHeight=true;ol.childForceExpandHeight=false;
+
+            var st=UITheme.Surface("DbgStat",outer.transform,UITheme.HexA(0x232e50,0.9f));st.AddComponent<LayoutElement>().preferredHeight=24;   // V9.3.13 两行合一→24
+            var sv=st.AddComponent<VerticalLayoutGroup>();sv.spacing=1;sv.padding=new RectOffset(8,8,2,2);
+            sv.childControlWidth=true;sv.childForceExpandWidth=true;sv.childControlHeight=false;sv.childForceExpandHeight=false;
+            UITheme.Label("l1",st.transform,"第"+S.Year+"年·"+GM.Time.DynastyName+"·"+GM.Time.EraName+" 地图:"+(S.CurrentMap=="home"?"母大陆":S.CurrentMap)+"｜人口"+S.Pop+"/"+Mathf.RoundToInt(S.Housing)+" 建筑"+S.Buildings.Count+" 状态"+(S.WarActive?"战":"和")+" 倍速x"+(int)S.Speed+" 航海"+(S.AgeOfSail?"开":"未"),11,TextAnchor.MiddleLeft,UITheme.Gold);
+
+            // —— V9.3.10：AI 密钥入口（按钮弹窗输入，仿 Debug 密码门——弹窗出现即聚焦） ——
+            {
+                var cou=GM.Council;
+                string keyShow = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
+                var keyLbl=UITheme.Label("aiS",outer.transform,"AI 密钥："+keyShow+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://",""),11,TextAnchor.MiddleLeft,UITheme.Sky);
+                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=12;   // V9.3.13 16→14
+                var rk=Row(outer.transform,24);   // V9.3.13 26→24
+                var kbtn=UITheme.Btn("aikey",rk.transform,"设置 AI 密钥（弹窗输入）",12);
+                kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
+                kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{},_hud!=null?_hud.transform:null); });
+            }
+
+            var dbgSr=UITheme.VerticalScroll("DbgScroll",outer.transform,out var content,4);dbgSr.gameObject.AddComponent<LayoutElement>().flexibleHeight=1;
+            var cvlg=content.GetComponent<VerticalLayoutGroup>();
+            cvlg.childControlWidth=true;cvlg.childForceExpandWidth=true;cvlg.childControlHeight=true;cvlg.childForceExpandHeight=false;
+            cvlg.padding=new RectOffset(2,8,8,2);   // V9.3.13
+            dbgSr.movementType=ScrollRect.MovementType.Clamped;dbgSr.scrollSensitivity=30f;
+            Transform grid=null;
+            void Section(string t){ var p=UITheme.Panel("sec",content,new Color(0,0,0,0));p.AddComponent<LayoutElement>().preferredHeight=16; UITheme.Label("s",p.transform,t,13,TextAnchor.MiddleLeft,UITheme.Gold,FontStyle.Bold); }   // V9.3.13 20→17
+            void BeginGrid(int count){ var g=UITheme.Panel("g",content,new Color(0,0,0,0));int rows=Mathf.CeilToInt(count/3f);var gle=g.AddComponent<LayoutElement>();gle.preferredHeight=rows*24+(rows-1)*1+1;   // V9.3.13 26→24
+            var gl=g.AddComponent<GridLayoutGroup>();gl.constraint=GridLayoutGroup.Constraint.FixedColumnCount;gl.constraintCount=3;gl.cellSize=new Vector2(254,24);gl.spacing=new Vector2(1,1);   // V9.3.13 252×26→254×24 / 2→1
+            grid=g.transform; }   // V9.3.10 34→28 / 236→248 / 6→4
+            void DBtn(string t,System.Action act){ var b=UITheme.Btn("d",grid,t,11);b.onClick.AddListener(()=>{try{act();Toast("已执行："+t);Refresh();}catch(System.Exception e){Toast("执行失败："+t+"："+e.Message,false);Debug.LogError("[DEBUG-BTN] "+e);}}); AddHover(b.gameObject,t); }
+            void SpeedV(int v){ DBtn("x"+v+" 倍速",()=>{S.Speed=Mathf.Min(v,GM.MaxSpeed);SyncSlider();}); }
+
+            // —— 资源修改：覆盖全部 15 种资源 ——
+            Section("资源修改（全部 "+ResourceDatabase.Order.Length+" 种）");
+            BeginGrid(ResourceDatabase.Order.Length+4);
+            foreach(var k in ResourceDatabase.Order)
+            {
+                string key=k; string rn=ResourceDatabase.Names.TryGetValue(key,out var nm)?nm:key;
+                DBtn("+1000 "+rn,()=>S.AddRes(key,1000));
+            }
+            DBtn("全部资源 +10000",()=>{foreach(var k in ResourceDatabase.Order)S.AddRes(k,10000);});
+            DBtn("全部资源 +100万",()=>{foreach(var k in ResourceDatabase.Order)S.AddRes(k,1000000);});   // V9.3.11
+            DBtn("全部资源清零",()=>{foreach(var k in ResourceDatabase.Order){float gv=S.GetRes(k);if(gv>0)S.AddRes(k,-gv);}});
+            DBtn("研究点 +5000",()=>S.AddRes("research",5000));
+
+            // —— 时间与进度 ——
+            Section("时间与进度"); BeginGrid(11);
+            SpeedV(1);SpeedV(10);SpeedV(100);SpeedV(300);SpeedV(1000);
+            DBtn("+10 年",()=>GM.Time.DebugJumpTo(S.Year+10));
+            DBtn("+100 年",()=>GM.Time.DebugJumpTo(S.Year+100));
+            DBtn("+500 年",()=>GM.Time.DebugJumpTo(S.Year+500));
+            DBtn("推进时代",()=>{if(!GM.Time.DebugAdvanceEra())Toast("已是最终时代",false);});
+            DBtn("跳过朝代",()=>{if(!GM.Time.DebugNextDynasty())Toast("已是最后朝代",false);});
+            DBtn("触发冷冻(限x10)",()=>{S.CryoActive=true;S.CryoRemainSec=GameConstants.CryoCooldownSec;S.CryoAccumYears=GameConstants.CryoYearThreshold;});
+            DBtn("立即解冻",()=>GM.ThawCryo(false));
+
+            // —— 海洋 / 太空 副本（V6.3.5 补齐） ——
+            Section("海洋大开发 · 太空探索 副本"); BeginGrid(10);
+            DBtn("解锁海洋大开发",()=>GM.Ocean.UnlockExpansion());
+            DBtn("解锁太空探索",()=>GM.Space.UnlockExploration());
+            DBtn("开启大航海时代",()=>{S.AgeOfSail=true;if(S.Era<4)S.Era=4;GM.AddEvent("good","Debug：开启大航海时代");});
+            DBtn("打开海图副本",()=>OpenOceanModal());
+            DBtn("打开星图副本",()=>OpenSpaceModal());
+            DBtn("海图自动探索×5",()=>{GM.Expedition.Prepare("ocean");for(int i=0;i<5;i++)GM.Expedition.AutoExplore("ocean");});
+            DBtn("星图自动探索×5",()=>{GM.Expedition.Prepare("space");for(int i=0;i<5;i++)GM.Expedition.AutoExplore("space");});
+            DBtn("当前格建立殖民地",()=>{if(!GM.Expedition.ColonizeHere())Toast("此处不可殖民",false);});
+            DBtn("当前格建前哨基地",()=>{if(!GM.Expedition.BuildOutpostHere())Toast("此处不可建前哨",false);});
+            DBtn("两支队伍全部返航",()=>{GM.Expedition.ReturnHome("ocean");GM.Expedition.ReturnHome("space");});
+
+            // —— 社会 ——
+            Section("社会"); BeginGrid(6);
+            DBtn("人口补满",()=>S.Pop=GameConstants.MaxPop);
+            DBtn("人口 +50",()=>S.Pop=Mathf.Min(GameConstants.MaxPop,S.Pop+50));
+            DBtn("民心/天命回满",()=>{S.DynastyMorale=100;S.Happiness=Mathf.Max(S.Happiness,90);});
+            DBtn("完成全部科技",()=>{foreach(var t in GM.Techs.Keys)S.ResearchedTechs.Add(t);});
+            DBtn("住房 +200",()=>S.Housing+=200);
+            DBtn("九神强制议事一次",()=>GM.Council.CouncilNow());
+
+            // —— 世界 / 军事 / AI ——
+            Section("世界 · 军事 · 天气 · AI"); BeginGrid(9);
+            DBtn("清除树木",()=>GM.Env.ClearTrees());
+            DBtn("填 20 座当前时代建筑",()=>{var pool=GM.Buildings.Values.Where(d=>d.Era<=S.Era).ToList();int made=0;for(int i=0;i<20&&pool.Count>0;i++){var d=pool[UnityEngine.Random.Range(0,pool.Count)];if(GM.Building.FindAutoPosition(d.Id,out float x,out float z)&&GM.Building.PlaceInitial(d.Id,x,z)!=null)made++;}Toast("已放置 "+made+" 座");});
+            DBtn("触发战争/群雄",()=>{GM.Military.InitFactions();S.WarActive=true;GM.AddEvent("bad","⚔️ Debug：战争爆发！");});
+            DBtn("敌方舰队 ×3",()=>{for(int i=0;i<3;i++)GM.Naval.DebugSpawnEnemy();});
+            DBtn("我方战船",()=>GM.Naval.DebugSpawnOwnShip());
+            DBtn("切换下一天气",()=>GM.Weather.ForceNext());
+            DBtn("九智能体 开/关",()=>GM.Council.ToggleEnabled());
+            DBtn("九智能体联网",()=>GM.Council.SetOnline(true));
+            DBtn("九智能体离线",()=>GM.Council.SetOnline(false));
+
+            // —— 结局 / 存档 ——
+            Section("结局 / 存档"); BeginGrid(3);
+            DBtn("直接胜利",()=>{S.Victory=true;S.VictoryType="debug";GM.AddEvent("good","🏆 Debug：达成文明胜利！");});
+            DBtn("快速存档(槽1)",()=>GM.SaveSystem.SaveToSlot(1));
+            DBtn("快速读档(槽1)",()=>{if(GM.SaveSystem.LoadFromSlot(1))Refresh();});
+
+            var foot=UITheme.Panel("DbgFoot",content,new Color(0,0,0,0));foot.AddComponent<LayoutElement>().preferredHeight=30;   // V9.3.13 34→30
+            var fh=foot.AddComponent<HorizontalLayoutGroup>();fh.spacing=8;fh.childForceExpandWidth=true;fh.childControlHeight=false;fh.childForceExpandHeight=false;
+            var cb=UITheme.Btn("close",foot.transform,"关闭控制台",13);cb.gameObject.AddComponent<LayoutElement>().preferredHeight=34;
+            cb.onClick.AddListener(()=>modal.SetActive(false));
+            Canvas.ForceUpdateCanvases();dbgSr.verticalNormalizedPosition=1f;
+            AutoBindHovers(modal.transform);
+            FitModal(modal, 360, 520);
+        }
+
+        // ---- 通知 / 时代过场 ----
+        private void BuildToastAndEra(Transform parent)
+        {
+            _eraTransition=UITheme.Panel("EraTransition",parent,new Color(0.08f,0.42f,0.74f,0.85f));Stretch(_eraTransition);
+            _eraTitle=UITheme.Label("t",_eraTransition.transform,"",48,TextAnchor.MiddleCenter,UITheme.HexA(0xffffff,1));
+            Place(_eraTitle.rectTransform,new Vector2(0.5f,0.6f),new Vector2(0.5f,0.6f),new Vector2(-400,-30),new Vector2(400,30));
+            _eraDesc=UITheme.Label("d",_eraTransition.transform,"",22,TextAnchor.MiddleCenter,UITheme.HexA(0xeaf4ff,1));
+            Place(_eraDesc.rectTransform,new Vector2(0.5f,0.45f),new Vector2(0.5f,0.45f),new Vector2(-400,-16),new Vector2(400,16));
+            _eraTransition.SetActive(false);
+            _toast=UITheme.Label("Toast",parent,"",16,TextAnchor.MiddleCenter,UITheme.Good);
+            Place(_toast.rectTransform,new Vector2(0.5f,0.82f),new Vector2(0.5f,0.82f),new Vector2(-200,-30),new Vector2(200,30));
+            _toast.gameObject.SetActive(false);
+        }
+        private float _eraHide;
+        public void ShowEraTransition(string title,string desc)
+        {
+            _eraTitle.text=title;_eraDesc.text=desc;_eraTransition.SetActive(true);_eraHide=Time.unscaledTime+3f;
+        }
+        private float _toastHide;
+        public void Toast(string msg,bool good=true)
+        {
+            _toast.text=msg;_toast.color=good?UITheme.Good:UITheme.Bad;_toast.gameObject.SetActive(true);_toastHide=Time.unscaledTime+2.5f;
+        }
+
+        private void Place(RectTransform rt,Vector2 aMin,Vector2 aMax,Vector2 oMin,Vector2 oMax)
+        { rt.anchorMin=aMin;rt.anchorMax=aMax;rt.offsetMin=oMin;rt.offsetMax=oMax; }
+
+        // ============ 每帧刷新 ============
+        private void Update()
+        {
+          string step="";
+          try{
+            if (GM==null||_hud==null||!_hud.activeSelf) { step="Splash"; TickSplashAutoStart(); step="HideT0"; HideTimed();return; }
+            _splashArmed=false;
+            step="FloatingClose"; HandleFloatingClose();
+            step="HoverTip"; UpdateHoverTip();
+            step="AutoHover"; TickAutoHover(Time.unscaledDeltaTime);
+            step="Minimap"; RefreshMinimap(Time.unscaledDeltaTime);
+            step="Markers"; RefreshMarkers(Time.unscaledDeltaTime);
+            _refreshCd-=Time.unscaledDeltaTime;
+            if (_refreshCd<=0){_refreshCd=0.25f;step="Refresh";Refresh();}
+            step="HideT1"; HideTimed();
+          }
+          catch(System.Exception e){ Debug.LogError("[MARK_UI] step="+step+" "+e.GetType().Name+": "+e.Message); }
+        }
+
+        // V6.1.1：ESC / 右键 / 点击地图空白处关闭船只·建筑浮窗（对齐 v5.9.9 closeShipTooltip）
+        private void HandleFloatingClose()
+        {
+            if (S==null) return;
+            var es=UnityEngine.EventSystems.EventSystem.current;
+            bool overUI=es!=null&&es.IsPointerOverGameObject();
+            bool esc=Input.GetKeyDown(KeyCode.Escape);
+            bool rmb=Input.GetMouseButtonDown(1)&&!overUI;
+            if (esc||rmb){ CloseShipCard(); CloseCart(); CloseTree(); if(_buildingModal)_buildingModal.SetActive(false); return; }
+            // 建造放置模式下左键用于放建筑，不做关闭
+            if (!string.IsNullOrEmpty(S.SelectedBuildType)||S.Tool=="build") return;
+            if (Input.GetMouseButtonDown(0)&&!overUI&&!PointerHitsEntity())
+            { CloseShipCard(); CloseCart(); CloseTree(); if(_buildingModal)_buildingModal.SetActive(false); }
+        }
+        private bool PointerHitsEntity()
+        {
+            var cam=Camera.main; if(cam==null) return false;
+            var hits=Physics.RaycastAll(cam.ScreenPointToRay(Input.mousePosition),1000f);
+            foreach(var h in hits) if(h.collider!=null && (h.collider.GetComponentInParent<Systems.ShipClick>()!=null||h.collider.GetComponentInParent<Buildings.BuildingClick>()!=null||h.collider.GetComponentInParent<World.BanyanTree>()!=null)) return true;
+            return false;
+        }
+        private void HideTimed()
+        {
+            if (_eraTransition&&_eraTransition.activeSelf&&_eraHide>0&&Time.unscaledTime>_eraHide)_eraTransition.SetActive(false);
+            if (_toast&&_toast.gameObject.activeSelf&&_toastHide>0&&Time.unscaledTime>_toastHide)_toast.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// V9.5.3 资源数值防遮挡格式：<1万显示完整整数，≥1万用"万"、≥1亿用"亿"紧凑表达（最多约5字符）。
+        /// 根因：旧版固定全量整数，七位数字在窄栏内以 Overflow 向左溢出，正好压到左侧图标，呈现"图标劈开数字"。
+        /// 紧凑表达把数值宽度恒定在标签框内，图标与数字永远不重叠。
+        /// </summary>
+        public static string FmtRes(float v)
+        {
+            if (v < 0f) v = 0f;
+            long n = (long)System.Math.Floor(v);
+            if (n < 10000L) return n.ToString();
+            if (n < 100000000L)
+            {
+                float w = v / 10000f;
+                return (w >= 100f ? w.ToString("F0") : w.ToString("F1")) + "万";
+            }
+            return (v / 100000000f).ToString("F1") + "亿";
+        }
+
+        private void Refresh()
+        {
+            foreach (var id in ResourceDatabase.Order)
+                if (_resTexts.TryGetValue(id,out var t)) t.text=FmtRes(S.GetRes(id));
+            _eraTag.text=GM.Time.EraName;
+            if(_lastBuildEra!=S.Era){_lastBuildEra=S.Era;RebuildBuildListV2();}
+            _dynastyTag.text=GM.Time.DynastyName;
+            _timeText.text=S.Paused?"⏸ 第"+S.Year+"年":"第"+S.Year+"年";   // V9.3.5 暂停时顶部时间加⏸防呆标记
+            _gregText.text=GM.Time.GregorianText;
+            _popText.text="人口"+S.Pop+"/"+Mathf.RoundToInt(S.Housing);
+            // V6.1.9(i) 天气 / 月度潮汐 / 海风
+            if(_envText!=null)
+            {
+                string w=GM.Weather!=null?GM.Weather.CurrentText:"☀晴天";
+                string t=GM.Tide!=null?GM.Tide.TideText:"";
+                string wind=GM.OceanFlow!=null?GM.OceanFlow.WindText:"";
+                _envText.text=$"{w}｜{t}｜{wind}";
+            }
+            _speedText.text=S.Paused?"暂停":"x"+(int)S.Speed;
+            if (_speedSlider && !_suppressSlider) SyncSlider();
+            if (_oceanBtn) _oceanBtn.SetActive(S.OceanUnlocked);
+            if (_spaceBtn) _spaceBtn.SetActive(S.SpaceUnlocked);
+            if (_saveCountdown!=null && _saveModal!=null && _saveModal.activeSelf)
+            {
+                float cd=GM.SaveSystem.AutoCountdown;
+                _saveCountdown.text=$"下次存档 {Mathf.FloorToInt(cd/60f)}:{(Mathf.FloorToInt(cd%60f)).ToString("00")}";
+            }
+            RefreshStats();
+            // V6.1.9 中顶冷冻冷却倒计时（仅冷冻时显示）
+            if (_cryoBar!=null)
+            {
+                bool on=S.CryoActive;
+                if (_cryoBar.activeSelf!=on) _cryoBar.SetActive(on);
+                if (on && _cryoText!=null)
+                {
+                    int sec=Mathf.Max(0,Mathf.CeilToInt(S.CryoRemainSec));
+                    _cryoText.text=$"❄️ 加速冷冻冷却 {sec/60}:{sec%60:00}｜累计已满100年，期间最高10倍（当前生效 x{(int)GM.EffectiveSpeed}）";
+                }
+            }
+        }
+
+        // V6.1.1 国家状态四组折叠：📊基础 / ⚔️军事 / 👥社会 / 🏛️时代，点击标题展开/收起
+        private void BuildStatsSections(Transform parent)
+        {
+            var box=UITheme.Panel("StatsBox",parent,new Color(0,0,0,0));
+            box.AddComponent<LayoutElement>().preferredHeight=236;
+            var g=box.AddComponent<VerticalLayoutGroup>();g.spacing=3;g.padding=new RectOffset(0,0,0,0);
+            g.childControlWidth=true;g.childForceExpandWidth=true;g.childControlHeight=true;g.childForceExpandHeight=false;
+            _statBasic=MakeStatSection(box.transform,0,"📊 基础");
+            _statMil=MakeStatSection(box.transform,1,"⚔️ 军事");
+            _statSoc=MakeStatSection(box.transform,2,"👥 社会");
+            _statEra=MakeStatSection(box.transform,3,"🏛️ 时代");
+        }
+        private Text MakeStatSection(Transform parent,int idx,string title)
+        {
+            var head=UITheme.Btn("sth"+idx,parent,title,12,UITheme.HexA(0x232e50,0.98f));
+            head.GetComponentInChildren<Text>().color=UITheme.Gold;
+            head.gameObject.AddComponent<LayoutElement>().preferredHeight=22;
+            var body=UITheme.Label("stb"+idx,parent,"",11,TextAnchor.UpperLeft);
+            var csf=body.gameObject.AddComponent<ContentSizeFitter>();csf.verticalFit=ContentSizeFitter.FitMode.PreferredSize;
+            body.gameObject.AddComponent<LayoutElement>().flexibleHeight=1;
+            head.onClick.AddListener(()=>{_statOpen[idx]=!_statOpen[idx];body.gameObject.SetActive(_statOpen[idx]);});
+            return body;
+        }
+
+        private void RefreshStats()
+        {
+            // 📊 基础：民心/住房/人口结构/建设/科研/现代指标
+            var basic=new StringBuilder();
+            basic.Append("民心：").Append(Mathf.RoundToInt(S.Happiness)).Append("%\n");
+            basic.Append("住房：").Append(Mathf.RoundToInt(S.Housing)).Append("\n");
+            basic.Append("青/中/老：").Append(Mathf.RoundToInt(S.Children)).Append("/")
+              .Append(Mathf.RoundToInt(S.Young)).Append("/").Append(Mathf.RoundToInt(S.Middle)).Append("/").Append(Mathf.RoundToInt(S.Old)).Append("\n");
+            basic.Append("已研究：").Append(S.ResearchedTechs.Count).Append("项\n");
+            basic.Append("建筑：").Append(S.Buildings.Count).Append("/").Append(GameConstants.MaxBuildings).Append("\n");
+            if (S.Era>=6 && S.PowerDemand>0f)
+                basic.Append("电力：").Append(Mathf.RoundToInt(S.PowerSupply)).Append("/").Append(Mathf.RoundToInt(S.PowerDemand))
+                     .Append("（").Append(Mathf.RoundToInt(S.PowerCoverage)).Append("%）\n");
+            if (S.Era>=4 && S.Pollution>1f) basic.Append("污染指数：").Append(Mathf.RoundToInt(S.Pollution)).Append("\n");
+            // V9.0.5 现代起显示就业/健康/教育/治安四项城市指标
+            if (S.Era>=5)
+                basic.Append("就业/健康/教育/治安：")
+                     .Append(Mathf.RoundToInt(S.CityEmployment)).Append("/")
+                     .Append(Mathf.RoundToInt(S.CityHealth)).Append("/")
+                     .Append(Mathf.RoundToInt(S.CityEducation)).Append("/")
+                     .Append(Mathf.RoundToInt(S.CitySafety)).Append("%\n");
+            if (S.AiBonus>0) basic.Append("AI加成：+").Append(Mathf.RoundToInt(S.AiBonus*100)).Append("%\n");
+            if (_statBasic) _statBasic.text=basic.ToString();
+
+            // ⚔️ 军事：兵力/防御火力/战争状态
+            var mil=new StringBuilder();
+            mil.Append("士兵：").Append(Mathf.RoundToInt(S.MilSoldiers)).Append("骑兵：").Append(Mathf.RoundToInt(S.MilCavalry)).Append("\n");
+            mil.Append("防御：").Append(Mathf.RoundToInt(S.MilDefense)).Append("火力：").Append(Mathf.RoundToInt(S.MilFirepower)).Append("\n");
+            // V6.1.4 机动部队 / 割据势力；V6.1.5 殖民地
+            int aliveFac=0; foreach(var f in GM.Military.Factions) if(!f.Destroyed)aliveFac++;
+            if (S.FriendlyUnits.Count>0 || aliveFac>0)
+                mil.Append("机动部队：").Append(S.FriendlyUnits.Count).Append("队 割据势力：").Append(aliveFac).Append("\n");
+            if (S.Colonies.Count>0) mil.Append("海外殖民地：").Append(S.Colonies.Count).Append("处\n");
+            if (S.WarActive) mil.Append("<color=#e74c3c>战争进行中！</color>\n");
+            if (S.NavyBattleActive) mil.Append("<color=#e67e22>海战进行中！</color>\n");
+            if (_statMil) _statMil.text=mil.ToString();
+
+            // 👥 社会：君主/吏治/学派（策划书·朝代生命周期与诸子百家）
+            var soc=new StringBuilder();
+            soc.Append("君主：").Append(S.MonarchName).Append(S.MonarchWise ? "（明）\n" : "（昏）\n");
+            soc.Append("吏治腐败：").Append(Mathf.RoundToInt(S.Corruption)).Append("%\n");
+            soc.Append("学派：").Append(PhilosophyName(S.Philosophy)).Append("\n");
+            if (_statSoc) _statSoc.text=soc.ToString();
+
+            // 🏛️ 时代：朝代气数/运河/潮汐
+            var era=new StringBuilder();
+            era.Append("朝代气数：").Append(Mathf.RoundToInt(S.DynastyMorale)).Append("%\n");
+            era.Append("运河：").Append(S.CanalSegments).Append("段(+").Append(Mathf.RoundToInt(S.CanalBonus)).Append("%)\n");
+            if (S.CanalAutoBuild)
+                era.Append(S.TideHigh?"🌊涨潮":"🏜️退潮").Append(Mathf.RoundToInt(S.TideLevel*100)).Append("%\n");
+            // V6.1.3 天下分合：大一统 / 列国并立 + 各国人口 + 变局倒计时
+            if (S.Nations!=null && S.Nations.Count>0)
+            {
+                if (S.EarthMode)
+                {
+                    era.Append("<color=#7fd0ff>🌍 地球格局 · 四大阵营</color>\n");
+                    for (int fc=1;fc<=4;fc++)
+                    {
+                        string fhex=PixelToCivilization.Core.EarthNations.FactionHex(fc);
+                        int fcCnt=0; foreach(var cn in S.Nations) if(cn.Alive&&cn.Faction==fc)fcCnt++;
+                        era.Append("<color=#").Append(fhex).Append(">●</color> ")
+                           .Append(PixelToCivilization.Core.EarthNations.FactionName(fc))
+                           .Append(' ').Append(fcCnt).Append("国\n");
+                    }
+                    int shown=0;
+                    foreach (var n in S.Nations)
+                    {
+                        if (!n.Alive) continue;
+                        if (shown++>=14) break;   // V9.1.2 十四主权国全部列出
+                        era.Append("<color=#").Append(n.ColorHex).Append(">●</color>")
+                           .Append(n.Name).Append(n.IsPlayer?"(我)":"").Append(' ').Append(n.Pop).Append('\n');
+                    }
+                }
+                else
+                {
+                    bool unify=S.WorldPhase=="unify";
+                    era.Append(unify?"<color=#ffd700>🏛️ 大一统王朝</color>\n":"<color=#e08a2e>⚔️ 列国并立</color>\n");
+                    int shown=0;
+                    foreach (var n in S.Nations)
+                    {
+                        if (!n.Alive) continue;
+                        if (shown++>=7) break;
+                        era.Append("·").Append(n.Name).Append(n.IsPlayer?"(我)":"").Append(' ').Append(n.Pop).Append('\n');
+                    }
+                    era.Append("变局倒计时：").Append(S.PhaseYearsLeft).Append("年\n");
+                }
+            }
+            if (_statEra) _statEra.text=era.ToString();
+        }
+
+        private void RefreshEventLog()
+        {
+            if (_eventText==null) return;
+            var sb=new StringBuilder();
+            int n=0;
+            foreach (var e in S.EventLog){ if(n++>=40)break; sb.Append("[").Append(e.Year).Append("年] ").Append(e.Text).Append("\n"); }
+            _eventText.text=sb.ToString();
+        }
+
+        /// <summary>学派 id → 中文名（空=未择）</summary>
+        internal static string PhilosophyName(string id) => id switch
+        {
+            "ru"=>"儒家","fa"=>"法家","dao"=>"道家","mo"=>"墨家",
+            "bing"=>"兵家","zongheng"=>"纵横家",_=>"未择（百家争鸣后可选）",
+        };
     }
 }
