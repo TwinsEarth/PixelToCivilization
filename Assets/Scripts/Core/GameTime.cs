@@ -26,14 +26,19 @@ namespace PixelToCivilization.Core
         }
 
         /// <summary>每帧推进（dt已乘速度）</summary>
+        /// <remarks>V9.6.8 帧年结预算：单帧最多补算 MaxYearsPerFrame 个游戏年，剩余 Day 结转下帧。
+        /// 现象：1000 倍速 + 浏览器切后台/大掉帧（dt 数秒~数十秒）时，Day 一次增量可达数百至上千天，
+        /// 旧实现 while(guard&lt;2000) 单帧补算至多 2000 年 → 数百次年结（人口/经济/地图/历史/灾害全量遍历）
+        /// 在同帧爆发 → 浏览器冻结/卡死、加速推进"又不动了"。
+        /// 修复：年结分散到多帧（预算 60 年/帧，正常 1000 倍速 60fps 每帧仅 0.28 年，远低于预算），帧时间预算稳定。</remarks>
         public void Tick(float dt)
         {
             if (State == null || !State.Running || State.Paused) return;
 
             State.Day += dt * GameConstants.DaySeconds;
-            // 高倍速下可能一次跨年多次
+            // 高倍速/掉帧下可能一次跨年多次；V9.6.8 帧预算防单帧爆算
             int guard = 0;
-            while (State.Day >= GameConstants.YearDays && guard++ < 2000)
+            while (State.Day >= GameConstants.YearDays && guard++ < MaxYearsPerFrame)
             {
                 State.Day -= GameConstants.YearDays;
                 State.Year++;
@@ -42,6 +47,9 @@ namespace PixelToCivilization.Core
             }
             RecomputeDynastyEra();
         }
+
+        /// <summary>V9.6.8 单帧年结预算（年）：切后台/掉帧时分散到多帧，防单帧数百次年结卡死。</summary>
+        public const int MaxYearsPerFrame = 60;
 
         /// <summary>V6.1.9 仅在玩家加速(倍速>1)正常推进时累计游戏年；满阈值进入冷冻冷却。
         /// Debug 跳年 JumpToYear 不经过本方法，故压测/跳朝代不会误触冷冻。冷冻期间不再累计，解冻时由外部清零。</summary>
