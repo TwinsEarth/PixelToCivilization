@@ -96,7 +96,7 @@ namespace PixelToCivilization.EditorTools
             PlayerSettings.defaultScreenWidth = 1920;
             PlayerSettings.defaultScreenHeight = 1080;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
-            PlayerSettings.productName = "从像素到文明 V9.5.7";
+            PlayerSettings.productName = "从像素到文明 V9.6.0";
             PlayerSettings.companyName = "ToFuture";
         }
 
@@ -140,7 +140,7 @@ namespace PixelToCivilization.EditorTools
             File.WriteAllBytes(Path.Combine(outDir, "start_webserver.bat"), gbk.GetBytes(bat));
         }
 
-        const string BuildVer = "9.5.7";
+        const string BuildVer = "9.6.0";
         const string IndexTemplate = @"<!doctype html>
 <html lang=""zh-CN"">
 <head>
@@ -149,7 +149,7 @@ namespace PixelToCivilization.EditorTools
 <meta http-equiv=""Cache-Control"" content=""no-store,no-cache,must-revalidate"">
 <meta http-equiv=""Pragma"" content=""no-cache"">
 <meta name=""ai-key"" content=""__AIKEY__"">
-<title>从像素到文明 V9.5.7 · HTML5 网页版 · 九神AI·生产硬化版</title>
+<title>从像素到文明 V9.6.0 · HTML5 网页版 · 九神AI·紧急集结令+建筑真实化版</title>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#0e72c8;overflow:hidden;font-family:'Microsoft YaHei',PingFang SC,Arial,sans-serif;}
   #game{position:fixed;inset:0;width:100%;height:100%;}
@@ -174,7 +174,7 @@ namespace PixelToCivilization.EditorTools
 <canvas id=""game""></canvas>
 <div id=""boot"">
   <h1>从 像 素 到 文 明</h1>
-  <p>V9.5.7 · HTML5 网页版 · 地面部队全线修复：组队阵型巡航（组员围绕领队环形阵位跟随，不再被拉回组中心堆叠不动）、根节点补碰撞体+点击面板（可查看属性/升级）、View 丢失仍注册战斗（敌人不再“看不见”我方部队）、战斗中战绩升级与得分（每 2 杀战功升 1 级）；资源乱扣治本：九神 AddCap 改为“只补不砍”——资源高于安全上限时 AI 绝不把几百万砍到 200/150/400（粮食/金币/文化/科技实力不再骤降）</p>
+  <p>V9.6.0 · HTML5 网页版 · 紧急集结令：底栏插旗（蓝旗=海军/绿旗=地面部队/红旗=军人，100 格内全军列阵）+ 建筑真实化：屋顶等级（重檐庑殿>歇山>硬山）、三层汉白玉台基、按现实分档高度（太和殿式/宝塔/塔楼/高层/超高层）与全建筑属性说明</p>
   <div id=""bar""><div id=""fill""></div></div>
   <div id=""pct"">正在加载 0%</div>
 </div>
@@ -189,7 +189,7 @@ namespace PixelToCivilization.EditorTools
   var script=document.createElement('script');
   script.src='Build/__LOADER__'+VER;
   script.onload=function(){
-    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.5.7',productVersion:'__PV__'};
+    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.6.0',productVersion:'__PV__'};
     createUnityInstance(document.querySelector('#game'),cfg,function(progress){
       var p=Math.round(progress*100);fill.style.width=p+'%';pct.textContent='正在加载 '+p+'%';
     }).then(function(inst){window.unityInstance=inst;var _mk=document.querySelector('meta[name=""ai-key""]');if(_mk&&_mk.getAttribute('content')){inst.SendMessage('GameManager','WebAISetKey',_mk.getAttribute('content'));}
@@ -226,7 +226,7 @@ namespace PixelToCivilization.EditorTools
 </html>";
 
         const string ReadmeText =
-            "《从像素到文明》V9.5.7 HTML5 网页版 — 运行说明（九神AI生产硬化版；AI Key 游戏内自填，不随包分发）\r\n" +
+            "《从像素到文明》V9.6.0 HTML5 网页版 — 运行说明（紧急集结令+建筑真实化版；AI Key 游戏内自填，不随包分发）\r\n" +
             "==========================================\r\n\r\n" +
             "一、为什么不能直接双击 index.html？\r\n" +
             "    Unity WebGL 出于浏览器安全策略，必须通过 http(s) 访问，直接用 file:// 双击通常会被拦截。\r\n\r\n" +
@@ -242,14 +242,14 @@ namespace PixelToCivilization.EditorTools
 
         const string StartBat = @"@echo off
 chcp 936 >nul
-title PixelToCivilization V9.5.7 Web Server
+title PixelToCivilization V9.6.0 Web Server
 cd /d ""%~dp0""
 rem V6.7.1: auto pick free port so a stale old server cannot hijack 8000
 set PORT=8000
 :findport
 netstat -ano -p tcp | findstr /R /C:"":%PORT% .*LISTENING"" >nul 2>nul && set /a PORT+=1 && goto findport
 echo ================================================
-echo   从像素到文明 V9.5.7 · 本地网页服务器
+echo   从像素到文明 V9.6.0 · 本地网页服务器
 echo   URL: http://localhost:%PORT%/
 echo   (8000 被旧版本占用时自动顺延到下一端口)
 echo   关闭本窗口即停止服务
@@ -309,13 +309,13 @@ while ($listener.IsListening) {
 ";
 
         const string StartCommand = @"#!/bin/bash
-# 从像素到文明 V9.5.7 - macOS 本地网页服务器
+# 从像素到文明 V9.6.0 - macOS 本地网页服务器
 cd ""$(dirname ""$0"")"" || exit 1
 PORT=8000
 while lsof -iTCP:$PORT -sTCP:LISTEN -nP >/dev/null 2>&1; do PORT=$((PORT+1)); done
 LANIP=""$(ipconfig getifaddr en0 2>/dev/null)""
 echo ""================================================ ""
-echo ""  从像素到文明 V9.5.7 · 本地网页服务器""
+echo ""  从像素到文明 V9.6.0 · 本地网页服务器""
 echo ""  本机浏览器: http://localhost:$PORT/""
 if [ -n ""$LANIP"" ]; then echo ""  手机同网段: http://$LANIP:$PORT/  (默认横屏全屏)""; fi
 echo ""  关闭本窗口即停止服务""
@@ -334,7 +334,7 @@ echo ""按回车关闭窗口...""; read -r
 ";
 
         // macOS 排错说明（Windows 压缩包可能丢可执行位，给出右键/chmod/终端三种兜底）
-        const string ReadmeMac = @"《从像素到文明》V9.5.7 — macOS 启动说明
+        const string ReadmeMac = @"《从像素到文明》V9.6.0 — macOS 启动说明
 ========================================
 
 ★ 如果提示“已损坏，无法打开 / 您应该将它移到废纸篓”（最常见，必看）
