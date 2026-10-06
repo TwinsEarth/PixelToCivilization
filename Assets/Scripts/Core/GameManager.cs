@@ -61,6 +61,8 @@ namespace PixelToCivilization.Core
         public GodsSystem Gods;
         public EnvironmentSystem Env;
         public SaveSystem SaveSystem;
+        /// <summary>V9.6.4 内存架构中枢（预算水位/临界钳制/GC采样/慢系统/池报告）</summary>
+        public MemoryBudgetManager MemBudget;
         // 策划书扩展系统
         public PhilosophySystem Philosophy;
         public DisasterSystem Disaster;
@@ -170,6 +172,8 @@ namespace PixelToCivilization.Core
             foreach (var s in _systems) s.Init(this);
             SaveSystem = gameObject.GetComponent<SaveSystem>() ?? gameObject.AddComponent<SaveSystem>();
             SaveSystem.Init(this);
+            // V9.6.4 内存架构中枢：预算水位/临界钳制/GC采样/慢系统统计/池报告（非游戏系统，挂 GM 下用 Update 现实秒采样）
+            MemBudget = gameObject.GetComponent<MemoryBudgetManager>() ?? gameObject.AddComponent<MemoryBudgetManager>();
             Debug.Log("[GameManager] 子系统装配完成，数量=" + _systems.Count);
         }
 
@@ -371,10 +375,14 @@ namespace PixelToCivilization.Core
             float scaled = UnityEngine.Time.deltaTime * EffectiveSpeed; // 冷冻期实际倍速封顶10
             try { Time.Tick(scaled); } // 年份推进（内部按游戏年份换算朝代/时代/公历）
             catch(System.Exception e){ Debug.LogError("[SYSERR:GameTime] "+e.GetType().Name+": "+e.Message); }
+            // V9.6.4 每系统 Tick 耗时采样（Time.realtimeSinceStartup 差值，零分配；每 120 帧汇总 Top5 慢系统）
+            var mb = MemoryBudgetManager.Instance;
             foreach (var s in _systems)
             {
+                float t0 = UnityEngine.Time.realtimeSinceStartup;
                 try { s.Tick(scaled); }
                 catch(System.Exception e){ Debug.LogError("[SYSERR:"+s.GetType().Name+"] "+e.GetType().Name+": "+e.Message); }
+                if (mb != null) mb.ProfileTick(s.GetType().Name, (UnityEngine.Time.realtimeSinceStartup - t0) * 1000f);
             }
           }
           catch(System.Exception e){ Debug.LogError("[MARK_GM] "+e.GetType().Name+": "+e.Message+"\n"+e.StackTrace); }
@@ -1165,6 +1173,15 @@ namespace PixelToCivilization.Core
             Debug.Log(s);
             try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch (System.Exception ex) { Debug.Log("[WEB] eval fail "+ex.Message); }
         }
+        /// <summary>V9.6.4 内存架构：水位/原生/托管/5s增量/钳制门/网格纹理/池统计/慢系统 Top5</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebMemoryProbe()
+        {
+            string m = MemBudget!=null ? MemBudget.Probe() : "no-mem";
+            string e = "[MEM] "+m+"|ships="+(State!=null?State.Ships.Count:0)+"|blds="+(State!=null?State.Buildings.Count:0)+"|trees="+(State!=null&&State.Trees!=null?State.Trees.Count:0)+"|agents="+(State!=null&&State.Agents!=null?State.Agents.Count:0);
+            Debug.Log(e);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(e) + "');"); } catch (System.Exception ex) { Debug.Log("[WEB] eval fail "+ex.Message); }
+        }
         /// <summary>V9.6.3 浏览器回归：两次调用测 Ours[0] 实际位移速度（格/秒，期望 Lv1≈0.01..Lv10≈0.10）</summary>
         static float _v963px,_v963pz,_v963pt;
         [UnityEngine.Scripting.Preserve]
@@ -1239,6 +1256,41 @@ namespace PixelToCivilization.Core
             }
             catch(System.Exception ex){ result="towers-ex:"+ex.GetType().Name+":"+ex.Message; }
             Debug.Log("[WEB] BuildTowers "+result);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
+        }
+        /// <summary>V9.6.4 塔防几何回归：输出每塔包围盒高宽比（证明"塔不是楼"：矮墩台 h/w≈0.8-1.4，高楼≥3）、
+        /// 世界坐标（供相机跳转视觉复核）与 2 层内部件名（Bolt/BowArm/Nozzle/FireMouth/TurretGun/MG0-3/Cauldron/Beacon 等）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebTowerBounds()
+        {
+            string result="no-tower";
+            try
+            {
+                var sb=new System.Text.StringBuilder();
+                foreach(var b in State.Buildings)
+                {
+                    if(!(b.Type.Contains("tower")||b.Type=="watchtower"||b.Type=="bunker")) continue;
+                    if(b.View==null) continue;
+                    var rs=b.View.GetComponentsInChildren<Renderer>(true);
+                    if(rs.Length==0){ sb.Append(b.Type+"(norender)"); continue; }
+                    Bounds bb=rs[0].bounds;
+                    for(int i=1;i<rs.Length;i++) bb.Encapsulate(rs[i].bounds);
+                    float wid=Mathf.Max(1e-4f,Mathf.Max(bb.size.x,bb.size.z));
+                    float hw=bb.size.y/wid;
+                    string parts="";
+                    foreach(Transform c in b.View.transform)
+                    {
+                        if(c==null) continue;
+                        foreach(Transform c2 in c)
+                        { if(c2==null) continue; string n=c2.name;
+                          if(!n.StartsWith("LOD")&&!n.StartsWith("LV")) parts+=(n.Length>6?n.Substring(0,6):n)+","; }
+                    }
+                    sb.Append(b.Type+"(h/w="+hw.ToString("0.00")+",xy="+b.X.ToString("0")+","+b.Z.ToString("0")+")["+parts.TrimEnd(',')+"] ");
+                }
+                result="towerbounds:"+sb.ToString().Trim();
+            }
+            catch(System.Exception ex){ result="towerbounds-ex:"+ex.GetType().Name+":"+ex.Message; }
+            Debug.Log("[WEB] TowerBounds "+result);
             try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
         }
         /// <summary>V9.6.3h 浏览器回归：输出全部塔防的 View 子物体结构（验证分型建模生效：箭塔弩机/火塔土垒/炮塔炮管/碉堡机枪/烽火台大锅）</summary>
