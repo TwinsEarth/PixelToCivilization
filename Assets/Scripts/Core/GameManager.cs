@@ -1193,6 +1193,114 @@ namespace PixelToCivilization.Core
             Ground.LevelUp(u,true);
             Debug.Log("[WEB] GroundUpgrade lv="+lv+"->"+u.Level+" range="+br+"->"+u.Range+" hp="+u.Hp+"/"+u.MaxHp+" spd="+before.ToString("F3")+"->"+GroundWarfareSystem.ClampedGroundSpeed(u).ToString("F3"));
         }
+        /// <summary>V9.6.3f2 浏览器回归：海军攻击半径（减半后 clamp ≤50 格，Lv1/Lv10 对比）+ 造 3 艘我方军舰</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebV963F2Naval()
+        {
+            if (Naval==null){ Debug.Log("[WEB] F2Naval no-naval"); return; }
+            var sb=new System.Text.StringBuilder();
+            foreach(var kv in Naval.Defs)
+            {
+                if(!kv.Value.Military) continue;
+                float lv1=Mathf.Min(100f, kv.Value.Range*0.5f);
+                float lv10=Mathf.Min(100f, kv.Value.Range*0.5f*(1f+9f*0.15f));
+                sb.Append(kv.Key+"="+lv1.ToString("F1")+"/"+lv10.ToString("F1")+" ");
+            }
+            Debug.Log("[WEB] F2Naval range(half|clamp100 Lv1/Lv10): "+sb);
+            int m=Naval.DebugSpawnOwnWarships(3);
+            Debug.Log("[WEB] F2Naval warships3="+m);
+            string f2 = "[WEB] f2naval "+sb.ToString().Trim();
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(f2) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
+        }
+        /// <summary>V9.6.3h 浏览器回归：村落旁依次建 5 类塔防各 1 座（验证分型模型 + 投射物 kind 接线）</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebBuildTowers()
+        {
+            string result="no-build";
+            try
+            {
+                if (Building==null){ Debug.Log("[WEB] BuildTowers null"); return; }
+                float ox = State.VillageX.Count>0 ? State.VillageX[0] : 0f;
+                float oz = State.VillageZ.Count>0 ? State.VillageZ[0] : 0f;
+                string[] ids={"arrow_tower","fire_tower","cannon_tower","bunker","watchtower"};
+                int ok=0;
+                for(int i=0;i<ids.Length;i++)
+                {
+                    bool placed=false;
+                    for(int a=0;a<12 && !placed;a++)
+                    { float ang=a*30f*Mathf.Deg2Rad;
+                      float px=ox+40f*Mathf.Cos(ang), pz=oz+40f*Mathf.Sin(ang);
+                      if(Building.PlaceInitial(ids[i],px,pz,"home")!=null) placed=true; }
+                    if(placed) ok++;
+                }
+                string cnt="";
+                foreach(var id in ids) cnt+=id+"="+State.CountBuilding(id)+" ";
+                result="towers:"+ok+"/"+ids.Length+"|"+cnt.Trim();
+            }
+            catch(System.Exception ex){ result="towers-ex:"+ex.GetType().Name+":"+ex.Message; }
+            Debug.Log("[WEB] BuildTowers "+result);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
+        }
+        /// <summary>V9.6.3h 浏览器回归：输出全部塔防的 View 子物体结构（验证分型建模生效：箭塔弩机/火塔土垒/炮塔炮管/碉堡机枪/烽火台大锅）</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebTowerProbe()
+        {
+            string result="no-tower";
+            try
+            {
+                var sb=new System.Text.StringBuilder();
+                foreach(var b in State.Buildings)
+                {
+                    if(!(b.Type.Contains("tower")||b.Type=="watchtower"||b.Type=="bunker")) continue;
+                    int kids = b.View!=null ? b.View.transform.childCount : -1;
+                    string names="";
+                    if(b.View!=null)
+                        foreach(Transform c in b.View.transform)
+                        { string n=c.name; names+=(n.Length>4?n.Substring(0,4):n)+"/"; }
+                    sb.Append(b.Type+"("+kids+"){"+names.TrimEnd('/')+"} ");
+                }
+                result="towerstruct:"+sb.ToString().Trim();
+            }
+            catch(System.Exception ex){ result="towerstruct-ex:"+ex.GetType().Name+":"+ex.Message; }
+            Debug.Log("[WEB] TowerProbe "+result);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
+        }
+        /// <summary>V9.6.3f2 浏览器回归：集结令压力测试——连续插旗 20 次（蓝/绿/红循环），验证不再卡死、旗模型不复用堆积（子物体恒 5）、
+        /// NaN/水上落旗被拒绝；并输出地面射程上限（升级后 ≤50 格）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebRallyStress()
+        {
+            string result="no-rally";
+            try
+            {
+                if (Rally==null){ Debug.Log("[WEB] RallyStress null"); return; }
+                float ox = State.VillageX.Count>0 ? State.VillageX[0] : 0f;
+                float oz = State.VillageZ.Count>0 ? State.VillageZ[0] : 0f;
+                string[] kinds={"navy","ground","inf"};
+                int ok=0,reject=0;
+                for(int i=0;i<20;i++)
+                {
+                    string k=kinds[i%3];
+                    float ang=UnityEngine.Random.value*Mathf.PI*2f, rr=30f+UnityEngine.Random.value*80f;
+                    float x=ox+Mathf.Cos(ang)*rr, z=oz+Mathf.Sin(ang)*rr;
+                    Rally.SetRally(k,x,z);
+                    if(State.RallyKind.Length>0) ok++; else reject++;
+                }
+                // NaN 防御验证：传入 NaN 应被拒绝（旗状态保持上一旗不变）
+                string lastKind = State.RallyKind;
+                Rally.SetRally("ground", float.NaN, float.NaN);
+                bool nanRejected = State.RallyKind==lastKind && lastKind.Length>0;
+                int childCount = 0;
+                var flagRoot = Rally.GetFlagRootForTest();
+                if (flagRoot!=null) childCount = flagRoot.transform.childCount;
+                string groundRange = Ground!=null && Ground.Ours!=null && Ground.Ours.Count>0
+                    ? "lv"+Ground.Ours[0].Level+"r"+Ground.Ours[0].Range : "no-ground";
+                result = "rally:"+Rally.Probe()+"|ok="+ok+"|children="+childCount+"|nanRejected="+nanRejected+"|"+groundRange;
+            }
+            catch(System.Exception ex){ result="rally-ex:"+ex.GetType().Name+":"+ex.Message; }
+            Debug.Log("[WEB] RallyStress "+result);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
+        }
         /// <summary>V9.4.7 浏览器回归：统一战斗目录实况（按 Kind/Key 分组）</summary>        [UnityEngine.Scripting.Preserve]
         public void WebCombatProbe()
         {
