@@ -1154,8 +1154,46 @@ namespace PixelToCivilization.Core
         /// <summary>V9.4.7 浏览器回归：强制我方军舰传送到敌舰旁交战</summary>
         [UnityEngine.Scripting.Preserve]
         public void WebForceNavalBattle(){ int p=Naval!=null?Naval.ForceNavalBattle():-99; Debug.Log("[Web] ForceNavalBattle paired="+p); }
-        /// <summary>V9.4.7 浏览器回归：统一战斗目录实况（按 Kind/Key 分组）</summary>
+        /// <summary>V9.6.3 浏览器回归：地面部队速度钳制/车辆自由/系统零自动建路 综合探针</summary>
         [UnityEngine.Scripting.Preserve]
+        public void WebV963Probe()
+        {
+            string g = Ground!=null ? Ground.Probe963() : "no-ground";
+            string t = ModernTraffic!=null ? ModernTraffic.Diagnose() : "no-traffic";
+            string i = Intercity!=null ? Intercity.Diagnose() : "no-intercity";
+            string s = "[WEB] v963 "+g+" | "+t+" | "+i;
+            Debug.Log(s);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch (System.Exception ex) { Debug.Log("[WEB] eval fail "+ex.Message); }
+        }
+        /// <summary>V9.6.3 浏览器回归：两次调用测 Ours[0] 实际位移速度（格/秒，期望 Lv1≈0.01..Lv10≈0.10）</summary>
+        static float _v963px,_v963pz,_v963pt;
+        [UnityEngine.Scripting.Preserve]
+        public void WebV963Speed()
+        {
+            if (Ground==null || Ground.Ours==null || Ground.Ours.Count==0){ Debug.Log("[WEB] V963Speed no-ground"); return; }
+            var u=Ground.Ours[0];
+            float now=UnityEngine.Time.realtimeSinceStartup;
+            if(_v963pt<=0f){ _v963px=u.X; _v963pz=u.Z; _v963pt=now;
+                Debug.Log("[WEB] V963Speed sample1 lv="+u.Level+" x="+u.X.ToString("F2")+" z="+u.Z.ToString("F2")); return; }
+            float ddx=u.X-_v963px, ddz=u.Z-_v963pz;
+            float dist=Mathf.Sqrt(ddx*ddx+ddz*ddz);
+            float sec=now-_v963pt;
+            float gps=sec>0.01f ? dist/(sec*GameConstants.Tile) : 0f;
+            Debug.Log("[WEB] V963Speed lv="+u.Level+" dist="+dist.ToString("F2")+" sec="+sec.ToString("F2")+" grid/s="+gps.ToString("F3")+" (期望 0.01@Lv1..0.10@Lv10)");
+            _v963px=u.X; _v963pz=u.Z; _v963pt=now;
+        }
+        /// <summary>V9.6.3 浏览器回归：免费升级 Ours[0]（验证射程/耐久/速度随等级成长）</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebGroundUpgrade()
+        {
+            if (Ground==null || Ground.Ours==null || Ground.Ours.Count==0){ Debug.Log("[WEB] GroundUpgrade no-ground"); return; }
+            var u=Ground.Ours[0];
+            float before=GroundWarfareSystem.ClampedGroundSpeed(u);
+            int br=u.BaseRange, lv=u.Level;
+            Ground.LevelUp(u,true);
+            Debug.Log("[WEB] GroundUpgrade lv="+lv+"->"+u.Level+" range="+br+"->"+u.Range+" hp="+u.Hp+"/"+u.MaxHp+" spd="+before.ToString("F3")+"->"+GroundWarfareSystem.ClampedGroundSpeed(u).ToString("F3"));
+        }
+        /// <summary>V9.4.7 浏览器回归：统一战斗目录实况（按 Kind/Key 分组）</summary>        [UnityEngine.Scripting.Preserve]
         public void WebCombatProbe()
         {
             if (Combat==null){ Debug.Log("[Web] CombatProbe null"); return; }
