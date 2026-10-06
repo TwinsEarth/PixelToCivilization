@@ -371,21 +371,68 @@ namespace PixelToCivilization.Buildings
             if(id=="great_wall"||id=="wall"||id=="bunker")
             { for(int i=-2;i<=2;i++){ Box("Crenel",new Vector3(i*w*0.18f,wh+0.25f,d/2),new Vector3(0.3f,0.4f,0.2f),Stone,t);
                                        Box("Crenel",new Vector3(i*w*0.18f,wh+0.25f,-d/2),new Vector3(0.3f,0.4f,0.2f),Stone,t); } }
-            // 塔类：射击孔 + 炮管/箭垛
+            // V9.6.3h 塔防分型精化：按真实结构建模——箭塔(木弩)/火塔(土垒尖塔喷火)/炮塔(旋转炮塔+炮弹)/碉堡(圆形堡垒四面机枪)/烽火台(木架大锅)
             if(id.Contains("tower")||id=="watchtower"||id=="cannon_tower"||id=="bunker")
             {
                 Box("Embrasure",new Vector3(0,wh*0.7f,d/2+0.03f),new Vector3(w*0.5f,0.4f,0.08f),Dark,t);
-                if(id=="cannon_tower"||id=="bunker")
-                { var gun=Cyl("Cannon",new Vector3(0,wh*0.72f,d/2+0.45f),new Vector3(0.12f,0.7f,0.12f),Metal,t);gun.transform.localRotation=Quaternion.Euler(90,0,0); }
+                switch(id)
+                {
+                    case "arrow_tower":   // 木制箭塔：木台 + 顶部大型弩机（弓臂+两端弓梢+弩箭）
+                        Box("WoodDeck",new Vector3(0,top-0.16f,0),new Vector3(w+0.15f,0.16f,d+0.15f),Wood,t);
+                        Box("BowArm",new Vector3(0,top+0.02f,0),new Vector3(w*0.62f,0.12f,0.12f),Wood,t);
+                        Box("BowTipL",new Vector3(-w*0.34f,top+0.08f,0),new Vector3(0.3f,0.34f,0.14f),Wood,t);
+                        Box("BowTipR",new Vector3( w*0.34f,top+0.08f,0),new Vector3(0.3f,0.34f,0.14f),Wood,t);
+                        { var arr=Cyl("CrossbowBolt",new Vector3(0,top+0.26f,d*0.3f),new Vector3(0.045f,0.9f,0.045f),Metal,t);
+                          arr.transform.localRotation=Quaternion.Euler(90,0,0); }
+                        break;
+                    case "fire_tower":    // 土垒尖塔：土台收分 + 锥形土顶 + 顶部喷火口（喷火龙）
+                        Box("EarthenBase",new Vector3(0,wh*0.35f,0),new Vector3(w*0.8f,wh*0.7f,d*0.8f),Clay(),t);
+                        { float pw=w*0.4f;
+                          Box("EarthenL2",new Vector3(0,wh+0.22f,0),new Vector3(pw*0.8f,0.45f,pw*0.8f),Clay(),t);
+                          Box("EarthenL3",new Vector3(0,wh+0.55f,0),new Vector3(pw*0.5f,0.45f,pw*0.5f),Clay(),t);
+                          Box("EarthenPeak",new Vector3(0,wh+0.85f,0),new Vector3(pw*0.2f,0.34f,pw*0.2f),Dark,t);
+                          Cyl("Nozzle",new Vector3(0,wh+1.16f,0),new Vector3(0.16f,0.16f,0.16f),Dark,t);
+                          var m=GameObject.CreatePrimitive(PrimitiveType.Sphere);m.name="FireMouth";m.transform.SetParent(t);
+                          m.transform.localPosition=new Vector3(0,wh+1.32f,0);m.transform.localScale=Vector3.one*0.38f;DestroyCol(m);
+                          m.GetComponent<Renderer>().material=Fire; }
+                        break;
+                    case "cannon_tower":  // 方形炮塔：顶部旋转炮塔（圆台+炮管）+ 双发炮弹
+                        Cyl("TurretBase",new Vector3(0,top-0.14f,0),new Vector3(w*0.34f,0.22f,w*0.34f),Stone,t);
+                        { var gun=Cyl("TurretGun",new Vector3(0,top-0.01f,d/2+0.5f),new Vector3(0.14f,0.85f,0.14f),Metal,t);
+                          gun.transform.localRotation=Quaternion.Euler(90,0,Random.Range(-12f,12f)); }
+                        { var b1=GameObject.CreatePrimitive(PrimitiveType.Sphere);b1.name="ShellL";b1.transform.SetParent(t);
+                          b1.transform.localPosition=new Vector3(-0.3f,top-0.02f,0.1f);b1.transform.localScale=Vector3.one*0.22f;DestroyCol(b1);b1.GetComponent<Renderer>().material=Dark;
+                          var b2=GameObject.CreatePrimitive(PrimitiveType.Sphere);b2.name="ShellR";b2.transform.SetParent(t);
+                          b2.transform.localPosition=new Vector3(0.3f,top-0.02f,0.1f);b2.transform.localScale=Vector3.one*0.22f;DestroyCol(b2);b2.GetComponent<Renderer>().material=Dark; }
+                        break;
+                    case "bunker":         // 圆形堡垒：环形圆墙 + 圆顶 + 四面机枪
+                        Cyl("RingWall",new Vector3(0,wh*0.42f,0),new Vector3(w*0.95f,wh*0.85f,d*0.95f),Stone,t);
+                        Cyl("TopDeck",new Vector3(0,wh+0.01f,0),new Vector3(w*1.0f,0.18f,d*1.0f),Stone,t);
+                        for(int i=0;i<4;i++)
+                        { float a=i*90f*Mathf.Deg2Rad;
+                          var mg=Cyl("MG"+i,new Vector3(Mathf.Sin(a)*d*0.62f,wh*0.72f,Mathf.Cos(a)*d*0.62f),new Vector3(0.08f,0.55f,0.08f),Metal,t);
+                          mg.transform.localRotation=Quaternion.Euler(90,0,0); }
+                        Box("Embrasure2",new Vector3(0,wh*0.4f,d/2+0.02f),new Vector3(w*0.4f,0.3f,0.06f),Dark,t);
+                        break;
+                    default:               // watchtower 烽火台：四根粗木柱 + 双层横木 + 大锅 + 火焰
+                        for(int i=0;i<4;i++)
+                        { float a=i*90f*Mathf.Deg2Rad;
+                          Box("TimberLeg"+i,new Vector3(Mathf.Sin(a)*w*0.32f,wh*0.5f,Mathf.Cos(a)*d*0.32f),new Vector3(0.2f,wh*1.0f,0.2f),Wood,t); }
+                        Box("TimberCrossA",new Vector3(0,wh*0.78f,0),new Vector3(w*1.1f,0.2f,0.15f),Wood,t);
+                        Box("TimberCrossB",new Vector3(0,wh*0.78f,0),new Vector3(0.15f,0.2f,d*1.1f),Wood,t);
+                        Box("TimberDeck",new Vector3(0,wh+0.12f,0),new Vector3(w*0.95f,0.14f,d*0.95f),Wood,t);
+                        { var pot=GameObject.CreatePrimitive(PrimitiveType.Sphere);pot.name="Cauldron";pot.transform.SetParent(t);
+                          pot.transform.localPosition=new Vector3(0,wh+0.55f,0);pot.transform.localScale=new Vector3(0.62f,0.4f,0.62f);DestroyCol(pot);pot.GetComponent<Renderer>().material=Dark; }
+                        { var fire=GameObject.CreatePrimitive(PrimitiveType.Sphere);fire.name="Beacon";fire.transform.SetParent(t);
+                          fire.transform.localPosition=new Vector3(0,wh+0.85f,0);fire.transform.localScale=Vector3.one*0.4f;DestroyCol(fire);fire.GetComponent<Renderer>().material=Fire; }
+                        break;
+                }
                 Box("Railing",new Vector3(0,top,0),new Vector3(w+0.2f,0.12f,d+0.2f),Wood,t);
             }
             // 军营/新军：旗杆 + 红旗
             if(id=="barracks"||id=="new_army")
             { Box("Pole",new Vector3(w*0.35f,top+0.6f,-d*0.35f),new Vector3(0.08f,1.4f,0.08f),Wood,t);
               Box("Flag",new Vector3(w*0.35f+0.3f,top+1.05f,-d*0.35f),new Vector3(0.6f,0.36f,0.04f),Cloth(new Color(0.72f,0.14f,0.12f)),t); }
-            // 烽火台火盆
-            if(id=="watchtower"){ var fire=GameObject.CreatePrimitive(PrimitiveType.Sphere);fire.name="Beacon";fire.transform.SetParent(t);
-                fire.transform.localPosition=new Vector3(0,top+0.2f,0);fire.transform.localScale=Vector3.one*0.5f;DestroyCol(fire);fire.GetComponent<Renderer>().material=Fire; }
         }
         private void AddIndustrial(Transform t,string id,float w,float d,float wh,int era)
         {
@@ -399,6 +446,7 @@ namespace PixelToCivilization.Buildings
             if(id=="gunpowder_mill"||id=="arsenal"||id=="modern_arsenal") RoofFinial(t,wh+0.4f,Gold);
         }
         private Material _brick; private Material Brick()=>_brick ??= ShaderHelper.Pbr(new Color(0.48f,0.34f,0.28f),0f,0.2f,907,1.2f);
+        private Material _clay; private Material Clay()=>_clay ??= ShaderHelper.Pbr(new Color(0.56f,0.42f,0.26f),0f,0.28f,908,1.2f);   // V9.6.3h 火塔土垒
         private void AddEconomy(Transform t,float w,float d,float wh)
         {   // 市场遮阳布棚 + 招牌旗
             Box("Awning",new Vector3(0,wh+0.15f,d*0.55f),new Vector3(w+0.5f,0.1f,0.7f),Cloth(new Color(0.78f,0.32f,0.28f)),t);
