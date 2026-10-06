@@ -220,10 +220,12 @@ namespace PixelToCivilization.Systems
             return Mathf.FloorToInt(d.Attack*crewEff*lvlBonus);
         }
         // V9.3.4 等级成长：攻击距离随等级 +15%/级（Lv1=基准、Lv2=1.15×、Lv3=1.3×）
+        // V9.6.3f：所有船只攻击范围缩短一半（我方/敌方统一生效；等级成长与雷达范围不变）
+        // V9.6.3f2：海军攻击半径硬上限 100 格（减半 × 等级成长后再 clamp ≤100，贴合"最强最高等级≤100格"）
         public float RangeOf(ShipEntity s)
         {
-            if (!Defs.TryGetValue(s.ShipTypeId,out var d)) return 10f;
-            return d.Range*(1f+(s.Level-1)*0.15f);
+            if (!Defs.TryGetValue(s.ShipTypeId,out var d)) return 5f;
+            return Mathf.Min(100f, d.Range*0.5f*(1f+(s.Level-1)*0.15f));
         }
         // V9.3.4 等级成长：发现范围/自动搜敌雷达随等级 +15%/级（Lv1=50、Lv2=57.5、Lv3=65）
         public float DetectRangeOf(ShipEntity s) => DetectRange*(1f+(s.Level-1)*0.15f);
