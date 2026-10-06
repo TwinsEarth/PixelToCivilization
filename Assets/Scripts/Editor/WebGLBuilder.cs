@@ -96,7 +96,7 @@ namespace PixelToCivilization.EditorTools
             PlayerSettings.defaultScreenWidth = 1920;
             PlayerSettings.defaultScreenHeight = 1080;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
-            PlayerSettings.productName = "从像素到文明 V9.6.3";
+            PlayerSettings.productName = "从像素到文明 V9.6.4";
             PlayerSettings.companyName = "ToFuture";
         }
 
@@ -140,7 +140,7 @@ namespace PixelToCivilization.EditorTools
             File.WriteAllBytes(Path.Combine(outDir, "start_webserver.bat"), gbk.GetBytes(bat));
         }
 
-        const string BuildVer = "9.6.3";
+        const string BuildVer = "9.6.4";
         const string IndexTemplate = @"<!doctype html>
 <html lang=""zh-CN"">
 <head>
@@ -149,7 +149,7 @@ namespace PixelToCivilization.EditorTools
 <meta http-equiv=""Cache-Control"" content=""no-store,no-cache,must-revalidate"">
 <meta http-equiv=""Pragma"" content=""no-cache"">
 <meta name=""ai-key"" content=""__AIKEY__"">
-<title>从像素到文明 V9.6.3 · HTML5 网页版 · 九神AI·速度钳制+车辆自由行驶版</title>
+<title>从像素到文明 V9.6.4 · HTML5 网页版 · 九神AI·内存架构·预算水位/对象池/GC采样版</title>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#0e72c8;overflow:hidden;font-family:'Microsoft YaHei',PingFang SC,Arial,sans-serif;}
   #game{position:fixed;inset:0;width:100%;height:100%;}
@@ -174,7 +174,7 @@ namespace PixelToCivilization.EditorTools
 <canvas id=""game""></canvas>
 <div id=""boot"">
   <h1>从 像 素 到 文 明</h1>
-  <p>V9.6.3 · HTML5 网页版 · 地面部队速度统一钳制最高 0.1 / 最低 0.01 并随等级成长；所有车辆取消道路强制、任意陆地越野行驶（仍不下水）</p>
+  <p>V9.6.4 · HTML5 网页版 · 内存架构：显式预算水位/临界钳制自动生成/GC采样/慢系统Top5/对象池预生长与报告/存档槽位摘要</p>
   <div id=""bar""><div id=""fill""></div></div>
   <div id=""pct"">正在加载 0%</div>
 </div>
@@ -189,7 +189,7 @@ namespace PixelToCivilization.EditorTools
   var script=document.createElement('script');
   script.src='Build/__LOADER__'+VER;
   script.onload=function(){
-    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.6.3',productVersion:'__PV__'};
+    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.6.4',productVersion:'__PV__'};
     createUnityInstance(document.querySelector('#game'),cfg,function(progress){
       var p=Math.round(progress*100);fill.style.width=p+'%';pct.textContent='正在加载 '+p+'%';
     }).then(function(inst){window.unityInstance=inst;var _mk=document.querySelector('meta[name=""ai-key""]');if(_mk&&_mk.getAttribute('content')){inst.SendMessage('GameManager','WebAISetKey',_mk.getAttribute('content'));}
