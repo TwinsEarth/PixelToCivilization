@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
@@ -134,7 +134,7 @@ namespace PixelToCivilization.Systems
         {
             if(!Defs.TryGetValue(c.CartTypeId,out var d)) return;
             int cont=_terrain!=null?_terrain.ContinentAt(c.X,c.Z):0;
-            bool roadMode=false; // V9.5.5 取消车辆必须在马路上的限制：可在任意陆地自由行驶，仅保留不能下水
+            // V9.5.5 已取消车辆必须在马路上的限制：可在任意陆地自由行驶，仅保留不能下水（roadMode 强制沿路逻辑已移除）
             float dx=c.TargetX-c.X, dz=c.TargetZ-c.Z;
             float dist=Mathf.Sqrt(dx*dx+dz*dz);
             if(dist<1.5f)
@@ -174,12 +174,7 @@ namespace PixelToCivilization.Systems
                 }
                 if(!slid){ PickNextTarget(c); return; } // 三面环水：重选同大陆目标，绝不下水
             }
-            if(roadMode) // V9.2.3 沿路行驶：除接近目标建筑可短距下路外，偏离道路即投影回中线
-            {
-                float ddx=nx-c.TargetX,ddz=nz-c.TargetZ; bool nearDest=ddx*ddx+ddz*ddz<36f;
-                bool onBridgeNow=GM.Bridge!=null&&GM.Bridge.IsBridgeAt(nx,nz);
-                if(!nearDest && !onBridgeNow && !IsOnRoad(nx,nz) && NearestRoadPoint(nx,nz,6f,out float px,out float pz)){ nx=px;nz=pz; }
-            }
+            // V9.6.3 取消道路强制投影（V9.5.5 已置 roadMode=false，此处为死代码清理）
             c.X=nx; c.Z=nz;
             bool onBridge=GM.Bridge!=null && GM.Bridge.IsBridgeAt(c.X,c.Z); // V6.3.9 桥面可越水通行
             if(onBridge) c.H=GM.Bridge.DeckHeightAt(c.X,c.Z); else if(_terrain!=null) c.H=_terrain.HeightAt(c.X,c.Z);
