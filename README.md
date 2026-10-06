@@ -4,14 +4,14 @@
 
 - **引擎**：团结引擎 Tuanjie 2022.3.62t12（基于 Unity 2022.3 LTS）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.6.6「存档架构」——① ISaveable 注册表/契约（SaveKey/Serialize/Deserialize，当前唯一注册 CrashGuard 环形日志随档）；② 版本迁移链 SaveVersionMigrator（SaveSchema=3，FormatId=PxC-SAVE-V1）：0→1 打标、1→2 经济安全默认、2→3 城市/人口周期/冷冻安全默认，读档自动迁移并记录 MigrationChain；③ 校验 SaveEnvelope.Verify（FNV-1a64 over 排除 ChecksumHex 的完整 JSON，NaN/Infinity 哨兵拒写）；④ 原子写入=临时键 PxC_Tmp_<slot>(阶段1)→校验→正式键(阶段2)→清临时（WebGL 无文件级 rename 的折衷）；⑤ 备份：手动槽写前备份 PxC_Bak_<slot>/PxC_BakSum_<slot>，RestoreBackup 可恢复，DeleteSlot 也先备份；⑥ 异步存档=主线程快照+（WebGL 主线程 / 桌面后台线程）算校验和+Update 队列主线程原子提交；⑦ 多槽位 1..5 + 自动槽（PxC_Save_auto）+ 槽摘要 SlotSummaryData（年份/朝代/建筑数/时间）列表展示；⑧ 浏览器探针（[Preserve]）：WebSaveProbe / WebSaveAsync(slot) / WebSaveProbe2 / WebRestoreBackup(slot) / WriteProbe(key) + EditMode 存档契约测试（校验和往返/篡改检测/NaN 拒绝/迁移链/迁移幂等/ISaveable 往返，6/6 PASS）
+- **当前版本**：V9.6.7「部署与运行」——① 多平台 BuildPipeline 一键构建 BuildPipelineCLI（WebGL/Win64/Android/macOS/iOS，命令行 `-buildTarget` 参数化，日志 BUILD_SUCCESS/BUILD_FAILED + BuildReport 摘要）；② PlayerSettings 部署硬化（公司/产品/版本统一、全平台 IL2CPP Release、.NET Standard 2.1，WebGL 单线程/免压缩/关 dataCaching 防 memory access out of bounds，Android ARM64 包名、iOS 12.0+）；③ Addressables 就绪评估（当前单包 Resources 架构不启用：规模小/无热更需求/铁律不随意加依赖，菜单「⑫ 就绪评估」+ 接入清单骨架）；④ 日志路径表（构建 -logFile/Editor.log/浏览器 console/游戏内环形日志）；⑤ 常见错误排查表（缺模块/漏编译 CS0103/缓存错位/COOP-COEP/压缩/IL2CPP 缓存坑 cmd rd 清 dag 等）；⑥ 部署运行文档 DeploymentGuide_V9.6.7.md 随仓库分发；WebGL 实测 BUILD_SUCCESS errors=0 + 浏览器冒烟 + 存档探针 slot:110000|schema:3
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
 ## ▶ 立即试玩（无需安装）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.6.6_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.6.7_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
 
 - **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
 - **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
@@ -183,6 +183,7 @@ export PXC_ARK_API_KEY="你的 Key"
 | V9.6.4 | 内存架构：预算水位（1.1GB/1.5GB）/5s GC 增量采样/全局生成门控（敌船·鸟·鱼钳制）/逐系统 Tick Top5/WebMemoryProbe 浏览器探针；GameObjectPool 预热统计；存档摘要化（旧档兼容回退）；塔防五型按史实重建（矮墩台 h/w 1.29-1.65，非楼）：箭塔弩机巨箭、火塔喷火龙落地燃烧 1s、炮塔旋转炮塔炮弹、碉堡四面机枪、烽火台木架大锅常燃烽火；投射物分型特效 |
 | V9.6.5 | 崩溃架构：全局异常捕获（logMessageReceived 钩子 + WebGL JS onerror 桥）/崩溃标记（PxC_Crash_State/Last/Good）/环形日志 200 条/安全模式（阴影关·LOD 0.5·粒子预算16·自动保存 20s）/崩溃自动恢复（auto→回滚槽0/1/2）/模拟崩溃测试入口（WebCrashSimulate 0/1/2 + WebCrashProbe + WebSafeMode + WebJsError，[Preserve] 浏览器可调）|；集结令连插不卡死（旗模型复用+NaN/水上拒绝）；爆炸改随机大小蘑菇云（黑泡缩 1/3）；船只攻击半径减半、最高海军 ≤100 格/地面 ≤50 格；地面部队生成于出生地、主动巡航寻敌组队战斗；塔防五型分型建模与分型投射物（箭/火/炮/机枪）光烟特效 |
 | V9.6.6 | 存档架构：ISaveable 注册表/SaveVersionMigrator 迁移链（schema 0→3 + MigrationChain）/SaveEnvelope FNV-1a64 校验（NaN/Infinity 拒写）/原子写入（临时键→正式键→清理）/手动槽写前备份 PxC_Bak_* + RestoreBackup/异步存档（主线程快照+队列原子提交，WebGL 修复 Task.Run 不调度）/多槽位 1..5 + 自动槽 + 槽摘要列表/WebSaveProbe 浏览器实测（slot:110000|schema:3|tmp:0）/EditMode 契约测试 6/6 PASS |
+| V9.6.7 | 部署与运行：多平台 BuildPipelineCLI（WebGL/Win64/Android/macOS/iOS 命令行一键构建 + BuildReport 摘要）/PlayerSettings 部署硬化（IL2CPP Release/.NET Standard/Android ARM64/iOS 12+/WebGL 单线程免压缩关 dataCaching）/Addressables 就绪评估（保持单包 Resources 不启用，附接入清单骨架）/日志路径表 + 常见错误排查表/DeploymentGuide_V9.6.7.md 部署文档；WebGL 实测 BUILD_SUCCESS errors=0 + 浏览器冒烟 + 存档探针 |
 
 ## 🤝 贡献
 
