@@ -12,9 +12,32 @@ namespace PixelToCivilization.Core
     /// 结合正常退出写 clean 标记即可判定"上次是否异常退出"。
     /// </summary>
     [DefaultExecutionOrder(-50)]
-    public class CrashGuardSystem : MonoBehaviour
+    public class CrashGuardSystem : MonoBehaviour, ISaveable   // V9.6.6：环形日志随档（存档携带崩溃诊断历史）
     {
         public static CrashGuardSystem Instance { get; private set; }
+
+        // ---------- V9.6.6 ISaveable：环形日志随档 ----------
+        public string SaveKey => "CrashGuard";
+        [Serializable]
+        public class CrashLogSnapshot { public CrashLogEntry[] Entries; }
+        public string Serialize()
+        {
+            if (_ring.Count == 0) return null;
+            var snap = new CrashLogSnapshot { Entries = _ring.ToArray() };
+            return JsonUtility.ToJson(snap);
+        }
+        public void Deserialize(string json)
+        {
+            try
+            {
+                var snap = JsonUtility.FromJson<CrashLogSnapshot>(json);
+                if (snap == null || snap.Entries == null) return;
+                _ring.Clear();
+                for (int i = Mathf.Max(0, snap.Entries.Length - LogRing); i < snap.Entries.Length; i++)
+                    _ring.Add(snap.Entries[i]);
+            }
+            catch (Exception e) { Debug.LogWarning("[CrashGuard] 环形日志恢复失败（忽略）: " + e.Message); }
+        }
 
         /// <summary>本次会话是否处于安全模式（上次异常退出自动进入；WebCrashSimulate/WebSafeMode 测试可写）</summary>
         public static bool SafeMode { get; set; }
