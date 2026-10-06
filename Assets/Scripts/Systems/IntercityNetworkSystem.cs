@@ -24,6 +24,7 @@ namespace PixelToCivilization.Systems
         Material _trainRed, _trainBlue, _trainGreen, _trainAmber, _carWhite, _carRed, _carBlue, _carYellow;
         float _tick, _rebuild;
         int _tickN, _early, _moverN, _rebuildN, _roads, _rails, _cars, _trains;
+        float _trainRequeueAt;   // V9.4.4 火车运动变速：每 60s 真实时间全图重随机
         string _sig = "";
         // V9.1.1 已铺装公路路段（中线 a→b），供车辆“只在路上行驶 / 自动吸附最近道路”查询
         readonly List<(Vector3 a, Vector3 b)> _roadSegs = new();
@@ -126,7 +127,9 @@ namespace PixelToCivilization.Systems
             d.RefreshNow();
             var nodes = d.Districts;
             int tier = TrainSystem.TierForYear(S.Year);
-            bool roadDue = S.Era >= 5;
+            // V9.6.3 禁止系统在大陆内部自动建道路/铁路：roadDue 恒 false（不再 Era>=5 自动铺城际路、不再自动环大陆/环岛公路），
+            // 道路与铁路完全由玩家手动建造（经典模式=建造面板道路/铁路建筑单点自动连网；地球模式=PlayerBuildRoad/PlayerBuildRail）
+            bool roadDue = false;
             // V9.3.8 大陆内部 0 铁路：经典模式行政区不再铺轨（铁路只存在于大陆之间——跨海/跨陆块国际线，由地球模式 Intercity 承载）
             bool railDue = false;
             string sig = "C|" + nodes.Count + "|" + tier + "|" + (roadDue ? 1 : 0);
@@ -162,23 +165,101 @@ namespace PixelToCivilization.Systems
         {
             var cities = GM.Nation != null ? GM.Nation.EarthCities : null;
             int tier = TrainSystem.TierForYear(S.Year);
-            bool railDue = tier > 0;
-            int ad = S.Year - 3000;
-            bool roadDue = ad >= 1900;          // 近代起才有铺装城际马路
-            string sig = "E|" + (cities == null ? 0 : cities.Count) + "|" + tier + "|" + (roadDue ? 1 : 0);
+            // V9.4.4 禁止系统自动建造道路/铁路：roadDue/railDue 恒 false，城际公路与跨海铁路完全由玩家单点建造
+            // （PlayerBuildRoad / PlayerBuildRail → 自动就近联网）；本局已建玩家线在 Rebuild 后并入重建（RebuildPlayerLines）
+            bool railDue = false;
+            bool roadDue = false;
+            string sig = "E|" + (cities == null ? 0 : cities.Count) + "|" + tier;
             if (sig == _sig && Root.childCount > 0) return;
             _sig = sig;
             for (int i = Root.childCount - 1; i >= 0; i--) Object.Destroy(Root.GetChild(i).gameObject);
             _roads = _rails = _cars = _trains = 0; _roadSegs.Clear();
             if (cities == null || cities.Count == 0) return;
-
-            // —— 公路：同一【国家】内 城城 MST + 每城连最近港口海岸；近岸铺环岛（公路不跨国）——
-            if (roadDue) BuildEarthRoads(cities);
-
-            // —— 铁路：只连接【不同国家】（声明式）：邻国陆地铺轨 / 岛国窄海峡跨海，一线一列车；国内 0 铁路 ——
-            if (railDue) BuildEarthRail(cities);
-
+            RebuildPlayerLines();
             Debug.Log(Diagnose());
+        }
+
+        // ============ V9.4.4 玩家单点建造：城际公路 / 国际铁路（系统自动建造已禁用） ============
+        private readonly HashSet<string> _builtLinks = new();
+        private readonly List<(Vector3 a, Vector3 b)> _playerRoads = new();
+
+        /// <summary>玩家点地图 → 最近城市所在国家 → RailLinks 未铺设邻国，跨海最短窄海峡铺一线一列车</summary>
+        public bool PlayerBuildRail(float wx, float wz)
+        {
+            if (_terrain == null || !_terrain.EarthMode) { GM.AddEvent("info","铁路仅支持地球模式（大陆之间）"); return false; }
+            var cities = GM.Nation != null ? GM.Nation.EarthCities : null;
+            if (cities == null || cities.Count == 0) return false;
+            EarthCityRT c0=null; float bd=float.MaxValue;
+            foreach(var c in cities){ float d=(c.X-wx)*(c.X-wx)+(c.Z-wz)*(c.Z-wz); if(d<bd){bd=d;c0=c;} }
+            if (c0==null) return false;
+            int tier=TrainSystem.TierForYear(S.Year);
+            var byCountry = new Dictionary<string, List<EarthCityRT>>();
+            foreach (var c in cities){ if(!byCountry.TryGetValue(c.CountryId,out var l)){l=new();byCountry[c.CountryId]=l;} l.Add(c); }
+            foreach (var link in EarthNations.RailLinks)
+            {
+                if (link.A!=c0.CountryId && link.B!=c0.CountryId) continue;   // 锚=点击所在国家
+                string key = link.A+"_"+link.B;
+                if (_builtLinks.Contains(key)) continue;
+                if (!link.Sea) continue;   // V9.3.8 大陆内部 0 铁路
+                if (!byCountry.TryGetValue(link.A, out var ga) || !byCountry.TryGetValue(link.B, out var gb)) continue;
+                int cap = RailCapacity(Mathf.Min(MinCityLevel(ga), MinCityLevel(gb)), tier);
+                if (TrySeaRail(link, ga, gb, tier, cap, FactionColorOf(ga[0].Faction)))
+                {
+                    _builtLinks.Add(key);
+                    GM.AddEvent("info",$"🚄 玩家铁路：{link.A}↔{link.B}（跨海一线一车，载客{cap}）");
+                    return true;
+                }
+                GM.AddEvent("info",$"铁路 {link.A}↔{link.B} 铺设失败（海峡跨距超限或地形不可行）");
+                return false;
+            }
+            GM.AddEvent("info","该国家已无未铺设的跨海铁路线路");
+            return false;
+        }
+
+        /// <summary>玩家点地图 → 最近城市 → 与该国最近的不同国家城市连 4 车道马路（自动联网）</summary>
+        public bool PlayerBuildRoad(float wx, float wz)
+        {
+            if (_terrain == null || !_terrain.EarthMode) { GM.AddEvent("info","城际公路仅在地球模式可建（经典模式请用建造面板道路建筑）"); return false; }
+            var cities = GM.Nation != null ? GM.Nation.EarthCities : null;
+            if (cities == null || cities.Count < 2) return false;
+            EarthCityRT c0=null; float bd=float.MaxValue;
+            foreach(var c in cities){ float d=(c.X-wx)*(c.X-wx)+(c.Z-wz)*(c.Z-wz); if(d<bd){bd=d;c0=c;} }
+            if (c0==null) return false;
+            EarthCityRT c1=null; float bd2=float.MaxValue;
+            foreach(var c in cities)
+            {
+                if (c==c0||c.CountryId==c0.CountryId) continue;   // 跨国际
+                float d=(c.X-c0.X)*(c.X-c0.X)+(c.Z-c0.Z)*(c.Z-c0.Z);
+                if (d<bd2){bd2=d;c1=c;}
+            }
+            if (c1==null) return false;
+            var a=new Vector3(c0.X,0f,c0.Z); var b=new Vector3(c1.X,0f,c1.Z);
+            if (!Feasible(a,b,999f)) { GM.AddEvent("info","两国城市间地形不可行（跨海需铁路或桥梁）"); return false; }
+            BuildRoad4View(a,b); AddCars(a,b); _playerRoads.Add((a,b));
+            GM.AddEvent("info",$"🛣 玩家城际公路：{c0.Name}↔{c1.Name}（跨国际 4 车道马路）");
+            return true;
+        }
+
+        /// <summary>Rebuild 后并入玩家已建线：铁路重铺（跨海一线一车）、公路重连</summary>
+        void RebuildPlayerLines()
+        {
+            if (_builtLinks.Count==0 && _playerRoads.Count==0) return;
+            var cities = GM.Nation != null ? GM.Nation.EarthCities : null;
+            if (cities==null||cities.Count==0) return;
+            int tier=TrainSystem.TierForYear(S.Year);
+            var byCountry = new Dictionary<string, List<EarthCityRT>>();
+            foreach (var c in cities){ if(!byCountry.TryGetValue(c.CountryId,out var l)){l=new();byCountry[c.CountryId]=l;} l.Add(c); }
+            foreach (var key in new List<string>(_builtLinks))
+            {
+                EarthRailLink link=default; bool found=false;
+                foreach(var x in EarthNations.RailLinks){ if(x.A+"_"+x.B==key){link=x;found=true;break;} }
+                if (!found||!link.Sea) continue;
+                if (!byCountry.TryGetValue(link.A,out var ga)||!byCountry.TryGetValue(link.B,out var gb)) continue;
+                int cap=RailCapacity(Mathf.Min(MinCityLevel(ga),MinCityLevel(gb)),tier);
+                TrySeaRail(link, ga, gb, tier, cap, FactionColorOf(ga[0].Faction));
+            }
+            foreach (var r in _playerRoads)
+                if (Feasible(r.a,r.b,999f)) { BuildRoad4View(r.a,r.b); AddCars(r.a,r.b); }
         }
 
         void BuildEarthRoads(List<EarthCityRT> cities)
@@ -774,6 +855,13 @@ namespace PixelToCivilization.Systems
 
         void TickMovers(float dt)
         {
+            // V9.4.4 火车/地铁/高铁运动随机：每 60s 真实时间全图重随机变速系数（0.6~1.4），叠加在"一线一车来回"上
+            if (Time.unscaledTime >= _trainRequeueAt)
+            {
+                _trainRequeueAt = Time.unscaledTime + 60f;
+                var all = Root.GetComponentsInChildren<CorridorMover>();
+                foreach (var m in all) m.SpeedMul = Random.Range(0.6f, 1.4f);
+            }
             var movers = Root.GetComponentsInChildren<CorridorMover>();
             _moverN = movers.Length;
             foreach (var mv in movers) mv.Tick(dt, _terrain);
