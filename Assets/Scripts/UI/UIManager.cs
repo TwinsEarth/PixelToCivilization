@@ -20,6 +20,12 @@ namespace PixelToCivilization.UI
         private GameState S =>GM.State;
 
         private GameObject _splash, _hud;
+        // V9.6.1 顶部滚动信息条（编年史重要事件滚动播放，无则隐藏）
+        private GameObject _tickerBar;
+        private Text _tickerText;
+        private readonly List<string> _tickerQueue=new();
+        private float _tickerPx;
+        private bool _tickerSeeded;
         private Text _eraTag,_dynastyTag,_timeText,_gregText,_popText,_envText;
         private readonly Dictionary<string,Text>_resTexts=new();
         private Transform _buildList;
@@ -60,6 +66,7 @@ namespace PixelToCivilization.UI
             Build();
             GM.OnStateChanged += OnStateChanged;
             GM.OnEventLogged += _=>RefreshEventLog();
+            GM.OnEventLogged += e=>{ if (IsImportant(e)) PushTicker(e.Text); };   // V9.6.1 顶部滚动条收集重要事件
             GM.Time.OnEraChanged += (n,o)=>ShowEraTransition(GM.Eras[n].Name,GM.Eras[n].Feature);
         }
 
@@ -75,6 +82,7 @@ namespace PixelToCivilization.UI
             _hud.GetComponent<Image>().raycastTarget=false;
             BuildTopBarV2(_hud.transform);
             BuildCryoBar(_hud.transform);   // V6.1.9 中顶冷冻倒计时
+            BuildTicker(_hud.transform);    // V9.6.1 顶部滚动信息条
             BuildLeftPanelV2(_hud.transform);
             BuildRightPanelV2(_hud.transform);
             BuildBottomBarV2(_hud.transform);
@@ -93,6 +101,72 @@ namespace PixelToCivilization.UI
             rt.anchorMin=Vector2.zero;rt.anchorMax=Vector2.one;rt.offsetMin=Vector2.zero;rt.offsetMax=Vector2.zero;
         }
 
+        // ============ V9.6.1 顶部滚动信息条 ============
+        // 从编年史挑选最重要的事件（战争/集结/灾荒/朝代/殖民/太空等 good/bad 事件）滚动播放，没有则隐藏
+        static readonly string[] TickerKeywords = { "集结","击沉","击毁","摧毁","歼灭","战","攻","防","朝代","灭亡","崩","饥荒","瘟疫","殖民","太空","大航海","奇迹","失陷","攻克","投降","登基","禅让","统一","分裂","灾","击退","凯旋","败","运输","空投","投送" };
+        private bool IsImportant(LogEntry e)
+        {
+            if (e==null || (e.Kind!="good" && e.Kind!="bad")) return false;
+            if (string.IsNullOrEmpty(e.Text)) return false;
+            foreach (var k in TickerKeywords) if (e.Text.Contains(k)) return true;
+            return false;
+        }
+        private void BuildTicker(Transform parent)
+        {
+            _tickerBar=UITheme.Panel("TickerBar",parent,new Color(0.03f,0.07f,0.15f,0.82f));
+            _tickerBar.GetComponent<Image>().raycastTarget=false;
+            _tickerBar.AddComponent<Mask>().showMaskGraphic=false;   // 裁剪横向滚动文字
+            var rt=_tickerBar.GetComponent<RectTransform>();
+            rt.anchorMin=new Vector2(0.5f,1f);rt.anchorMax=new Vector2(0.5f,1f);rt.pivot=new Vector2(0.5f,1f);
+            rt.anchoredPosition=new Vector2(0,-96f);rt.sizeDelta=new Vector2(780,28);
+            _tickerText=UITheme.Label("TickerText",_tickerBar.transform,"",15,TextAnchor.MiddleLeft,UITheme.HexA(0xffe9a8,1));
+            // 关键：必须固定宽高并禁止换行——Label 默认 rect(100,100)+Wrap 会把长事件换行成多行，被 Mask 裁成残行
+            _tickerText.horizontalOverflow=HorizontalWrapMode.Overflow;
+            _tickerText.rectTransform.anchorMin=Vector2.zero; _tickerText.rectTransform.anchorMax=Vector2.zero;
+            _tickerText.rectTransform.pivot=new Vector2(0,0.5f);
+            _tickerText.rectTransform.sizeDelta=new Vector2(2000,28);
+            _tickerText.rectTransform.anchoredPosition=new Vector2(500,14);   // 从条中部起滚，立即可见
+            _tickerBar.SetActive(false);
+        }
+        private void PushTicker(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            if (_tickerQueue.Count==0){ _tickerQueue.Add(text); _tickerText.text=text; _tickerPx=500f; }
+            else if (_tickerQueue.Count<8 && !_tickerQueue.Contains(text)) _tickerQueue.Add(text);
+        }
+        /// <summary>V9.6.1 探针：滚动条状态（供 Web 回归取证）</summary>
+        public string TickerState()
+        {
+            if (_tickerBar==null) return "ticker:bar-null";
+            string st = _tickerBar.activeSelf ? "on" : "off";
+            string head = _tickerQueue.Count>0 ? _tickerQueue[0] : "-";
+            return "ticker:"+st+"|q"+_tickerQueue.Count+"|"+head;
+        }
+        private void UpdateTicker(float dt)
+        {
+            // 开局种子：把已有编年史中的重要事件补进队列（最多 6 条）
+            if (!_tickerSeeded && S!=null && S.EventLog!=null && S.EventLog.Count>0)
+            {
+                _tickerSeeded=true;
+                int n=0;
+                for (int i=0;i<S.EventLog.Count && n<6;i++)
+                    if (IsImportant(S.EventLog[i])){ PushTicker(S.EventLog[i].Text); n++; }
+            }
+            if (_tickerBar==null) return;
+            if (_tickerQueue.Count==0){ if(_tickerBar.activeSelf) _tickerBar.SetActive(false); return; }
+            if (!_tickerBar.activeSelf) _tickerBar.SetActive(true);
+            _tickerPx-=170f*dt;   // 滚动速度 px/s（真实时间，不受游戏倍速影响）
+            _tickerText.rectTransform.anchoredPosition=new Vector2(_tickerPx,14f);
+            float w=Mathf.Max(100f,_tickerText.preferredWidth);
+            if (_tickerPx < -w-24f) NextTicker();
+        }
+        private void NextTicker()
+        {
+            if (_tickerQueue.Count>0) _tickerQueue.RemoveAt(0);
+            _tickerPx=790f;
+            if (_tickerQueue.Count>0) _tickerText.text=_tickerQueue[0];
+        }
+
         // ---- 开始页 ----
         private void BuildSplash(Transform parent)
         {
@@ -101,7 +175,7 @@ namespace PixelToCivilization.UI
             _splash.GetComponent<Image>().raycastTarget=false;
             var title=UITheme.Label("Title",_splash.transform,"从 像 素 到 文 明",64,TextAnchor.MiddleCenter,UITheme.HexA(0xffffff,1));
             Place(title.rectTransform,new Vector2(0.5f,0.68f),new Vector2(0.5f,0.68f),new Vector2(-400,-40),new Vector2(400,40));
-            var sub=UITheme.Label("Sub",_splash.transform,"V9.6.0 · 紧急集结令（三军插旗列阵） · 建筑真实化（屋顶等级/三层台基/现实高度） · 九神AI · 真实地球",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
+            var sub=UITheme.Label("Sub",_splash.transform,"V9.6.1 · 战场战时广播（传令兵语音） · 顶部滚动信息条 · 远程投送（运输机/直升机） · 九神AI · 真实地球",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
             Place(sub.rectTransform,new Vector2(0.5f,0.56f),new Vector2(0.5f,0.56f),new Vector2(-400,-18),new Vector2(400,18));
             // 主按钮：开始新游戏（带 10 秒无操作自动开局倒计时）
             var start=UITheme.Btn("Start",_splash.transform,"",26,UITheme.BtnGold); // V7.0.2 橙色主按钮
@@ -121,7 +195,7 @@ namespace PixelToCivilization.UI
             _mapModeBtn.onClick.AddListener(OnClickMapMode);
             // 自动开局倒计时武装
             ArmAutoStart();
-            var ver=UITheme.Label("Ver",_splash.transform,"v9.5.6 · Unity / Tuanjie 2022.3.62t12 · URP 高清 · 资源审计/地面部队修复/存档空槽",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
+            var ver=UITheme.Label("Ver",_splash.transform,"v9.6.1 · Unity / Tuanjie 2022.3.62t12 · URP 高清 · 战时广播/滚动信息条/远程投送",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
             Place(ver.rectTransform,new Vector2(0.5f,0.22f),new Vector2(0.5f,0.22f),new Vector2(-300,-15),new Vector2(300,15));
             var hint=UITheme.Label("FullHint",_splash.transform,"提示：界面太小时，按 F11 或点底部「全屏」按钮 · 10 秒无操作将自动开新局",14,TextAnchor.MiddleCenter,UITheme.HexA(0xd0e6ff,1));
             Place(hint.rectTransform,new Vector2(0.5f,0.28f),new Vector2(0.5f,0.28f),new Vector2(-360,-12),new Vector2(360,12));
@@ -785,6 +859,7 @@ namespace PixelToCivilization.UI
             step="Markers"; RefreshMarkers(Time.unscaledDeltaTime);
             _refreshCd-=Time.unscaledDeltaTime;
             if (_refreshCd<=0){_refreshCd=0.25f;step="Refresh";Refresh();}
+            step="Ticker"; UpdateTicker(Time.unscaledDeltaTime);   // V9.6.1 顶部滚动信息条
             step="HideT1"; HideTimed();
           }
           catch(System.Exception e){ Debug.LogError("[MARK_UI] step="+step+" "+e.GetType().Name+": "+e.Message); }
