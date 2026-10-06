@@ -376,6 +376,7 @@ namespace PixelToCivilization.Systems
                     else S.MilSoldiers=Mathf.Max(0,S.MilSoldiers-5);
                     S.FriendlyUnits.RemoveAt(i); continue;
                 }
+                if (fu.Lifted) continue;   // V9.6.1 远程投送中：不参与地面 AI（坐标/视图由 AirLiftSystem 接管）
                 // V9.4.7 索敌统一目录（跨类型：敌方步骑/军车/军舰）
                 CombatTarget ct=GM.Combat.NearestHostile(fu.X,fu.Z,(fu.IsCavalry?28f:22f)*GameConstants.Tile,CombatSystem.PlayerKey);
                 Vector3 aim=fu.Pos; bool move=false; Vector3 vel=Vector3.zero;
@@ -406,9 +407,14 @@ namespace PixelToCivilization.Systems
                         }
                         else
                         {
-                            Vector3 home=new(fu.HomeX,0,fu.HomeZ);
-                            if (Vector3.Distance(home,fu.Pos)>2.2f){ fu.State=3; aim=home; move=true; }
-                            else fu.State=0;
+                            // V9.6.1 超 100 格：运输机/直升机远程投送（成功则原地待机等机，否则回 Home）
+                            if (GM.AirLift!=null && GM.AirLift.RequestLift(fu,rp.Value.x,rp.Value.y,0f)) { fu.State=0; }
+                            else
+                            {
+                                Vector3 home=new(fu.HomeX,0,fu.HomeZ);
+                                if (Vector3.Distance(home,fu.Pos)>2.2f){ fu.State=3; aim=home; move=true; }
+                                else fu.State=0;
+                            }
                         }
                     }
                     else
