@@ -1117,6 +1117,22 @@ namespace PixelToCivilization.Core
             Rally.SetRally("navy", x, z);
             Debug.Log("[Web] "+Rally.Probe());
         }
+        /// <summary>V9.6.2 浏览器回归：落绿旗（地面部队集结）于远侧坐标（单参，规避 SendMessage 双参静默失败）</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebRallyGround(float n)
+        {
+            if (Rally==null){ Debug.Log("[Web] RallyGround null"); return; }
+            Rally.SetRally("ground", 700f, 500f + n);
+            Debug.Log("[Web] "+Rally.Probe());
+        }
+        /// <summary>V9.6.2 浏览器回归：落红旗（军人集结）于远侧坐标（单参）。游戏内 kind 规范为 navy/ground/inf</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebRallyInf(float n)
+        {
+            if (Rally==null){ Debug.Log("[Web] RallyInf null"); return; }
+            Rally.SetRally("inf", 700f, 300f + n);
+            Debug.Log("[Web] "+Rally.Probe());
+        }
         [UnityEngine.Scripting.Preserve]
         public void WebBuildGround()
         {
@@ -1124,6 +1140,16 @@ namespace PixelToCivilization.Core
             if (Time!=null && State.Year<4949) Time.DebugJumpTo(4949);   // 公元1949 激活地面部队
             int m=Ground.DebugBuildOwn(3);
             Debug.Log("[Web] BuildGround made="+m+" "+Ground.Probe());
+        }
+        /// <summary>V9.6.2 浏览器回归：集结与投送链实况（ground/军人投送中数量、机队、兜底复位计数）</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebV962Probe()
+        {
+            string g = Ground!=null ? Ground.Probe() : "no-ground";
+            string a = AirLift!=null ? AirLift.Probe() : "no-airlift";
+            string s = "[WEB] v962 ground("+g+")|"+a+"|rally:"+(Rally!=null?Rally.Probe():"no-rally");
+            Debug.Log(s);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch (System.Exception ex) { Debug.Log("[WEB] eval fail "+ex.Message); }
         }
         /// <summary>V9.4.7 浏览器回归：强制我方军舰传送到敌舰旁交战</summary>
         [UnityEngine.Scripting.Preserve]
