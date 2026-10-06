@@ -39,6 +39,8 @@ namespace PixelToCivilization.Core
         public NavalSystem Naval;
         public GroundWarfareSystem Ground;   // V9.4.6 地面作战部队：坦克/装甲车/导弹车（1949 起，战斗规则参照军舰）
         public RallySystem Rally;            // V9.6.0 紧急集结令（插旗：蓝=海军/绿=地面/红=军人，100 格列阵）
+        public WarBroadcastSystem War;       // V9.6.1 战场战时广播（传令兵语音/横幅/双方战损）
+        public AirLiftSystem AirLift;        // V9.6.1 远程投送（>100 格集结：运输机/直升机空运）
         public CombatSystem Combat;   // V9.4.7 统一战斗目录：五类单位跨阵营索敌/伤害分发，建筑（除树）可破坏
         public OceanExpansionSystem Ocean;
         public SpaceExpansionSystem Space;
@@ -129,6 +131,8 @@ namespace PixelToCivilization.Core
         Add(Ground = gameObject.GetComponent<GroundWarfareSystem>() ?? gameObject.AddComponent<GroundWarfareSystem>()); // V9.4.6 地面作战部队
         Add(Combat = gameObject.GetComponent<CombatSystem>() ?? gameObject.AddComponent<CombatSystem>()); // V9.4.7 统一战斗目录（置于作战单位之后，Tick 末段用最新位置重建）
         Add(Rally = gameObject.GetComponent<RallySystem>() ?? gameObject.AddComponent<RallySystem>()); // V9.6.0 紧急集结令（蓝旗海军/绿旗地面/红旗军人，100格集结）
+        Add(War = gameObject.GetComponent<WarBroadcastSystem>() ?? gameObject.AddComponent<WarBroadcastSystem>()); // V9.6.1 战时广播（传令兵语音/战报/双方战损）
+        Add(AirLift = gameObject.GetComponent<AirLiftSystem>() ?? gameObject.AddComponent<AirLiftSystem>()); // V9.6.1 远程投送（>100格集结→运输机/直升机空运）
             Add(Ocean = gameObject.GetComponent<OceanExpansionSystem>() ?? gameObject.AddComponent<OceanExpansionSystem>());
             Add(Space = gameObject.GetComponent<SpaceExpansionSystem>() ?? gameObject.AddComponent<SpaceExpansionSystem>());
             Add(Canal = gameObject.GetComponent<CanalSystem>() ?? gameObject.AddComponent<CanalSystem>());
@@ -180,6 +184,9 @@ namespace PixelToCivilization.Core
             Military?.ResetForNewGame();
             Naval?.ResetForNewGame();
             Ground?.ResetForNewGame();
+            // V9.6.1 战时广播/远程投送为运行时态，新局必须清零防上一局残留
+            War?.ResetRuntime();
+            AirLift?.ResetRuntime();
             // V9.0.1 开局公元1700（游戏年4700·清康熙·大航海殖民末期）：静默把朝代/时代对齐到 era4，不连发 0→4 时代切换事件
             Time?.SnapToStartYear();
             State.Running = true; State.Paused = false; State.Speed = 1f;
@@ -457,7 +464,16 @@ namespace PixelToCivilization.Core
 
         // ===== WebGL / SendMessage 友好入口（无参，供浏览器深链、外部页面与自动化回归调用；UI 按钮逻辑不受影响）=====
         public void WebQuickSave(){ SaveSystem?.SaveToSlot(1); }
-
+        // V9.6.1 Web 探针：战时广播战损统计 + 顶部滚动条状态 + 空运投送状态
+        public void WebV961Probe()
+        {
+            string war = War != null ? ("war:" + War.EnemyKills + "/" + War.SelfLosses) : "warnull";
+            string tick = "ticker:none";
+            var ui = UnityEngine.Object.FindObjectOfType<PixelToCivilization.UI.UIManager>();
+            if (ui != null) tick = ui.TickerState();
+            string air = AirLift != null ? AirLift.Probe() : "airnull";
+            Debug.Log("[WEB] " + war + "|" + tick + "|" + air);
+        }
         // V9.3.11 Debug：全部资源 +100 万（无参，供浏览器 SendMessage 回归与 Debug 控制台按钮）
         public void WebAddResources1M(){
             foreach(var k in ResourceDatabase.Order) State.AddRes(k,1000000);
