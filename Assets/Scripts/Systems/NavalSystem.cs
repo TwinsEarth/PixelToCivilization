@@ -479,7 +479,7 @@ namespace PixelToCivilization.Systems
             bool hasWarship=false;
             foreach (var s in S.Ships) if (s.Military) hasWarship=true;
             _spawnCd-=dt;
-            if (S.Era>=2 && hasWarship && _spawnCd<=0)
+            if (S.Era>=2 && hasWarship && _spawnCd<=0 && MemoryBudgetManager.GlobalSpawnGate)   // V9.6.4 临界水位钳制敌船镜像
             {
                 int headroom=MaxShips-S.Ships.Count-EnemyShips.Count;
                 int target=Mathf.Min(S.Ships.Count,headroom);   // 敌方≤我方数量，且不突破200上限
