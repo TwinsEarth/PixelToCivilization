@@ -25,7 +25,7 @@ namespace PixelToCivilization.Bootstrap
         {
             if (GameManager.Instance != null) return;
             if (FindObjectOfType<GameBootstrap>() != null) return; // 场景已手动挂载则交给其Start
-            var go = new GameObject("=== 从像素到文明 V9.6.4 内存架构 (Auto) ===");
+            var go = new GameObject("=== 从像素到文明 V9.6.5 崩溃架构 (Auto) ===");
             go.AddComponent<GameBootstrap>().Boot();
         }
 
@@ -36,6 +36,9 @@ namespace PixelToCivilization.Bootstrap
 
         public void Boot()
         {
+            // V9.6.5 崩溃架构：启动最早阶段判定安全模式（上次 crashed 且未 clean → SafeMode），随后写 booting 标记
+            PixelToCivilization.Core.CrashGuardSystem.DetectOnBoot();
+
             // 0. V6.1.1 画质自适应：手机/WebGL 或内存≤3.5GB 走性能档（贴图128、关景深/颗粒/色散）
             bool highEnd = Application.platform!=RuntimePlatform.WebGLPlayer && SystemInfo.systemMemorySize>3500;
             if (!highEnd) PixelToCivilization.Art.ProceduralTextures.Res=128;
@@ -93,6 +96,13 @@ namespace PixelToCivilization.Bootstrap
             var uiGo=new GameObject("UIRoot");
             var ui=uiGo.AddComponent<UIManager>();
             ui.Boot(gm);
+
+            // V9.6.5 崩溃架构：安全模式降级 + 自动恢复（UI 就绪后，AddEvent/Toast 可见）
+            if (PixelToCivilization.Core.CrashGuardSystem.SafeMode)
+            {
+                PixelToCivilization.Core.CrashGuardSystem.ApplySafeMode();
+                gm.TryCrashRecovery();
+            }
 
             Debug.Log("[GameBootstrap] 场景搭建完成，点击「开始」进入游戏");
         }
