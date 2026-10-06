@@ -285,8 +285,8 @@ namespace PixelToCivilization.Systems
                             // 已入列阵圈：原地待命（不巡航）
                             continue;
                         }
-                        // V9.6.1 超 100 格：运输机/直升机远程投送（未解锁/无机队则回防巡航）
-                        if (GM.AirLift!=null && GM.AirLift.RequestLift(u,rp.Value.x,rp.Value.y,1f)) continue;
+                        // V9.6.2 超 100 格：运输机/直升机远程投送（未解锁广播提示；成功则等机，失败落巡航）
+                        if (GM.AirLift!=null && GM.AirLift.RequestLiftAuto(u,rp.Value.x,rp.Value.y)) continue;
                     }
                     Cruise(u,dt);
                 }
