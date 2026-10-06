@@ -96,7 +96,7 @@ namespace PixelToCivilization.EditorTools
             PlayerSettings.defaultScreenWidth = 1920;
             PlayerSettings.defaultScreenHeight = 1080;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
-            PlayerSettings.productName = "从像素到文明 V9.6.4";
+            PlayerSettings.productName = "从像素到文明 V9.6.5";
             PlayerSettings.companyName = "ToFuture";
         }
 
@@ -140,7 +140,7 @@ namespace PixelToCivilization.EditorTools
             File.WriteAllBytes(Path.Combine(outDir, "start_webserver.bat"), gbk.GetBytes(bat));
         }
 
-        const string BuildVer = "9.6.4";
+        const string BuildVer = "9.6.5";
         const string IndexTemplate = @"<!doctype html>
 <html lang=""zh-CN"">
 <head>
@@ -149,7 +149,7 @@ namespace PixelToCivilization.EditorTools
 <meta http-equiv=""Cache-Control"" content=""no-store,no-cache,must-revalidate"">
 <meta http-equiv=""Pragma"" content=""no-cache"">
 <meta name=""ai-key"" content=""__AIKEY__"">
-<title>从像素到文明 V9.6.4 · HTML5 网页版 · 九神AI·内存架构·预算水位/对象池/GC采样版</title>
+<title>从像素到文明 V9.6.5 · HTML5 网页版 · 九神AI·崩溃架构·异常捕获/安全模式/回滚恢复版</title>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;background:#0e72c8;overflow:hidden;font-family:'Microsoft YaHei',PingFang SC,Arial,sans-serif;}
   #game{position:fixed;inset:0;width:100%;height:100%;}
@@ -174,7 +174,7 @@ namespace PixelToCivilization.EditorTools
 <canvas id=""game""></canvas>
 <div id=""boot"">
   <h1>从 像 素 到 文 明</h1>
-  <p>V9.6.4 · HTML5 网页版 · 内存架构：显式预算水位/临界钳制自动生成/GC采样/慢系统Top5/对象池预生长与报告/存档槽位摘要</p>
+  <p>V9.6.5 · HTML5 网页版 · 崩溃架构：全局异常捕获（logMessageReceived+JS onerror）/崩溃标记/环形日志/安全模式（阴影关·LOD0.5·自动保存20s）/崩溃自动恢复（auto→回滚槽）/模拟崩溃测试入口</p>
   <div id=""bar""><div id=""fill""></div></div>
   <div id=""pct"">正在加载 0%</div>
 </div>
@@ -189,14 +189,14 @@ namespace PixelToCivilization.EditorTools
   var script=document.createElement('script');
   script.src='Build/__LOADER__'+VER;
   script.onload=function(){
-    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.6.4',productVersion:'__PV__'};
+    var cfg={dataUrl:'Build/__DATA__'+VER,frameworkUrl:'Build/__FRAME__'+VER,codeUrl:'Build/__CODE__'+VER,streamingAssetsUrl:'StreamingAssets/',companyName:'ToFuture',productName:'从像素到文明 V9.6.5',productVersion:'__PV__'};
     createUnityInstance(document.querySelector('#game'),cfg,function(progress){
       var p=Math.round(progress*100);fill.style.width=p+'%';pct.textContent='正在加载 '+p+'%';
     }).then(function(inst){window.unityInstance=inst;var _mk=document.querySelector('meta[name=""ai-key""]');if(_mk&&_mk.getAttribute('content')){inst.SendMessage('GameManager','WebAISetKey',_mk.getAttribute('content'));}
       // V9.4.6 WebGL 输入焦点兜底：点击画布/任何按键都确保 canvas 拿到浏览器键盘焦点（否则 UGUI InputField 点击后敲键无响应）
       // 注意：Unity 2022.3.61 loader 把 canvas 建在 body 顶层且 id 即 game（#game div 为空壳），故用 querySelector('canvas')
       var _cv=document.querySelector('canvas');if(_cv){_cv.setAttribute('tabindex','0');document.addEventListener('mousedown',function(e){var c=document.querySelector('canvas');if(c&&(e.target===c||c.contains(e.target))){c.focus();}});document.addEventListener('keydown',function(e){var c=document.querySelector('canvas');if(c&&document.activeElement!==c){c.focus();}});}
-      // V9.6.3 战时语音广播桥：Unity 侧传令兵文案 → 浏览器 speechSynthesis 中文 TTS（decodeURIComponent 安全解包）
+      // V9.6.5 战时语音广播桥：Unity 侧传令兵文案 → 浏览器 speechSynthesis 中文 TTS（decodeURIComponent 安全解包）
       window.pxcSpeak=function(t){try{if(!t)return;if(!('speechSynthesis' in window))return;var u=new SpeechSynthesisUtterance(t);u.lang='zh-CN';u.rate=1.02;u.pitch=1.06;window.speechSynthesis.cancel();window.speechSynthesis.speak(u);}catch(e4){}};
       // V9.4.6 剪贴板桥：读取系统剪贴板并送入 Unity（WebGL 右键菜单/Ctrl+V 粘贴不可靠的兜底；Unity 侧 ApiKeyPrompt 显示时填入输入框）
       window.PXC_ReadClipboard=function(){
@@ -228,7 +228,7 @@ namespace PixelToCivilization.EditorTools
 </html>";
 
         const string ReadmeText =
-            "《从像素到文明》V9.6.3 HTML5 网页版 — 运行说明（地面部队速度钳制+车辆自由行驶版；AI Key 游戏内自填，不随包分发）\r\n" +
+            "《从像素到文明》V9.6.5 HTML5 网页版 — 运行说明（地面部队速度钳制+车辆自由行驶版；AI Key 游戏内自填，不随包分发）\r\n" +
             "==========================================\r\n\r\n" +
             "一、为什么不能直接双击 index.html？\r\n" +
             "    Unity WebGL 出于浏览器安全策略，必须通过 http(s) 访问，直接用 file:// 双击通常会被拦截。\r\n\r\n" +
@@ -244,14 +244,14 @@ namespace PixelToCivilization.EditorTools
 
         const string StartBat = @"@echo off
 chcp 936 >nul
-title PixelToCivilization V9.6.3 Web Server
+title PixelToCivilization V9.6.5 Web Server
 cd /d ""%~dp0""
 rem V6.7.1: auto pick free port so a stale old server cannot hijack 8000
 set PORT=8000
 :findport
 netstat -ano -p tcp | findstr /R /C:"":%PORT% .*LISTENING"" >nul 2>nul && set /a PORT+=1 && goto findport
 echo ================================================
-echo   从像素到文明 V9.6.3 · 本地网页服务器
+echo   从像素到文明 V9.6.5 · 本地网页服务器
 echo   URL: http://localhost:%PORT%/
 echo   (8000 被旧版本占用时自动顺延到下一端口)
 echo   关闭本窗口即停止服务
@@ -311,13 +311,13 @@ while ($listener.IsListening) {
 ";
 
         const string StartCommand = @"#!/bin/bash
-# 从像素到文明 V9.6.3 - macOS 本地网页服务器
+# 从像素到文明 V9.6.5 - macOS 本地网页服务器
 cd ""$(dirname ""$0"")"" || exit 1
 PORT=8000
 while lsof -iTCP:$PORT -sTCP:LISTEN -nP >/dev/null 2>&1; do PORT=$((PORT+1)); done
 LANIP=""$(ipconfig getifaddr en0 2>/dev/null)""
 echo ""================================================ ""
-echo ""  从像素到文明 V9.6.3 · 本地网页服务器""
+echo ""  从像素到文明 V9.6.5 · 本地网页服务器""
 echo ""  本机浏览器: http://localhost:$PORT/""
 if [ -n ""$LANIP"" ]; then echo ""  手机同网段: http://$LANIP:$PORT/  (默认横屏全屏)""; fi
 echo ""  关闭本窗口即停止服务""
@@ -336,7 +336,7 @@ echo ""按回车关闭窗口...""; read -r
 ";
 
         // macOS 排错说明（Windows 压缩包可能丢可执行位，给出右键/chmod/终端三种兜底）
-        const string ReadmeMac = @"《从像素到文明》V9.6.3 — macOS 启动说明
+        const string ReadmeMac = @"《从像素到文明》V9.6.5 — macOS 启动说明
 ========================================
 
 ★ 如果提示“已损坏，无法打开 / 您应该将它移到废纸篓”（最常见，必看）
