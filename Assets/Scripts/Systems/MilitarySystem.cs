@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
@@ -36,7 +36,7 @@ namespace PixelToCivilization.Systems
     }
 
     /// <summary>
-    /// 军事系统 —— V6.1.4 骑兵&塔防&群雄争霸：征兵/训练骑兵、我方步骑机动部队、五方势力互伐吞并、
+    /// 军事系统 —— V6.1.4 骑兵&amp;塔防&amp;群雄争霸：征兵/训练骑兵、我方步骑机动部队、五方势力互伐吞并、
     /// 玩家主动讨伐、城墙阻挡、火塔/炮塔 AOE、兵种相克（骑克步、箭塔/炮塔克骑）。1:1 继承 v5.9.9 征兵与塔防。
     /// </summary>
     public partial class MilitarySystem : GameSystemBase
@@ -390,6 +390,32 @@ namespace PixelToCivilization.Systems
                         if (ct!=null && Vector3.Distance(new Vector3(ct.X,0,ct.Z),fu.Pos)<7f){ aim=new Vector3(ct.X,0,ct.Z);move=true; }
                         else if (Vector3.Distance(bp,fu.Pos)>8f){ aim=bp;move=true; }
                         else { fu.AtkCd-=dt; if(fu.AtkCd<=0){ fu.AtkCd=1.2f; SiegeFaction(fac,fu.Attack);} continue; }
+                    }
+                }
+                // V9.6.0 紧急集结令：红旗（军人）100 格内优先向军旗集结列阵（高于自由索敌/回家）
+                else if (GM.Rally!=null && GM.Rally.Active("inf"))
+                {
+                    var rp=GM.Rally.Target("inf");
+                    if (rp.HasValue)
+                    {
+                        float rd=Vector2.Distance(new Vector2(fu.X,fu.Z),rp.Value);
+                        if (rd<=RallySystem.RallyRange*GameConstants.Tile)
+                        {
+                            if (rd>RallySystem.FormRange){ aim=new Vector3(rp.Value.x,0,rp.Value.y); move=true; fu.State=3; }
+                            else { fu.State=0; }
+                        }
+                        else
+                        {
+                            Vector3 home=new(fu.HomeX,0,fu.HomeZ);
+                            if (Vector3.Distance(home,fu.Pos)>2.2f){ fu.State=3; aim=home; move=true; }
+                            else fu.State=0;
+                        }
+                    }
+                    else
+                    {
+                        Vector3 home=new(fu.HomeX,0,fu.HomeZ);
+                        if (Vector3.Distance(home,fu.Pos)>2.2f){ fu.State=3; aim=home; move=true; }
+                        else fu.State=0;
                     }
                 }
                 else if (ct!=null) { fu.State=1; aim=new Vector3(ct.X,0,ct.Z); move=true; }
