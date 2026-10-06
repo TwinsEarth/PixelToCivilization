@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
@@ -103,27 +103,57 @@ namespace PixelToCivilization.Systems
             return hit;
         }
 
-        /// <summary>统一伤害分发：按 Kind 回到各系统扣血/摧毁</summary>
+        /// <summary>统一伤害分发：按 Kind 回到各系统扣血/摧毁；击毁即向战时广播系统播报双方战损（V9.6.1）</summary>
         public void Damage(CombatTarget t, float dmg)
         {
             if (t == null || dmg <= 0f || t.Hp <= 0f) return;
             switch (t.Kind)
             {
                 case K_SHIP:
-                    if (t.Ref is ShipEntity sh) GM.Naval?.DamageShip(sh, dmg);
+                    if (t.Ref is ShipEntity sh) { GM.Naval?.DamageShip(sh, dmg); ReportKillIfDead(t, sh.Hp); }
                     break;
                 case K_GROUND:
-                    if (t.Ref is GroundWarfareSystem.GroundUnit gu) GM.Ground?.DamageGround(gu, dmg);
+                    if (t.Ref is GroundWarfareSystem.GroundUnit gu) { GM.Ground?.DamageGround(gu, dmg); ReportKillIfDead(t, gu.Hp); }
                     break;
                 case K_INF:
                 case K_CAV:
-                    GM.Military?.DamageUnit(t.Ref, dmg);
-                    break;
+                    {
+                        var o = t.Ref;
+                        float hp1 = o is FriendlyUnit f1 ? f1.Hp : o is EnemyUnit e1 ? e1.Hp : 0f;
+                        GM.Military?.DamageUnit(o, dmg);
+                        hp1 = o is FriendlyUnit f2 ? f2.Hp : o is EnemyUnit e2 ? e2.Hp : hp1;
+                        ReportKillIfDead(t, hp1);
+                        break;
+                    }
                 case K_TOWER:
                 case K_BUILDING:
-                    if (t.Ref is BuildingEntity be) DamageBuilding(be, dmg);
+                    if (t.Ref is BuildingEntity be) { DamageBuilding(be, dmg); ReportKillIfDead(t, be.Hp); }
                     break;
             }
+        }
+
+        // V9.6.1 战损广播防重（同一单位仅播报一次；容量封顶防失控增长）
+        readonly System.Collections.Generic.HashSet<object> _reported = new();
+        void ReportKillIfDead(CombatTarget t, float hp)
+        {
+            if (hp > 0f || GM.War == null || t.Ref == null || _reported.Contains(t.Ref)) return;
+            if (_reported.Count > 2048) _reported.Clear();
+            _reported.Add(t.Ref);
+            bool mine = t.Key == PlayerKey;
+            GM.War.Loss((mine ? "我军" : "敌军") + KindName(t.Kind) + (mine ? "被击毁！" : "一队被歼灭！"), mine);
+        }
+        static string KindName(int k)
+        {
+            switch (k)
+            {
+                case K_SHIP: return "舰船";
+                case K_GROUND: return "战车";
+                case K_INF: return "兵士";
+                case K_CAV: return "骑兵";
+                case K_TOWER: return "防御塔";
+                case K_BUILDING: return "建筑";
+            }
+            return "单位";
         }
 
         void DamageBuilding(BuildingEntity b, float dmg)
