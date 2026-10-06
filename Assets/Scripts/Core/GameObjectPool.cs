@@ -108,5 +108,60 @@ namespace PixelToCivilization.Core
             foreach (var kv in _buckets) { free += kv.Value.Free.Count; kv.Value.Rented.RemoveWhere(o => o == null); rented += kv.Value.Rented.Count; }
             return $"[Pool] buckets={_buckets.Count} free={free} rented={rented}";
         }
+
+        // ===== V9.6.4 内存架构扩展：预生长 / 分桶报告 / 桶计数（供 MemoryBudgetManager 采样与冒烟测试）=====
+
+        /// <summary>预生长：一次创建 n 个实例进 Free 栈（热身，避免战斗开场首波 Instantiate 尖峰）。create 必须返回新实例。</summary>
+        public static void Warmup(string key, Transform parent, System.Func<GameObject> create, int n)
+        {
+            if (n <= 0) return;
+            if (!_buckets.TryGetValue(key, out var bk)) { bk = new Bucket(); _buckets[key] = bk; }
+            for (int i = 0; i < n && bk.Free.Count < bk.Cap; i++)
+            {
+                var go = create != null ? create() : new GameObject(key);
+                go.SetActive(false);
+                go.transform.SetParent(parent != null ? parent : Root, false);
+                bk.Free.Push(go);
+            }
+        }
+
+        /// <summary>分桶统计（调试/测试用；Rented 会先清理已销毁引用）。</summary>
+        public struct PoolStat
+        {
+            public string Key; public int Free; public int Rented; public int Cap;
+        }
+
+        public static List<PoolStat> StatsDetailed()
+        {
+            var list = new List<PoolStat>(_buckets.Count);
+            foreach (var kv in _buckets)
+            {
+                var bk = kv.Value;
+                bk.Rented.RemoveWhere(o => o == null);
+                list.Add(new PoolStat { Key = kv.Key, Free = bk.Free.Count, Rented = bk.Rented.Count, Cap = bk.Cap });
+            }
+            return list;
+        }
+
+        /// <summary>桶数量（MemoryBudgetManager 报告用）。</summary>
+        public static int BucketCount() => _buckets.Count;
+
+        /// <summary>一行文本报告：如 "wfx_explosion:r0/f12/c64,wfx_hit:r0/f8/c64,..."（超长截断 160 字符）。</summary>
+        public static string ReportText()
+        {
+            var list = StatsDetailed();
+            if (list.Count == 0) return "empty";
+            var sb = new System.Text.StringBuilder(160);
+            int shown = 0;
+            foreach (var s in list)
+            {
+                if (sb.Length >= 140) break;
+                if (shown > 0) sb.Append(',');
+                sb.Append(s.Key).Append(":r").Append(s.Rented).Append("/f").Append(s.Free).Append("/c").Append(s.Cap);
+                shown++;
+            }
+            if (list.Count > shown) sb.Append(",...");
+            return sb.ToString();
+        }
     }
 }
