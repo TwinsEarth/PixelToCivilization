@@ -145,6 +145,7 @@ namespace PixelToCivilization.Core
         public float AtkCd;
         public int State;                // 0待命 1迎敌 2讨伐行军 3回撤
         public string CampaignId;        // 讨伐目标势力 id
+        public bool Lifted;              // V9.6.1 远程投送中（运输机/直升机空运，原系统跳过 AI，坐标由 AirLiftSystem 接管）
         public GameObject View;
         public PixelToCivilization.World.OverheadBillboard OH;   // V6.1.9(i) 头顶旗帜+同色血条
         public Vector3 Pos => new(X, 0, Z);
