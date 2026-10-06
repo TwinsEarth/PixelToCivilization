@@ -1,0 +1,33 @@
+# V9.7.0 GitHub Actions CI（GameCI 模板 · 团结引擎适配说明见下方注释）
+# ⚠️ 诚实标注：本仓库主交付为 WebGL（HTML5），游戏引擎为「团结引擎 Tuanjie 2022.3.62t12」，
+#   GameCI 官方 unity-builder/unity-test-runner 镜像基于 Unity Editor，团结引擎需要替换
+#   镜像与激活流程（团结官方 CLI 或自建 Dockerfile）。仓库未配置 UNITY_EMAIL/UNITY_PASSWORD/
+#   UNITY_LICENSE/UNITY_SERIAL secrets 前，本 workflow 不会实际运行 —— 未验证项，如实标注。
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build WebGL (Unity GameCI 模板)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # GameCI 标准三步：激活 → 测试 → 构建。团结引擎下镜像改为团结镜像后即可用。
+    # steps:
+    #   - uses: actions/checkout@v4
+    #   - uses: game-ci/unity-activate@v4
+    #     with:
+    #       unityVersion: 2022.3.62t12
+    #   - uses: game-ci/unity-builder@v4
+    #     with:
+    #       targetPlatform: WebGL
+    #       buildMethod: PixelToCivilization.EditorTools.BuildPipelineCLI.BuildTargetCLI
+    #   - uses: actions/upload-artifact@v4
+    #     with:
+    #       name: BuildWebGL
+    #       path: BuildWebGL
+    steps:
+      - run: echo "GameCI 需团结引擎镜像与 Unity secrets，当前未配置 → 本 job 跳过（未验证）"
