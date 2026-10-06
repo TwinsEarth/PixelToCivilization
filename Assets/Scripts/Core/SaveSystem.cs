@@ -18,6 +18,7 @@ namespace PixelToCivilization.Core
         public int Year; public float Day; public int Era, DynastyIdx;
         public int Pop,MaxPop; public float Happiness, Housing, DynastyMorale;
         public float Speed; public int DebugLevel;
+        public string RallyKind; public float RallyX, RallyZ;   // V9.6.0 紧急集结令（插旗）
         public float Children,Young,Middle,Old;
         // 军事 / 研究 / 社会
         public float MilSoldiers,MilCavalry,MilFirepower,MilDefense;
@@ -33,6 +34,7 @@ namespace PixelToCivilization.Core
         public int CityTaxLevel; // V9.0.7 城市财政税率档位
         public bool CanalAutoBuild; public float CanalBuildTimer,TidePhase,TideLevel; public bool TideHigh; public int[] CanalCells;
         public int[] BridgeCells; public int[] BridgeRuns;   // V6.3.9 桥梁
+        public float[] Piers;   // V9.4.6 高架柱（成对 x,z）
     public float[] GrownLands;   // V6.5.4 运行时实时增陆（每块7浮点 cx,cz,br,kind,p1,p2,p3）
         // 太空
         public float SpElevator,SpShips,SpDyson,SpLunar,SpMars;
@@ -77,6 +79,8 @@ namespace PixelToCivilization.Core
         public bool AIEnabled=true, AIOnline; public long AITokens;
         public int AIInterval,AILastCouncil,AISafety; public string AIApiKey,AIModel;
         public int[] AIGodLast; public long[] AIGodAct;
+        // V9.4.0 性格向量（Zeal/Intervene/Expand/Prudent）+ 文明历史日志（环形 32 条）
+        public float[] AIGodZeal, AIGodIntv, AIGodExp, AIGodPrd; public string[] AiHistory;
         // V6.1.9 加速冷冻运行态（累计年数/是否冷冻/剩余现实秒）
         public float CryoAccum,CryoRemain; public bool CryoActive;
         // V9.2.2 人口周期律（马尔萨斯四阶段）
@@ -124,6 +128,7 @@ namespace PixelToCivilization.Core
                 DynastyName=_gm.Time!=null?_gm.Time.DynastyName:"",
                 Pop=s.Pop,MaxPop=s.MaxPop,Happiness=s.Happiness,
                 Housing=s.Housing,DynastyMorale=s.DynastyMorale,Speed=s.Speed,DebugLevel=s.DebugLevel,
+                RallyKind=s.RallyKind,RallyX=s.RallyX,RallyZ=s.RallyZ,   // V9.6.0 紧急集结令随档持久化
                 Children=s.Children,Young=s.Young,Middle=s.Middle,Old=s.Old,
                 MilSoldiers=s.MilSoldiers,MilCavalry=s.MilCavalry,MilFirepower=s.MilFirepower,MilDefense=s.MilDefense,
                 WarActive=s.WarActive,Victory=s.Victory,VictoryType=s.VictoryType,
@@ -144,6 +149,7 @@ namespace PixelToCivilization.Core
                 TideLevel=s.TideLevel,TideHigh=s.TideHigh,
                 CanalCells=s.CanalCells.ToArray(),
             BridgeCells=s.BridgeCells.ToArray(), BridgeRuns=s.BridgeRuns.ToArray(),
+            Piers=s.Piers.ToArray(),
             GrownLands=grownArr,
                 OceanResKeys=s.OceanResources.Keys.ToArray(),OceanResVals=s.OceanResources.Values.ToArray(),
                 SpaceResKeys=s.SpaceResources.Keys.ToArray(),SpaceResVals=s.SpaceResources.Values.ToArray(),
@@ -223,6 +229,11 @@ namespace PixelToCivilization.Core
                 d.AIApiKey=cou.ApiKey;d.AIModel=cou.Model;
                 d.AIGodLast=cou.Gods.Select(g=>g.LastYear).ToArray();
                 d.AIGodAct=cou.Gods.Select(g=>g.Actions).ToArray();
+                d.AIGodZeal=cou.Gods.Select(g=>g.Zeal).ToArray();
+                d.AIGodIntv=cou.Gods.Select(g=>g.Intervene).ToArray();
+                d.AIGodExp=cou.Gods.Select(g=>g.Expand).ToArray();
+                d.AIGodPrd=cou.Gods.Select(g=>g.Prudent).ToArray();
+                d.AiHistory=cou.History.ToArray();
             }
             // V6.1.9 加速冷冻运行态
             d.CryoAccum=s.CryoAccumYears; d.CryoActive=s.CryoActive; d.CryoRemain=s.CryoRemainSec;
@@ -348,6 +359,8 @@ namespace PixelToCivilization.Core
             s.Year=d.Year;s.Day=d.Day;s.Era=d.Era;s.DynastyIdx=d.DynastyIdx;
             s.Pop=d.Pop;s.MaxPop=Mathf.Max(100,d.MaxPop);s.Happiness=d.Happiness;
             s.Housing=d.Housing;s.DynastyMorale=d.DynastyMorale;s.Speed=d.Speed;s.DebugLevel=d.DebugLevel;
+            s.RallyKind=d.RallyKind??""; s.RallyX=d.RallyX; s.RallyZ=d.RallyZ;   // V9.6.0 集结令（旧档无字段→无旗）
+            _gm.Rally?.RestoreFlag();   // V9.6.0 读档重建军旗模型
             s.Children=d.Children;s.Young=d.Young;s.Middle=d.Middle;s.Old=d.Old;
             s.MilSoldiers=d.MilSoldiers;s.MilCavalry=d.MilCavalry;s.MilFirepower=d.MilFirepower;s.MilDefense=d.MilDefense;
             s.WarActive=d.WarActive;s.Victory=d.Victory;s.VictoryType=d.VictoryType;
@@ -380,6 +393,7 @@ namespace PixelToCivilization.Core
             s.TideLevel=d.TideLevel;s.TideHigh=d.TideHigh;
             s.CanalCells=new List<int>(d.CanalCells??Array.Empty<int>());
             s.BridgeCells=new HashSet<int>(d.BridgeCells??Array.Empty<int>()); s.BridgeRuns=new List<int>(d.BridgeRuns??Array.Empty<int>());
+            s.Piers=new List<float>(d.Piers??Array.Empty<float>());   // V9.4.6 高架柱
             // V6.1.3 地图延展 + 大航海/宇宙里程碑
             s.AgeOfSail=d.AgeOfSail;s.AgeOfSpace=d.AgeOfSpace;s.WorldExpansion=Mathf.Max(1f,d.WorldExpansion);
             if(d.EarthMode){ s.WorldExpansion=1f; }   // V9.1.0 地球模式全球已揭示，不能被 SnapExpansion 重置回 480
@@ -510,6 +524,13 @@ namespace PixelToCivilization.Core
                 else c.Model=d.AIModel;
                 if(d.AIGodLast!=null)for(int i=0;i<Mathf.Min(d.AIGodLast.Length,c.Gods.Count);i++)c.Gods[i].LastYear=d.AIGodLast[i];
                 if(d.AIGodAct!=null)for(int i=0;i<Mathf.Min(d.AIGodAct.Length,c.Gods.Count);i++)c.Gods[i].Actions=d.AIGodAct[i];
+                // V9.4.0 恢复性格向量与历史日志（旧档无字段则保持默认性格/空历史）
+                if(d.AIGodZeal!=null)for(int i=0;i<Mathf.Min(d.AIGodZeal.Length,c.Gods.Count);i++)c.Gods[i].Zeal=d.AIGodZeal[i];
+                if(d.AIGodIntv!=null)for(int i=0;i<Mathf.Min(d.AIGodIntv.Length,c.Gods.Count);i++)c.Gods[i].Intervene=d.AIGodIntv[i];
+                if(d.AIGodExp!=null)for(int i=0;i<Mathf.Min(d.AIGodExp.Length,c.Gods.Count);i++)c.Gods[i].Expand=d.AIGodExp[i];
+                if(d.AIGodPrd!=null)for(int i=0;i<Mathf.Min(d.AIGodPrd.Length,c.Gods.Count);i++)c.Gods[i].Prudent=d.AIGodPrd[i];
+                c.History.Clear();
+                if(d.AiHistory!=null)c.History.AddRange(d.AiHistory);
             }
             // V6.1.9 恢复加速冷冻运行态（旧存档无字段则默认不冷冻、累计0）
             s.CryoAccumYears=d.CryoAccum; s.CryoActive=d.CryoActive; s.CryoRemainSec=Mathf.Max(0,d.CryoRemain);
