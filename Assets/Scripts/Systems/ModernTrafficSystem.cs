@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using PixelToCivilization.Core;
@@ -329,25 +329,6 @@ namespace PixelToCivilization.Systems
             return false;
         }
 
-        /// <summary>V9.1.1 统一道路吸附：在 maxR 内找最近的建筑道路点或城际公路中线点。</summary>
-        private bool SnapRoad(float x, float z, float maxR, out Vector2 pt)
-        {
-            pt = default; bool found = false; float bd = maxR * maxR;
-            foreach (var b in S.Buildings)
-            {
-                if (b == null || !IsRoad(b.Type)) continue;
-                float dx = b.X - x, dz = b.Z - z, d2 = dx * dx + dz * dz;
-                if (d2 < bd) { bd = d2; pt = new Vector2(b.X, b.Z); found = true; }
-            }
-            if (GM.Intercity != null && GM.Intercity.HasRoads
-                && GM.Intercity.NearestRoadPoint(new Vector3(x, 0f, z), maxR, out var q))
-            {
-                float d2 = (q.x - x) * (q.x - x) + (q.z - z) * (q.z - z);
-                if (d2 < bd) { bd = d2; pt = new Vector2(q.x, q.z); found = true; }
-            }
-            return found;
-        }
-
         // ---------- 建模 ----------
         private GameObject BuildCar(Color c, int kind)
         {
@@ -564,9 +545,8 @@ namespace PixelToCivilization.Systems
             if (kind<0) return false;
             if (_terrain!=null && _terrain.IsWater(x,z)) { GM.AddEvent("bad","⚠ 车辆只能建在陆地"); return false; }
             S.Pay(def.Cost);
-            // 出生点：优先吸附最近道路（80格），无道路则落玩家放置点（Tick 会自行寻路上路）
+            // V9.6.3 取消出生点道路吸附：车辆直接落在玩家放置点（不再强制拉到最近道路）
             float px=x, pz=z;
-            if (SnapRoad(x,z,80f,out var pt)) { px=pt.x; pz=pt.y; }
             SpawnCar(kind, px, pz);
             GM.AddEvent("good",def.Icon+" 建造了"+def.Name);
             return true;
@@ -798,8 +778,7 @@ namespace PixelToCivilization.Systems
                     }
                     if (!slid) { PickWander(c); continue; }
                 }
-                // V9.5.6 取消"车辆必须在马路上"：附近有道路则贴路（可获道路速度加成），没有道路也可在陆地越野行驶（LandOK 已保证不下水）
-                if (SnapRoad(nx, nz, 12f, out var rp)) { nx = rp.x; nz = rp.y; }
+                // V9.6.3 取消"车辆必须在马路上"：不再把车辆投影回道路，可在任意陆地越野直行（LandOK 已保证不下水；RoadSpeedAt 仅作道路上的速度软加成）
                 c.X = nx; c.Z = nz;
                 c.H = (GM.Bridge != null && GM.Bridge.IsBridgeAt(c.X, c.Z)) ? GM.Bridge.DeckHeightAt(c.X, c.Z) : _terrain.HeightAt(c.X, c.Z);
                 c.View.transform.position = new Vector3(c.X, c.H, c.Z);
@@ -842,12 +821,6 @@ namespace PixelToCivilization.Systems
             }
             return best;
         }
-        private bool NearestRoadPoint(float x, float z, out Vector2 pt)
-        {
-            // V9.1.1 同时识别建筑道路与城际 4 车道马路（地球模式道路是纯视图，不在 S.Buildings）
-            bool found = SnapRoad(x, z, 120f, out pt);
-            return found;
-        }
         /// <summary>城市事件触发：从最近的对应站点派出应急车。stationType=fire_station/police_station/hospital。</summary>
         public bool DispatchEmergency(string stationType, float tx, float tz)
         {
@@ -859,9 +832,7 @@ namespace PixelToCivilization.Systems
             view.transform.SetParent(Root, false);
             var e = new Emergency { Kind = kind, View = view, X = st.X, Z = st.Z,
                 H = _terrain.HeightAt(st.X, st.Z), Phase = 0 };
-            // 赶赴路径：站点 → 就近道路 → 事件点就近道路 → 事件点
-            if (NearestRoadPoint(st.X, st.Z, out var r1)) e.Path.Add(r1);
-            if (NearestRoadPoint(tx, tz, out var r2)) e.Path.Add(r2);
+            // V9.6.3 应急车辆路径直连（站 → 事件点），不再强制经道路中线
             e.Path.Add(new Vector2(tx, tz));
             view.transform.position = new Vector3(e.X, e.H, e.Z);
             var tbr = view.transform.Find("BeaconR"); var tbb = view.transform.Find("BeaconB");
@@ -889,9 +860,8 @@ namespace PixelToCivilization.Systems
                     e.T -= dt;
                     if (e.T <= 0f)
                     {
-                        // 返回路径：事件点 → 就近道路 → 最近同类站点
+                        // V9.6.3 返回路径直连：事件点 → 最近同类站点（不再强制经道路中线）
                         e.Phase = 2; e.Wp = 0; e.Path.Clear();
-                        if (NearestRoadPoint(e.X, e.Z, out var rb)) e.Path.Add(rb);
                         var st = NearestStation(e.Kind == 3 ? "fire_station" : e.Kind == 4 ? "police_station" : "hospital", e.X, e.Z);
                         if (st != null) e.Path.Add(new Vector2(st.X, st.Z));
                         else { Object.Destroy(e.View); _em.RemoveAt(i); _emDone++; continue; }
