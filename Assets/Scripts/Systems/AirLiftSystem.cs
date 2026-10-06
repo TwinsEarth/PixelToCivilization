@@ -46,8 +46,10 @@ namespace PixelToCivilization.Systems
         readonly Queue<LiftRequest> _groundQueue = new();   // 待投送地面部队
         readonly Queue<LiftRequest> _infQueue = new();      // 待投送军人
         bool _cargoBuilt, _heliBuilt;
+        int _recoveredStuck;                                 // V9.6.2 投送兜底复位计数（探针证据：任何异常不再永久卡死）
 
-        public override void Init(GameManager gm) { base.Init(gm); }
+        public override void Init(GameManager gm) { base.Init(gm); _terrain = Object.FindObjectOfType<WorldGenerator>(); }
+        WorldGenerator _terrain;   // V9.6.2 空投落地贴地（地形高度）
 
         public bool UnlockedCargo() => GM.State.Year >= 4930;   // 公元1900 运输机
         public bool UnlockedHeli()  => GM.State.Year >= 4949;   // 公元1949 直升机
@@ -82,6 +84,7 @@ namespace PixelToCivilization.Systems
             EnsureFleet();
             DispatchTasks();
             for (int i = _planes.Count - 1; i >= 0; i--) StepPlane(_planes[i]);
+            RecoverStuck();   // V9.6.2 兜底：任何异常泄漏的 Lifted 单位强制复位，杜绝永久卡死/消失
         }
 
         void EnsureFleet()
@@ -108,12 +111,21 @@ namespace PixelToCivilization.Systems
 
         void DispatchFrom(Queue<LiftRequest> q, int prefKind)
         {
+            // V9.6.2 丢弃已失效请求（单位已被移除/击杀/读档重置），防机上空转
+            while (q.Count > 0 && !RequestAlive(q.Peek().Unit)) q.Dequeue();
+            if (q.Count == 0) return;
             LiftPlane idle = null;
             foreach (var p in _planes) if (p.Phase == 0 && p.Kind == prefKind) { idle = p; break; }
             if (idle == null) foreach (var p in _planes) if (p.Phase == 0) { idle = p; break; }
             if (idle == null) return;
             int n = 0;
-            while (n < MaxPerTask && q.Count > 0) { idle.Cargo.Add(q.Dequeue()); n++; }
+            while (n < MaxPerTask && q.Count > 0)
+            {
+                var r = q.Peek();
+                if (RequestAlive(r.Unit)) { idle.Cargo.Add(q.Dequeue()); n++; }
+                else q.Dequeue();
+            }
+            if (idle.Cargo.Count == 0) return;
             var first = idle.Cargo[0];
             idle.FlagX = first.FlagX; idle.FlagZ = first.FlagZ;
             idle.CargoIdx = 0;
@@ -122,6 +134,14 @@ namespace PixelToCivilization.Systems
             SetPlaneTarget(idle, fp.x, fp.y, CruiseAlt);
             if (idle.View != null) idle.View.SetActive(true);
             if (idle.Root != null) idle.Root.SetActive(true);
+        }
+
+        /// <summary>V9.6.2 请求单位是否仍有效（未被移除/击杀/读档重置）</summary>
+        bool RequestAlive(object unit)
+        {
+            if (unit is GroundWarfareSystem.GroundUnit g) return GM.Ground!=null && GM.Ground.Ours.Contains(g);
+            if (unit is FriendlyUnit fu) return GM.State!=null && GM.State.FriendlyUnits.Contains(fu);
+            return false;
         }
 
         void StepPlane(LiftPlane p)
@@ -182,7 +202,7 @@ namespace PixelToCivilization.Systems
                         Drop(p.Cargo[p.CargoIdx - 1].Unit, p);
                         p.CargoIdx--; p.Timer = LoadGap;
                     }
-                    if (p.CargoIdx <= 0) Recycle(p);
+                    if (p.CargoIdx <= 0) Retire(p);
                     break;
             }
         }
@@ -221,15 +241,57 @@ namespace PixelToCivilization.Systems
             if (unit is GroundWarfareSystem.GroundUnit g) { g.X = nx; g.Z = nz; }
             else if (unit is FriendlyUnit fu) { fu.X = nx; fu.Z = nz; }
             GameObject view = ViewOf(unit);
-            if (view != null) view.transform.SetParent(null, false);
+            if (view != null)
+            {
+                view.transform.SetParent(null, true);   // V9.6.2 保世界坐标解挂（机上 Root 回巢复用，不再销毁）
+                float h = 0.5f;
+                if (_terrain == null) _terrain = Object.FindObjectOfType<WorldGenerator>();
+                if (_terrain != null) h = _terrain.HeightAt(nx, nz) + 0.5f;
+                view.transform.position = new Vector3(nx, h, nz);   // V9.6.2 空投落地贴地，杜绝悬空/错位
+            }
         }
 
-        void Recycle(LiftPlane p)
+        /// <summary>V9.6.2 空投完成回巢待命复用：不销毁飞机、不移除机队（旧实现 Recycle 销毁 Root 连带销毁机上单位视图，
+        /// 且 _planes.Remove + _cargoBuilt 保持 true → 机队永久丢失、后续投送队列无人处理 → 单位永久卡死"消失"）。</summary>
+        void Retire(LiftPlane p)
         {
-            if (p.View != null) Object.Destroy(p.View);
-            if (p.Root != null) Object.Destroy(p.Root);
             p.Cargo.Clear();
-            _planes.Remove(p);
+            p.CargoIdx = 0;
+            p.Phase = 0;   // StepPlane Phase==0 分支自动隐藏 Root
+        }
+
+        /// <summary>V9.6.2 兜底复位：Lifted 但不在任何队列/机载中的单位强制恢复（异常泄漏防永久卡死），计数供探针</summary>
+        void RecoverStuck()
+        {
+            int n = 0;
+            if (GM.Ground != null)
+            {
+                foreach (var g in GM.Ground.Ours)
+                {
+                    if (g == null || !g.Lifted) continue;
+                    if (!UnitInFlight(g) && !InQueue(_groundQueue, g)) { g.Lifted = false; n++; }
+                }
+            }
+            if (GM.State != null)
+            {
+                foreach (var fu in GM.State.FriendlyUnits)
+                {
+                    if (fu == null || !fu.Lifted) continue;
+                    if (!UnitInFlight(fu) && !InQueue(_infQueue, fu)) { fu.Lifted = false; n++; }
+                }
+            }
+            if (n > 0) _recoveredStuck += n;
+        }
+        bool UnitInFlight(object unit)
+        {
+            foreach (var p in _planes)
+                foreach (var c in p.Cargo) if (c.Unit == unit) return true;
+            return false;
+        }
+        static bool InQueue(Queue<LiftRequest> q, object unit)
+        {
+            foreach (var r in q) if (r.Unit == unit) return true;
+            return false;
         }
 
         static GameObject ViewOf(object unit)
@@ -249,6 +311,30 @@ namespace PixelToCivilization.Systems
         void SetPlaneTarget(LiftPlane p, float x, float z, float alt)
         {
             p.TX = x; p.TZ = z; p.TAlt = alt;
+        }
+
+        // ================= V9.6.2 投送端强化 =================
+        /// <summary>地面部队集结（超100格）：投送不可用（机种未解锁）时广播提示并返回 false，由调用方落巡航</summary>
+        public bool RequestLiftAuto(GroundWarfareSystem.GroundUnit u, float fx, float fz)
+        {
+            if (u == null) return false;
+            if (!UnlockedCargo() && !UnlockedHeli())
+            {
+                GM.AddEvent("bad", "✈ 运输机需公元1900/直升机公元1949解锁，当前无法远程投送，" + u.Name + "改为就近巡航");
+                return false;
+            }
+            return RequestLift(u, fx, fz, 1f);
+        }
+        /// <summary>军人集结（超100格）：投送不可用广播提示并返回 false，由调用方回城</summary>
+        public bool RequestLiftAuto(FriendlyUnit u, float fx, float fz)
+        {
+            if (u == null) return false;
+            if (!UnlockedCargo() && !UnlockedHeli())
+            {
+                GM.AddEvent("bad", "✈ 运输机需公元1900/直升机公元1949解锁，当前无法远程投送，军人回城待命");
+                return false;
+            }
+            return RequestLift(u, fx, fz, 0f);
         }
 
         // ================= 程序化低多边形模型（运输机/直升机）=================
@@ -378,7 +464,7 @@ namespace PixelToCivilization.Systems
             body = bodyGo;
         }
 
-        /// <summary>Web 探针：air:q队列数,p忙机数|机型</summary>
+        /// <summary>Web 探针：air:q队列数,p忙机数|机型;lifted:地面/军人投送中;stuck:兜底复位累计</summary>
         public string Probe()
         {
             int busy = 0, cargo = 0, heli = 0;
@@ -387,7 +473,11 @@ namespace PixelToCivilization.Systems
                 if (p.Phase > 0) busy++;
                 if (p.Kind == 0) cargo++; else heli++;
             }
-            return "air:q" + (_groundQueue.Count + _infQueue.Count) + ",p" + busy + ",f" + cargo + "c" + heli + "h";
+            int gl = 0, il = 0;
+            if (GM.Ground != null) foreach (var g in GM.Ground.Ours) if (g.Lifted) gl++;
+            if (GM.State != null) foreach (var fu in GM.State.FriendlyUnits) if (fu.Lifted) il++;
+            return "air:q" + (_groundQueue.Count + _infQueue.Count) + ",p" + busy
+                 + ",f" + cargo + "c" + heli + "h;lifted:" + gl + "/" + il + ";stuck:" + _recoveredStuck;
         }
 
         /// <summary>新局清理（StartNewGame 调用）：销毁飞机视图与队列</summary>
@@ -401,7 +491,7 @@ namespace PixelToCivilization.Systems
             }
             _planes.Clear();
             _groundQueue.Clear(); _infQueue.Clear();
-            _cargoBuilt = false; _heliBuilt = false;
+            _cargoBuilt = false; _heliBuilt = false; _recoveredStuck = 0;
         }
     }
 }
