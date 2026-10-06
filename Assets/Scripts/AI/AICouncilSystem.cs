@@ -41,10 +41,27 @@ namespace PixelToCivilization.AI
         public float Continuity { get; private set; } = 100f;  // 文明存续健康分 0~100
         public string PerfNote = "性能神监测中";
         public List<AIGod> Gods = new();
+        // V9.4.0 文明历史日志（环形，最近 32 条，进存档）：神决策/大事件/灾难入账，供各神"以史为鉴"调整后续决策
+        public List<string> History = new();
+        public const int HistoryMax = 32;
         private float _safetyRealCd;                // 现实秒兜底检查节流
         private float _fpsSmooth = 60f;
         private int _qualityCooldown;
         private bool _requesting;                    // LLM 请求在途（防重入）
+
+        // V9.4.0 神庭协作计数（本轮已执行的跨神动作，议政每轮重置）
+        private int _synergyUsed;
+
+        public void LogHistory(string ev)
+        {
+            History.Add(ev);
+            if (History.Count > HistoryMax) History.RemoveRange(0, History.Count - HistoryMax);
+        }
+        string LastSameDomain(string domain)
+        {
+            for (int i=History.Count-1;i>=0;i--) if (History[i].StartsWith(domain)) return History[i];
+            return null;
+        }
 
         public override void Init(GameManager gm)
         {
@@ -66,16 +83,25 @@ namespace PixelToCivilization.AI
         void BuildGods()
         {
             Gods.Clear();
-            // id, 名称, 职责, 关注, 代表色, 性格倾向(0.4 温和 ~ 1.1 强势)
-            Gods.Add(new AIGod("pop",  "人口神",     "人口·婚姻·生育·健康", "生育/瘟疫/移民", 0xFF8A80, 0.7f+Random.value*0.4f));
-            Gods.Add(new AIGod("farm", "土地农神",   "农业·土地·天气",       "丰收/饥荒/赈灾", 0x9CCC65, 0.7f+Random.value*0.4f));
-            Gods.Add(new AIGod("tech", "技术工业神", "科技·工业·时代",       "研发/工业/进阶", 0x4FC3F7, 0.6f+Random.value*0.4f));
-            Gods.Add(new AIGod("time", "时间事件神", "时间·朝代·历史",       "朝代更迭/民心", 0xFFD54F, 0.6f+Random.value*0.4f));
-            Gods.Add(new AIGod("res",  "资源神",     "资源·贸易·经济",       "储备/贸易路线", 0xA1887F, 0.6f+Random.value*0.4f));
-            Gods.Add(new AIGod("edu",  "教育文化神", "教育·文化·思想",       "学派/科技传播", 0xBA68C8, 0.5f+Random.value*0.4f));
-            Gods.Add(new AIGod("org",  "组织神",     "制度·行政·建筑",       "政策/营建/效率", 0x7986CB, 0.6f+Random.value*0.4f));
-            Gods.Add(new AIGod("mil",  "军事外交神", "军事·外交·战争",       "战争/联盟/朝贡", 0xE57373, 0.7f+Random.value*0.5f));
-            Gods.Add(new AIGod("perf", "性能神",     "性能·画质·流畅",       "帧率/自动降档", 0x90A4AE, 0.8f));
+            // id, 名称, 职责, 关注, 代表色, 性格倾向(0.4 温和 ~ 1.1 强势) —— V9.4.0 各神加四维性格向量
+            Gods.Add(new AIGod("pop",  "人口神",     "人口·婚姻·生育·健康", "生育/瘟疫/移民", 0xFF8A80, 0.7f+Random.value*0.4f)
+                { Intervene=Random.Range(0.5f,0.95f), Expand=Random.Range(0.3f,0.8f),  Prudent=Random.Range(0.3f,0.8f) });
+            Gods.Add(new AIGod("farm", "土地农神",   "农业·土地·天气",       "丰收/饥荒/赈灾", 0x9CCC65, 0.7f+Random.value*0.4f)
+                { Intervene=Random.Range(0.4f,0.9f), Expand=Random.Range(0.4f,0.85f), Prudent=Random.Range(0.3f,0.8f) });
+            Gods.Add(new AIGod("tech", "技术工业神", "科技·工业·时代",       "研发/工业/进阶", 0x4FC3F7, 0.6f+Random.value*0.4f)
+                { Intervene=Random.Range(0.5f,0.9f), Expand=Random.Range(0.5f,0.95f), Prudent=Random.Range(0.3f,0.7f) });
+            Gods.Add(new AIGod("time", "时间事件神", "时间·朝代·历史",       "朝代更迭/民心", 0xFFD54F, 0.6f+Random.value*0.4f)
+                { Intervene=Random.Range(0.5f,1.0f), Expand=Random.Range(0.3f,0.7f),  Prudent=Random.Range(0.4f,0.9f) });
+            Gods.Add(new AIGod("res",  "资源神",     "资源·贸易·经济",       "储备/贸易路线", 0xA1887F, 0.6f+Random.value*0.4f)
+                { Intervene=Random.Range(0.4f,0.9f), Expand=Random.Range(0.5f,0.9f),  Prudent=Random.Range(0.5f,1.0f) });
+            Gods.Add(new AIGod("edu",  "教育文化神", "教育·文化·思想",       "学派/科技传播", 0xBA68C8, 0.5f+Random.value*0.4f)
+                { Intervene=Random.Range(0.5f,0.95f), Expand=Random.Range(0.4f,0.8f), Prudent=Random.Range(0.3f,0.7f) });
+            Gods.Add(new AIGod("org",  "组织神",     "制度·行政·建筑",       "政策/营建/效率", 0x7986CB, 0.6f+Random.value*0.4f)
+                { Intervene=Random.Range(0.5f,0.95f), Expand=Random.Range(0.5f,0.9f),  Prudent=Random.Range(0.4f,0.8f) });
+            Gods.Add(new AIGod("mil",  "军事外交神", "军事·外交·战争",       "战争/联盟/朝贡", 0xE57373, 0.7f+Random.value*0.5f)
+                { Intervene=Random.Range(0.5f,1.0f), Expand=Random.Range(0.3f,0.7f),  Prudent=Random.Range(0.4f,0.9f) });
+            Gods.Add(new AIGod("perf", "性能神",     "性能·画质·流畅",       "帧率/自动降档", 0x90A4AE, 0.8f)
+                { Intervene=0.9f, Expand=0.2f, Prudent=0.7f });
         }
 
         // ===================== 主循环 =====================
@@ -113,7 +139,8 @@ namespace PixelToCivilization.AI
                 float urg = Urgency(g.Id);
                 g.Urgency = urg;
                 // 紧迫度越高越必然出手；低紧迫也有小概率做"发展型"动作，让文明持续前进
-                bool act = urg >= 0.45f || Random.value < 0.35f;
+                // V9.4.0 性格向量 Intervene：干预倾向高的神在低紧迫时也更常出手
+                bool act = urg >= 0.45f || Random.value < 0.35f + g.Intervene * 0.15f;
                 if (g.Id=="perf") { g.Note = PerfTune(); g.LastYear=year; g.Actions++; continue; }
                 if (!act) { g.Status="休养"; continue; }
                 g.Status = urg>=0.7f ? "预警" : "治理";
@@ -123,9 +150,43 @@ namespace PixelToCivilization.AI
             }
             // 联网增强（可选）：离线决策已保证存续，LLM 只做白名单内的二次微调与叙事
             if (Online && !_requesting && !string.IsNullOrEmpty(ApiKey)) StartCoroutine(RequestCounsel(year));
+            // V9.4.0 神庭协作：跨神动作（最多 2 条/轮），让九神从"各自补数"升级为"共治协同"
+            _synergyUsed = 0;
+            CouncilSynergy(year);
         }
 
-        /// <summary>紧迫度 0~1：该神关注指标偏离健康区间越远越紧迫</summary>
+        /// <summary>V9.4.0 神庭协作扫描：有限容量的跨神动作，各条独立于单神决策、只做结构性治理</summary>
+        void CouncilSynergy(int year)
+        {
+            if (S == null) return;
+            // ① 人口神促生育 → 教育文化神教化新生代（文化+研究+）
+            if (_synergyUsed < 2 && Random.value < 0.5f && S.Children > S.Pop * 0.3f)
+            {
+                AddCap("culture", Mathf.RoundToInt(6 + 8f), 200);
+                AddCap("research", Mathf.RoundToInt(4f), 200);
+                _synergyUsed++;
+                LogHistory("[教育] 教化新生代·文化反哺科技（人口神协作）");
+                GM.AddEvent("info","📚 教育文化神教化新生代，学派兴盛（人口神协作）");
+            }
+            // ② 技术神时代跃迁 → 组织神营建新 Era 基础设施（水井/道路，受经济保底约束）
+            if (_synergyUsed < 2 && S.GetRes("food") > 80 && S.GetRes("wood") > 90 && Random.value < 0.45f)
+            {
+                string[] cand = S.Era >= 5 ? new[]{"road","well","water_mill"} : S.Era >= 3 ? new[]{"road","well","granary"} : new[]{"road","well"};
+                foreach (var type in cand)
+                {
+                    if (GM.Def(type) == null) continue;
+                    if (GM.Building != null && GM.Building.FindAutoPosition(type,out var x,out var z) && GM.Building.PlaceBuilding(type,x,z))
+                    {
+                        _synergyUsed++;
+                        LogHistory("[营建] 技术跃迁·组织神督建" + GM.Def(type).Name);
+                        GM.AddEvent("good","🏗️ 组织神督建"+GM.Def(type).Name+"（技术工业神协作）");
+                        break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>紧迫度 0~1：V9.4.0 多因子加权（该神关注指标偏离健康区间越远越紧迫），取各信号最大值</summary>
         float Urgency(string id)
         {
             float u=0.05f;
@@ -133,27 +194,57 @@ namespace PixelToCivilization.AI
             switch(id)
             {
                 case "pop":
-                    u=Mathf.Max(u, S.Pop < S.MaxPop*0.35f ? 0.8f : housingGap<6 ? 0.6f : 0.2f); break;
+                    u=Mathf.Max(u, S.Pop < S.MaxPop*0.35f ? 0.8f : housingGap<6 ? 0.6f : 0.2f);
+                    // V9.4.0 年龄结构失衡（儿童占比过低=生育通道断裂）
+                    if (S.Children < S.Pop*0.15f) u=Mathf.Max(u,0.65f);
+                    break;
                 case "farm":
-                    u=Mathf.Max(u, food<40 ? 0.85f : food<90 ? 0.5f : 0.2f); break;
+                    u=Mathf.Max(u, food<40 ? 0.85f : food<90 ? 0.5f : 0.2f);
+                    // V9.4.0 农田/水利缺口（有粮但无产出结构时提高干预）
+                    if (food>=90 && S.Buildings.Count>0 && FoodBuildingCount()<2) u=Mathf.Max(u,0.5f);
+                    break;
                 case "tech":
-                    u=Mathf.Max(u, S.GetRes("research")<8 ? 0.55f : 0.25f); break;
+                    u=Mathf.Max(u, S.GetRes("research")<8 ? 0.55f : 0.25f);
+                    // V9.4.0 时代可研科技滞留（有可研究而未研）
+                    if (GM.Tech!=null && string.IsNullOrEmpty(S.CurrentResearch)) u=Mathf.Max(u,0.45f);
+                    break;
                 case "time":
-                    u=Mathf.Max(u, S.DynastyMorale<35||S.Corruption>60 ? 0.8f : S.Happiness<45?0.5f:0.2f); break;
+                    u=Mathf.Max(u, S.DynastyMorale<35||S.Corruption>60 ? 0.8f : S.Happiness<45?0.5f:0.2f);
+                    // V9.4.0 朝代周期律预警：朝代寿命>250年 且 腐败>55 → 改革窗口
+                    if (S.Year>250 && S.Corruption>55) u=Mathf.Max(u,0.7f);
+                    break;
                 case "res":
                     float low=Mathf.Min(S.GetRes("wood"),S.GetRes("stone"),S.GetRes("gold"));
-                    u=Mathf.Max(u, low<15 ? 0.7f : low<40?0.4f:0.15f); break;
+                    u=Mathf.Max(u, low<15 ? 0.7f : low<40?0.4f:0.15f);
+                    // V9.4.0 贸易路线可用性（大航海后船队闲置）
+                    if (S.AgeOfSail && S.Ships.Count>0 && S.GetRes("gold")<160) u=Mathf.Max(u,0.5f);
+                    break;
                 case "edu":
-                    u=Mathf.Max(u, S.GetRes("culture")<10 ? 0.55f : 0.2f); break;
+                    u=Mathf.Max(u, S.GetRes("culture")<10 ? 0.55f : 0.2f);
+                    // V9.4.0 教育建筑缺口（有文化但无学校/书院结构）
+                    if (S.GetRes("culture")>=10 && CultureBuildingCount()<1) u=Mathf.Max(u,0.4f);
+                    break;
                 case "org":
-                    u=Mathf.Max(u, housingGap<4 ? 0.8f : S.Buildings.Count<12?0.45f:0.2f); break;
+                    u=Mathf.Max(u, housingGap<4 ? 0.8f : S.Buildings.Count<12?0.45f:0.2f);
+                    // V9.4.0 基础设施缺口（无道路/水井时高紧迫）
+                    if (InfraBuildingCount()<2 && S.Buildings.Count>=6) u=Mathf.Max(u,0.5f);
+                    break;
                 case "mil":
                     bool weak = S.MilSoldiers<6 && S.MilFirepower<12;
-                    u=Mathf.Max(u, S.WarActive&&weak ? 0.95f : S.WarActive?0.6f:S.Era>=1?0.3f:0.15f); break;
+                    u=Mathf.Max(u, S.WarActive&&weak ? 0.95f : S.WarActive?0.6f:S.Era>=1?0.3f:0.15f);
+                    // V9.4.0 军备缺口（Era>=3 无城防时提高紧迫）
+                    if (S.Era>=3 && S.Pop>200 && MilitaryBuildingCount()==0) u=Mathf.Max(u,0.6f);
+                    break;
                 case "perf": u=0.2f; break;
             }
             return Mathf.Clamp01(u);
         }
+
+        // V9.4.0 结构信号计数（供紧迫度/结构动作判断）
+        int FoodBuildingCount(){ int n=0; foreach(var b in S.Buildings) if(b.Def!=null&&b.Def.Cat=="食物") n++; return n; }
+        int CultureBuildingCount(){ int n=0; foreach(var b in S.Buildings) if(b.Def!=null&&(b.Def.Cat=="文化"||b.Def.Cat=="科技")) n++; return n; }
+        int InfraBuildingCount(){ int n=0; foreach(var b in S.Buildings) if(b.Def!=null&&(b.Def.Cat=="交通"||b.Type=="well")) n++; return n; }
+        int MilitaryBuildingCount(){ int n=0; foreach(var b in S.Buildings) if(b.Def!=null&&b.Def.Cat=="军事") n++; return n; }
 
         // ===================== 离线规则决策（硬保证，永远可用） =====================
         string OfflineDecide(AIGod g, float urg)
@@ -179,11 +270,21 @@ namespace PixelToCivilization.AI
                 }
                 case "farm": {
                     if (S.GetRes("food")<120) { int f=Mathf.RoundToInt((25+urg*55f)*zeal); AddCap("food",f,150); return $"劝课农桑·屯粮 +{f}（赈灾备荒）"; }
+                    // V9.4.0 结构动作：有粮但农田/水车不足时督建，把"注资"变成"基建"
+                    string b=null;
+                    if (FoodBuildingCount()<2) b=TryBuildStructure(new[]{"farm","water_mill"});
+                    if (b!=null) return b+"·以农为本";
                     return "风调雨顺·劝耕";
                 }
                 case "tech": {
                     AddCap("research", Mathf.RoundToInt((6+urg*14f)*zeal), 200);
                     TryAutoResearch(); // 自动选择一个当前时代可研究科技
+                    // V9.4.0 结构动作：研究有余时督建科技建筑（低时代官学/印刷坊，高时代数据中心/AI实验室）
+                    if (S.GetRes("research")>=25)
+                    {
+                        string tb=TryBuildStructure(new[]{"data_center","ai_lab","printing_house","academy_pre"});
+                        if (tb!=null) return "格物致知·"+tb;
+                    }
                     return "格物致知·推进研发与工业";
                 }
                 case "time": {
@@ -191,6 +292,8 @@ namespace PixelToCivilization.AI
                     if (S.Corruption>40){ float c=Mathf.Min(S.Corruption,(10+urg*25f)*zeal); S.Corruption-=c; note=$"整顿吏治·反腐 -{Mathf.RoundToInt(c)}"; }
                     if (S.DynastyMorale<55){ S.DynastyMorale=Mathf.Min(100,S.DynastyMorale+(8+urg*16f*zeal)); }
                     if (!S.MonarchWise){ GM.Culture?.RollMonarch(); note="选贤任能·更立明君"; }
+                    // V9.4.0 周期律预警：朝代>250年且腐败高 → 改革窗口（民心动荡但腐败快速下降）
+                    if (S.Year>250 && S.Corruption>55){ S.Corruption=Mathf.Max(0,S.Corruption-12f*zeal); S.Happiness=Mathf.Max(20,S.Happiness-6f); LogHistory("[改革] 周期律预警·改革窗口开启（腐-民心-）"); note="变法图强·以改革渡周期之厄"; }
                     return note;
                 }
                 case "res": {
@@ -198,15 +301,33 @@ namespace PixelToCivilization.AI
                     foreach(var r in new[]{"wood","stone","iron","gold"})
                         if (S.GetRes(r)<40){ int v=Mathf.RoundToInt((8+urg*22f)*zeal); AddCap(r,v, S.AgeOfSail?220:140); acted++; }
                     if (S.AgeOfSail && S.GetRes("gold")<160){ AddCap("gold",Mathf.RoundToInt(20*zeal),300); sb.Append("开通商路·"); }
+                    // V9.4.0 结构动作：开市建驿站/市场/银行，把贸易从"注资"变成"机构"
+                    if (S.GetRes("gold")>=60 || S.GetRes("wood")>=120)
+                    {
+                        string rb=TryBuildStructure(new[]{"market","caravanserai","bank"});
+                        if (rb!=null) return (sb.Length>0?sb.ToString():"")+rb+"·通货有道";
+                    }
                     return acted>0||sb.Length>0 ? sb+"互通有无·补足关键储备" : "仓廪充实·贸易平顺";
                 }
                 case "edu": {
                     AddCap("culture", Mathf.RoundToInt((6+urg*16f)*zeal), 200);
                     AddCap("research", Mathf.RoundToInt(3*zeal), 200); // 学派传播反哺科研
+                    // V9.4.0 结构动作：办学兴教（学堂/官学/现代学校/祭坛）
+                    if (CultureBuildingCount()<2)
+                    {
+                        string eb=TryBuildStructure(new[]{"modern_school","school","academy_pre","altar"});
+                        if (eb!=null) return "兴学教化·"+eb;
+                    }
                     return "兴学教化·传播科技与思想";
                 }
                 case "org": {
                     if (S.Housing < S.Pop+6){ int h=Mathf.CeilToInt((6+urg*8f)*zeal); S.Housing+=h; return $"营建民居·住房 +{h}（吸纳流民）"; }
+                    // V9.4.0 结构动作：基础设施（道路/水井）先于抽象效率
+                    if (InfraBuildingCount()<3)
+                    {
+                        string ob=TryBuildStructure(new[]{"road","well"});
+                        if (ob!=null) return "厘清建制·"+ob+"（行政效率提升）";
+                    }
                     // 行政效率：轻微降腐败、提民心
                     S.Corruption=Mathf.Max(0,S.Corruption-2f*zeal);
                     return "厘清建制·提升行政效率";
@@ -227,6 +348,24 @@ namespace PixelToCivilization.AI
                 }
             }
             return "";
+        }
+
+        /// <summary>V9.4.0 结构动作：真实营建建筑（成本由 PlaceBuilding 实扣），经济保底+候选逐项尝试，每次议政至多1座；返回"督建XX"或 null</summary>
+        string TryBuildStructure(string[] cand)
+        {
+            if (GM.Building==null) return null;
+            // 经济保底：不得掏空民生储备
+            if (S.GetRes("food")<60 || S.GetRes("wood")<70 || S.GetRes("stone")<30) return null;
+            foreach (var type in cand)
+            {
+                if (GM.Def(type)==null) continue;
+                if (GM.Building.FindAutoPosition(type,out var x,out var z) && GM.Building.PlaceBuilding(type,x,z))
+                {
+                    LogHistory("[营建] 督建"+GM.Def(type).Name+"（人口"+S.Pop+"）");
+                    return "督建"+GM.Def(type).Name;
+                }
+            }
+            return null;
         }
 
         // V6.3.7 军事外交神：按人口规模定目标工事数、按时代选防御/攻击建筑，留经济保底后实建（每次议政至多1座）
@@ -271,11 +410,22 @@ namespace PixelToCivilization.AI
                     if (GM.Tech.CanResearch(t.Id,out _)) { GM.Tech.StartResearch(t.Id); return; }
         }
 
-        /// <summary>只补到安全库存上限，避免 AI 无限注资破坏经济（缺口越大补得越多，但不越上限）</summary>
+        /// <summary>V9.5.7 只补不砍：AI 神仅在资源低于安全上限时补到上限，绝不在资源高于上限时"砍到 cap"。
+        /// 旧实现 target=Min(cap, cur+delta)——cur 已高于 cap（如文化 500 万 > cap 200）时把资源直接砍到 cap
+        /// （500万→200），正是用户长期上报"粮食/金币/文化/科技几百万骤降到几千"的根因；
+        /// 基建消耗触发 AI 补资源阈值（劝课农桑/开通商路/学派传播/赈灾）即触发砍价。负 delta（纳贡扣金）原样扣减。</summary>
         void AddCap(string res, float delta, float cap)
         {
-            float cur=S.GetRes(res); float target=Mathf.Min(cap,cur+Mathf.Max(0,delta));
-            S.AddRes(res, target-cur);
+            if (delta > 0f)
+            {
+                float cur=S.GetRes(res);
+                if (cur >= cap) return;                 // 已达/超过安全上限：完全不动，绝不砍资源
+                S.AddRes(res, Mathf.Min(cap, cur+delta)-cur);
+            }
+            else
+            {
+                S.AddRes(res, delta);                   // 负 delta（如金 -30 纳贡和亲）：按绝对值扣，不受 cap 钳制
+            }
         }
 
         // ===================== 存亡续绝 SafetyNet（最高优先·硬保证不灭绝） =====================
@@ -289,12 +439,13 @@ namespace PixelToCivilization.AI
                 AddCap("food",80,160);
                 S.Happiness=Mathf.Max(S.Happiness,42f);
                 SafetyCount++;
+                LogHistory("[存续] 九神合议·存亡续绝（人口回升至 "+S.Pop+"）");
                 GM.AddEvent("good","🕯️ 九神合议·存亡续绝：招抚流亡、休养生息，文明火种得以延续（人口回升至 "+S.Pop+"）");
             }
             // 2) 住房短缺：组织神补建，保证生育通道
             if (S.Housing < S.Pop+2) S.Housing += Mathf.CeilToInt((S.Pop+2-S.Housing)+4f);
             // 3) 饥荒线：土地农神保底赈粮，避免连锁饿死
-            if (S.GetRes("food") < 20) { AddCap("food",60,150); GM.AddEvent("good","🌾 土地农神开仓赈灾，暂缓饥荒"); }
+            if (S.GetRes("food") < 20) { AddCap("food",60,150); LogHistory("[赈灾] 土地农神开仓赈灾"); GM.AddEvent("good","🌾 土地农神开仓赈灾，暂缓饥荒"); }
             // 4) 民心/天命崩溃：时间事件神维稳（允许动乱，但不允许民心归零而崩解）
             if (S.Happiness < 18){ S.Happiness=Mathf.Max(S.Happiness,46f); GM.AddEvent("info","⚖️ 九神抚民安定，民心止跌回升"); }
             if (S.DynastyMorale < 18) S.DynastyMorale=Mathf.Max(S.DynastyMorale,50f);
@@ -303,7 +454,23 @@ namespace PixelToCivilization.AI
             if (S.WarActive && S.MilSoldiers<4 && S.MilFirepower<8)
             {
                 if (S.GetRes("gold")>=30 && S.Pop<GameConstants.StartPop*0.5f){ AddCap("gold",-30,99999); S.WarActive=false; GM.AddEvent("info","🕊️ 军事外交神斡旋朝贡，暂止战端"); }
-                else { S.MilSoldiers+=6; S.MilFirepower+=9; GM.AddEvent("good","🛡️ 危急存亡之秋，军事外交神征募义兵拱卫社稷"); }
+                else { S.MilSoldiers+=6; S.MilFirepower+=9; LogHistory("[存续] 危急存亡·征募义兵守土"); GM.AddEvent("good","🛡️ 危急存亡之秋，军事外交神征募义兵拱卫社稷"); }
+            }
+            // V9.4.0 6a) 财政线：战时国库枯竭 → 军事外交神强制止战（防军费拖垮财政而崩盘）
+            if (S.WarActive && S.GetRes("gold")<12)
+            {
+                S.WarActive=false; LogHistory("[存续] 国库枯竭·军事外交神议和止战");
+                GM.AddEvent("info","🕊️ 国库枯竭，军事外交神议和止战以保民生");
+            }
+            // V9.4.0 6b) 城防线：Era>=3 且人口>200 且无任何城防 → 组织神/军事神补建城墙
+            if (S.Era>=3 && S.Pop>200 && MilitaryBuildingCount()==0)
+            {
+                if (GM.Building!=null && GM.Def("wall")!=null
+                    && GM.Building.FindAutoPosition("wall",out var wx,out var wz) && GM.Building.PlaceBuilding("wall",wx,wz))
+                {
+                    LogHistory("[存续] 城防空窗·组织神督建城墙");
+                    GM.AddEvent("good","🏰 城防空窗，组织神督建城墙拱卫都邑");
+                }
             }
             // 6) 四项年龄结构归一，防止补口后结构失真
             GM.Population?.NormalizeAge();
@@ -326,6 +493,14 @@ namespace PixelToCivilization.AI
         string PerfTune()
         {
             int ents=S.Buildings.Count+S.Agents.Count+S.Ships.Count;
+            // V9.4.0 实体软上限：超限强制最低档（防 WebGL 内存/合批爆炸），恢复带迟滞防抖
+            if (ents>=400)
+            {
+                QualitySettings.SetQualityLevel(0,false);
+                Application.targetFrameRate=30;
+                _qualityCooldown=240;
+                return $"FPS {_fpsSmooth:F0}｜实体 {ents} 超预算→最低画质保稳定";
+            }
             if (_qualityCooldown>0) return $"FPS {_fpsSmooth:F0}｜实体 {ents}";
             int lvl=QualitySettings.GetQualityLevel();
             if (_fpsSmooth<28f && lvl>0)
@@ -347,7 +522,7 @@ namespace PixelToCivilization.AI
             _requesting=true; NetOk=true;
             string snapshot=BuildSnapshot(year);
             string sys="你是文明模拟中的AI执政官之一。只能从动作白名单选择，不得发明动作、不得使文明灭绝。"+
-                       "输出紧凑JSON数组，每个元素 {\"god\":\"pop|farm|tech|time|res|edu|org|mil\",\"act\":\"addRes|addHousing|addPop|happy|morale|research|culture|defend|peace\",\"amt\":数字,\"note\":\"20字内中文短评\"}。最多6条，amt保守。";
+                       "输出紧凑JSON数组，每个元素 {\"god\":\"pop|farm|tech|time|res|edu|org|mil\",\"act\":\"addRes|addHousing|addPop|happy|morale|research|culture|defend|peace|agriculture|build|trade|urbanize|diplomacy|innovation\",\"amt\":数字,\"note\":\"20字内中文短评\"}。最多6条，amt保守。";
             // V9.3.9 实测（2026-10-03）：deepseek-flash 带可见思考链，必须 thinking.type=disabled 才能拿到 JSON 正文（禁用后≈259 tokens 返回6条动作；不传则思考链耗尽 max_tokens，content 恒空）
             var payload="{\"model\":\""+Model+"\",\"messages\":[{\"role\":\"system\",\"content\":\""+Esc(sys)+"\"},{\"role\":\"user\",\"content\":\""+Esc(snapshot)+"\"}],\"temperature\":0.6,\"max_tokens\":400,\"thinking\":{\"type\":\"disabled\"}}";
             using var req=new UnityWebRequest(Endpoint,"POST");
@@ -409,6 +584,7 @@ namespace PixelToCivilization.AI
                 float amt=nm.Success?Mathf.Clamp(float.Parse(nm.Groups[1].Value),-40,60):10f;
                 string note=qm.Success?qm.Groups[1].Value:"";
                 // 白名单 + 数值钳制：LLM 只能在安全范围内微调，绝不能越界
+                // V9.4.0 白名单扩展 +6：agriculture/build/trade/urbanize/diplomacy/innovation（均映射到离线结构动作同源实现）
                 switch(act)
                 {
                     case "addRes": AddCap("food", Mathf.Abs(amt), 1000); break;   // V9.1.3 修复：缺省按粮食落地（原空 break 导致国策提示成功但数值未变）
@@ -420,6 +596,12 @@ namespace PixelToCivilization.AI
                     case "culture": AddCap("culture",Mathf.Abs(amt),200); break;
                     case "defend": S.MilFirepower+=Mathf.Abs(amt); S.MilSoldiers+=1; break;
                     case "peace": if(S.WarActive){S.WarActive=false;} break;
+                    case "agriculture": AddCap("food", Mathf.Abs(amt), 1000); break;          // 土地农神：屯粮赈灾（同 addRes 语义）
+                    case "build": S.Housing+=Mathf.Abs(amt); break;                            // 组织神：补建民居（同 addHousing）
+                    case "trade": AddCap("gold", Mathf.Abs(amt), 400); break;                  // 资源神：开市通商（金）
+                    case "urbanize": S.Housing+=Mathf.Abs(amt); S.Happiness=Mathf.Clamp(S.Happiness+3,0,100); break; // 组织神：城市化
+                    case "diplomacy": if(S.WarActive){S.WarActive=false;} S.Happiness=Mathf.Clamp(S.Happiness+5,0,100); break; // 军事外交神：议和
+                    case "innovation": AddCap("research", Mathf.Abs(amt)*1.2f, 200); break;    // 技术工业神：创新窗口
                     default: continue;
                 }
                 var ag=Gods.Find(x=>x.Id==god);
@@ -451,6 +633,8 @@ namespace PixelToCivilization.AI
     public class AIGod
     {
         public string Id,Name,Domain,Focus; public long Color; public float Zeal;
+        // V9.4.0 性格向量（四维，每局随机、存档持久）：Zeal 出手力度 / Intervene 干预倾向 / Expand 扩张偏好 / Prudent 谨慎度（国库保底比例）
+        public float Intervene=0.6f, Expand=0.5f, Prudent=0.5f;
         public int LastYear; public long Actions; public string Status="休眠"; public string Note=""; public float Urgency;
         public AIGod(string id,string name,string domain,string focus,long color,float zeal)
         { Id=id;Name=name;Domain=domain;Focus=focus;Color=color;Zeal=zeal; }
