@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
 using PixelToCivilization.Buildings;
@@ -25,7 +25,7 @@ namespace PixelToCivilization.Bootstrap
         {
             if (GameManager.Instance != null) return;
             if (FindObjectOfType<GameBootstrap>() != null) return; // 场景已手动挂载则交给其Start
-            var go = new GameObject("=== 从像素到文明 V9.5.6 随机大陆版 (Auto) ===");
+            var go = new GameObject("=== 从像素到文明 V9.6.4 内存架构 (Auto) ===");
             go.AddComponent<GameBootstrap>().Boot();
         }
 
