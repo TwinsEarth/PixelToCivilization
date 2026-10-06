@@ -43,6 +43,9 @@ namespace PixelToCivilization.Systems
             BuildFlag(kind, x, z);
             string nm = kind == "navy" ? "蓝旗·海军集结" : kind == "ground" ? "绿旗·地面部队集结" : "红旗·军人集结";
             GM.AddEvent("good", "🚩 紧急集结令：" + nm + "（" + RallyRange + " 格内单位向军旗列阵）");
+            // V9.6.1 战时广播：传令兵传达集结指令（语音+横幅+编年史）
+            if (GM.War != null)
+                GM.War.Command("传令——" + nm + "！" + RallyRange + " 格内各军听令，火速向军旗列阵；超出 " + RallyRange + " 格者，由运输机、直升机远程投送！");
         }
 
         /// <summary>撤销集结令（清旗）</summary>
@@ -50,6 +53,8 @@ namespace PixelToCivilization.Systems
         {
             GM.State.RallyKind = ""; GM.State.RallyX = -9999f; GM.State.RallyZ = -9999f;
             if (_flagRoot != null) { Object.Destroy(_flagRoot); _flagRoot = null; }
+            // V9.6.1 战时广播：撤销指令
+            if (GM.War != null) GM.War.Command("传令——紧急集结令撤销，各军回防待命！");
         }
 
         /// <summary>读档恢复：若存档带旗则重建旗帜模型</summary>
