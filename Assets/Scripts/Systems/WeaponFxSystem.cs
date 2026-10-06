@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Audio;
 using PixelToCivilization.World;
@@ -75,12 +75,15 @@ namespace PixelToCivilization.Systems
             lf.Begin("wfx_hit", 0.5f);
         }
 
-        /// <summary>爆炸火光：火球 + 闪光 + 4 团烟雾，0.8s 消失。</summary>
+        /// <summary>V9.6.3f 爆炸火光：蘑菇云（爆心火球+蘑菇盖+盖缘+烟柱），整体黑泡缩小 1/3，每次爆炸随机大小 0.7–1.3 倍；0.8s 消失。</summary>
         public static void Explosion(Vector3 p)
         {
             if (!Visible(p)) return;
             var go = GameObjectPool.Rent("wfx_explosion", Root, CreateExplosion);
             go.transform.position = p;
+            // V9.6.3f：黑泡缩小到原 1/3，并随机蘑菇云大小（0.7–1.3 倍）——不同爆炸大小不一
+            float scl = Random.Range(0.7f, 1.3f) * 0.333f;
+            go.transform.localScale = Vector3.one * scl;
             var lf = go.GetComponent<FxLifetime>();
             if (lf == null) lf = go.AddComponent<FxLifetime>();
             lf.Begin("wfx_explosion", 0.8f);
@@ -139,6 +142,8 @@ namespace PixelToCivilization.Systems
             return go;
         }
 
+        /// <summary>V9.6.3f 蘑菇云爆炸：爆心火球（缩小）+ 顶部蘑菇盖（扁圆盘）+ 两侧盖缘 + 竖直烟柱 + 底部烟团；
+        /// 子烟团整体缩放由 Explosion 的随机 localScale 控制（黑泡 1/3 + 大小 0.7–1.3 随机）。</summary>
         static GameObject CreateExplosion()
         {
             var go = new GameObject("explosionFx");
@@ -146,18 +151,23 @@ namespace PixelToCivilization.Systems
             Object.Destroy(fire.GetComponent<Collider>());
             fire.name = "fire";
             fire.transform.SetParent(go.transform, false);
+            fire.transform.localScale = Vector3.one * 0.5f;   // V9.6.3f 爆心火球缩小
             fire.GetComponent<MeshRenderer>().sharedMaterial =
                 ShaderHelper.Emissive(new Color(1f, 0.5f, 0.12f), new Color(4f, 2f, 0.4f));
             var flash = GameObject.CreatePrimitive(PrimitiveType.Quad);
             Object.Destroy(flash.GetComponent<Collider>());
             flash.name = "flash";
             flash.transform.SetParent(go.transform, false);
+            flash.transform.localScale = Vector3.one * 0.8f;  // V9.6.3f 闪光随整体缩放（1/3 基数）
             flash.GetComponent<MeshRenderer>().sharedMaterial =
                 ShaderHelper.Emissive(new Color(1f, 0.9f, 0.6f), new Color(3f, 2.5f, 1f));
-            AddSmokeChild(go, "smoke0", new Vector3(0, 0.2f, 0), 0.7f);
-            AddSmokeChild(go, "smoke1", new Vector3(0.25f, 0.1f, 0), 0.9f);
-            AddSmokeChild(go, "smoke2", new Vector3(-0.25f, 0.1f, 0), 0.9f);
-            AddSmokeChild(go, "smoke3", new Vector3(0, -0.05f, 0), 1.1f);
+            // 蘑菇云：顶部扁盖 + 两侧盖缘 + 竖直烟柱 + 底部烟团
+            AddSmokeChild(go, "cap",    new Vector3(0f,  0.55f, 0f), 1.0f, 0.35f);   // 蘑菇盖（扁圆盘）
+            AddSmokeChild(go, "capL",   new Vector3(0.4f, 0.5f, 0f), 0.6f, 0.5f);     // 左侧盖缘
+            AddSmokeChild(go, "capR",   new Vector3(-0.4f, 0.5f, 0f), 0.6f, 0.5f);    // 右侧盖缘
+            AddSmokeChild(go, "column", new Vector3(0f, -0.15f, 0f), 0.55f, 2.4f);    // 竖直烟柱
+            AddSmokeChild(go, "baseL",  new Vector3(-0.3f, 0.05f, 0f), 0.45f, 1f);    // 底部烟团
+            AddSmokeChild(go, "baseR",  new Vector3(0.3f, 0.05f, 0f), 0.45f, 1f);     // 底部烟团
             return go;
         }
 
@@ -173,7 +183,8 @@ namespace PixelToCivilization.Systems
             return go;
         }
 
-        static void AddSmokeChild(GameObject parent, string name, Vector3 localPos, float size)
+        /// <summary>V9.6.3f 支持非均匀 Y 缩放（sy=1 为球团；0.35=扁蘑菇盖；2.4=竖直烟柱）</summary>
+        static void AddSmokeChild(GameObject parent, string name, Vector3 localPos, float size, float sy = 1f)
         {
             var s = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             Object.Destroy(s.GetComponent<Collider>());
@@ -182,6 +193,7 @@ namespace PixelToCivilization.Systems
             s.transform.localPosition = localPos;
             var fade = s.AddComponent<SmokeFade>();
             fade.Size = size;
+            fade.ScaleY = sy;
         }
     }
 
@@ -217,10 +229,12 @@ namespace PixelToCivilization.Systems
         }
     }
 
-    /// <summary>烟雾团：私有材质淡出 + 上升扩大，到期停用（保留材质实例，池内复用）。</summary>
+    /// <summary>烟雾团：私有材质淡出 + 上升扩大，到期停用（保留材质实例，池内复用）。
+    /// V9.6.3f 新增 ScaleY 非均匀 Y 缩放（蘑菇盖扁 / 烟柱高），扩大动画同步保持比例。</summary>
     public class SmokeFade : MonoBehaviour
     {
         public float Size = 0.6f;
+        public float ScaleY = 1f;   // V9.6.3f Y 轴倍率（1=球团；<1 扁；>1 高柱）
         public bool Expired { get; private set; }
         Material _mat;
         float _age, _life;
@@ -237,7 +251,7 @@ namespace PixelToCivilization.Systems
         {
             _age = 0f; _life = Random.Range(0.9f, 1.4f); _active = true; Expired = false;
             gameObject.SetActive(true);
-            transform.localScale = Vector3.one * Size;
+            transform.localScale = new Vector3(Size, Size * ScaleY, Size);
             if (_mat != null) { var c = _mat.color; c.a = 0.6f; _mat.color = c; }
             var r = GetComponent<Renderer>();
             if (r != null) r.enabled = true;
@@ -249,7 +263,8 @@ namespace PixelToCivilization.Systems
             _age += Time.deltaTime;
             float t01 = Mathf.Clamp01(_age / _life);
             transform.position += Vector3.up * Time.deltaTime * 1.6f;
-            transform.localScale = Vector3.one * (Size + t01 * 1.8f);
+            float s = Size + t01 * 1.8f;
+            transform.localScale = new Vector3(s, s * ScaleY, s);   // V9.6.3f 保持蘑菇云比例扩大
             if (_mat != null) { var c = _mat.color; c.a = (1f - t01) * 0.6f; _mat.color = c; }
             if (t01 >= 1f)
             {
