@@ -70,7 +70,7 @@ namespace PixelToCivilization.Buildings
                 case "great_wall": case "wall": w*=4f;d*=0.5f;wallH*=1.4f; break;
                 case "pagoda": case "water_clock": w*=0.7f;d*=0.7f;wallH*=3.2f; break;  // 佛塔/水运仪象台：细高密檐
                 case "arrow_tower": case "fire_tower": case "cannon_tower":
-                case "watchtower": case "bunker": w*=0.9f;d*=0.9f;wallH*=2.2f; break;   // 城台塔楼：高而收分
+                case "watchtower": case "bunker": w*=0.95f;d*=0.95f;wallH*=1.12f; break;   // V9.6.4 塔=低矮墩台（非楼）：收分矮塔，顶部置武器平台（用户红线：塔不是楼，严禁高塔）
                 case "skyscraper": w*=0.6f;d*=0.6f;wallH*=7f; break;                   // 高层 10+ 层
                 case "space_elevator": w*=0.4f;d*=0.4f;wallH*=12f; break;              // 超高层（>100m 级）
                 case "hut": w*=0.7f;d*=0.7f;wallH*=0.55f; break;                       // 低层 1-2 层
@@ -371,63 +371,72 @@ namespace PixelToCivilization.Buildings
             if(id=="great_wall"||id=="wall"||id=="bunker")
             { for(int i=-2;i<=2;i++){ Box("Crenel",new Vector3(i*w*0.18f,wh+0.25f,d/2),new Vector3(0.3f,0.4f,0.2f),Stone,t);
                                        Box("Crenel",new Vector3(i*w*0.18f,wh+0.25f,-d/2),new Vector3(0.3f,0.4f,0.2f),Stone,t); } }
-            // V9.6.3h 塔防分型精化：按真实结构建模——箭塔(木弩)/火塔(土垒尖塔喷火)/炮塔(旋转炮塔+炮弹)/碉堡(圆形堡垒四面机枪)/烽火台(木架大锅)
+            // V9.6.4 塔防五型·塔不是楼：全部为低矮墩台式（高宽比≈1.2-1.5），顶部才是武器平台；杜绝高楼层建筑感
             if(id.Contains("tower")||id=="watchtower"||id=="cannon_tower"||id=="bunker")
             {
-                Box("Embrasure",new Vector3(0,wh*0.7f,d/2+0.03f),new Vector3(w*0.5f,0.4f,0.08f),Dark,t);
                 switch(id)
                 {
-                    case "arrow_tower":   // 木制箭塔：木台 + 顶部大型弩机（弓臂+两端弓梢+弩箭）
-                        Box("WoodDeck",new Vector3(0,top-0.16f,0),new Vector3(w+0.15f,0.16f,d+0.15f),Wood,t);
-                        Box("BowArm",new Vector3(0,top+0.02f,0),new Vector3(w*0.62f,0.12f,0.12f),Wood,t);
-                        Box("BowTipL",new Vector3(-w*0.34f,top+0.08f,0),new Vector3(0.3f,0.34f,0.14f),Wood,t);
-                        Box("BowTipR",new Vector3( w*0.34f,top+0.08f,0),new Vector3(0.3f,0.34f,0.14f),Wood,t);
-                        { var arr=Cyl("CrossbowBolt",new Vector3(0,top+0.26f,d*0.3f),new Vector3(0.045f,0.9f,0.045f),Metal,t);
-                          arr.transform.localRotation=Quaternion.Euler(90,0,0); }
+                    case "arrow_tower":   // 木制弩塔：矮木基台 + 顶部大型弩机（弓臂+弓梢+弩弦+粗弩箭）
+                        Box("WoodBase",new Vector3(0,wh*0.30f,0),new Vector3(w*1.02f,wh*0.62f,d*1.02f),Wood,t);
+                        Box("WoodDeck",new Vector3(0,wh*0.68f,0),new Vector3(w+0.18f,0.14f,d+0.18f),Wood,t);
+                        Box("BowArm",new Vector3(0,wh*0.84f,0),new Vector3(w*0.72f,0.14f,0.14f),Wood,t);
+                        Box("BowTipL",new Vector3(-w*0.38f,wh*0.92f,0),new Vector3(0.22f,0.26f,0.16f),Wood,t);
+                        Box("BowTipR",new Vector3( w*0.38f,wh*0.92f,0),new Vector3(0.22f,0.26f,0.16f),Wood,t);
+                        Box("BowString",new Vector3(0,wh*0.86f,d*0.22f),new Vector3(0.06f,0.06f,w*0.60f),Dark,t);   // 弩弦（绷紧）
+                        { var arr=Box("Bolt",new Vector3(0,wh*0.99f,d*0.42f),new Vector3(0.07f,0.07f,1.1f),Wood,t);   // 粗弩箭（横置）
+                          arr.transform.localRotation=Quaternion.Euler(0,0,90); }
+                        { var hd=Box("BoltHead",new Vector3(0,wh*0.99f,d*0.42f+0.56f),new Vector3(0.13f,0.13f,0.16f),Metal,t); hd.transform.localRotation=Quaternion.Euler(0,0,90); }  // 铁簇头
+                        Box("GuardL",new Vector3(-w*0.50f,wh*0.76f,0),new Vector3(0.10f,0.26f,0.10f),Wood,t);
+                        Box("GuardR",new Vector3( w*0.50f,wh*0.76f,0),new Vector3(0.10f,0.26f,0.10f),Wood,t);
                         break;
-                    case "fire_tower":    // 土垒尖塔：土台收分 + 锥形土顶 + 顶部喷火口（喷火龙）
-                        Box("EarthenBase",new Vector3(0,wh*0.35f,0),new Vector3(w*0.8f,wh*0.7f,d*0.8f),Clay(),t);
-                        { float pw=w*0.4f;
-                          Box("EarthenL2",new Vector3(0,wh+0.22f,0),new Vector3(pw*0.8f,0.45f,pw*0.8f),Clay(),t);
-                          Box("EarthenL3",new Vector3(0,wh+0.55f,0),new Vector3(pw*0.5f,0.45f,pw*0.5f),Clay(),t);
-                          Box("EarthenPeak",new Vector3(0,wh+0.85f,0),new Vector3(pw*0.2f,0.34f,pw*0.2f),Dark,t);
-                          Cyl("Nozzle",new Vector3(0,wh+1.16f,0),new Vector3(0.16f,0.16f,0.16f),Dark,t);
+                    case "fire_tower":    // 土垒尖塔：矮土台收分两层 + 锥形土顶 + 顶部喷火口（常驻火口，开火喷火龙）
+                        Box("EarthenBase",new Vector3(0,wh*0.24f,0),new Vector3(w*1.0f,wh*0.48f,d*1.0f),Clay(),t);
+                        { float pw=w*0.66f;
+                          Box("EarthenL2",new Vector3(0,wh*0.52f,0),new Vector3(pw,wh*0.36f,pw),Clay(),t);
+                          Box("EarthenL3",new Vector3(0,wh*0.76f,0),new Vector3(pw*0.72f,wh*0.30f,pw*0.72f),Clay(),t);
+                          Box("EarthenPeak",new Vector3(0,wh*0.94f,0),new Vector3(pw*0.44f,wh*0.30f,pw*0.44f),Dark,t);
+                          Cyl("Nozzle",new Vector3(0,wh*1.16f,0),new Vector3(0.20f,0.18f,0.20f),Dark,t);
                           var m=GameObject.CreatePrimitive(PrimitiveType.Sphere);m.name="FireMouth";m.transform.SetParent(t);
-                          m.transform.localPosition=new Vector3(0,wh+1.32f,0);m.transform.localScale=Vector3.one*0.38f;DestroyCol(m);
+                          m.transform.localPosition=new Vector3(0,wh*1.34f,0);m.transform.localScale=Vector3.one*0.44f;DestroyCol(m);
                           m.GetComponent<Renderer>().material=Fire; }
                         break;
-                    case "cannon_tower":  // 方形炮塔：顶部旋转炮塔（圆台+炮管）+ 双发炮弹
-                        Cyl("TurretBase",new Vector3(0,top-0.14f,0),new Vector3(w*0.34f,0.22f,w*0.34f),Stone,t);
-                        { var gun=Cyl("TurretGun",new Vector3(0,top-0.01f,d/2+0.5f),new Vector3(0.14f,0.85f,0.14f),Metal,t);
-                          gun.transform.localRotation=Quaternion.Euler(90,0,Random.Range(-12f,12f)); }
+                    case "cannon_tower":  // 方形石砌炮塔（低塔）：方石塔身 + 顶部旋转炮塔（圆台座+长炮管，AimTowerAt 驱动旋转）
+                        Box("StoneBase",new Vector3(0,wh*0.34f,0),new Vector3(w*1.02f,wh*0.70f,d*1.02f),Stone,t);
+                        Box("StoneDeck",new Vector3(0,wh*0.72f,0),new Vector3(w+0.2f,0.16f,d+0.2f),Stone,t);
+                        Cyl("TurretBase",new Vector3(0,wh*0.84f,0),new Vector3(w*0.34f,0.18f,w*0.34f),Stone,t);
+                        { var gun=Cyl("TurretGun",new Vector3(0,wh*0.92f,d/2+0.55f),new Vector3(0.15f,1.0f,0.15f),Metal,t);
+                          gun.transform.localRotation=Quaternion.Euler(90,0,Random.Range(-10f,10f));
+                          Box("GunBreech",new Vector3(0,wh*0.90f,d/2+0.30f),new Vector3(0.40f,0.22f,0.28f),Dark,t); }   // 炮闩/炮架
                         { var b1=GameObject.CreatePrimitive(PrimitiveType.Sphere);b1.name="ShellL";b1.transform.SetParent(t);
-                          b1.transform.localPosition=new Vector3(-0.3f,top-0.02f,0.1f);b1.transform.localScale=Vector3.one*0.22f;DestroyCol(b1);b1.GetComponent<Renderer>().material=Dark;
+                          b1.transform.localPosition=new Vector3(-0.32f,wh*0.74f,0.12f);b1.transform.localScale=Vector3.one*0.24f;DestroyCol(b1);b1.GetComponent<Renderer>().material=Dark;
                           var b2=GameObject.CreatePrimitive(PrimitiveType.Sphere);b2.name="ShellR";b2.transform.SetParent(t);
-                          b2.transform.localPosition=new Vector3(0.3f,top-0.02f,0.1f);b2.transform.localScale=Vector3.one*0.22f;DestroyCol(b2);b2.GetComponent<Renderer>().material=Dark; }
+                          b2.transform.localPosition=new Vector3(0.32f,wh*0.74f,0.12f);b2.transform.localScale=Vector3.one*0.24f;DestroyCol(b2);b2.GetComponent<Renderer>().material=Dark; }
                         break;
-                    case "bunker":         // 圆形堡垒：环形圆墙 + 圆顶 + 四面机枪
-                        Cyl("RingWall",new Vector3(0,wh*0.42f,0),new Vector3(w*0.95f,wh*0.85f,d*0.95f),Stone,t);
-                        Cyl("TopDeck",new Vector3(0,wh+0.01f,0),new Vector3(w*1.0f,0.18f,d*1.0f),Stone,t);
+                    case "bunker":         // 圆形堡垒（碉堡）：矮环形圆墙 + 圆顶 + 四面机枪（圆周四向固定射击）
+                        Cyl("RingWall",new Vector3(0,wh*0.40f,0),new Vector3(w*0.96f,wh*0.82f,d*0.96f),Stone,t);
+                        { var dome=GameObject.CreatePrimitive(PrimitiveType.Sphere);dome.name="Dome";dome.transform.SetParent(t);
+                          dome.transform.localPosition=new Vector3(0,wh*0.88f,0);dome.transform.localScale=new Vector3(w*0.94f,wh*0.28f,d*0.94f);
+                          DestroyCol(dome);dome.GetComponent<Renderer>().sharedMaterial=Stone; }
                         for(int i=0;i<4;i++)
                         { float a=i*90f*Mathf.Deg2Rad;
-                          var mg=Cyl("MG"+i,new Vector3(Mathf.Sin(a)*d*0.62f,wh*0.72f,Mathf.Cos(a)*d*0.62f),new Vector3(0.08f,0.55f,0.08f),Metal,t);
-                          mg.transform.localRotation=Quaternion.Euler(90,0,0); }
-                        Box("Embrasure2",new Vector3(0,wh*0.4f,d/2+0.02f),new Vector3(w*0.4f,0.3f,0.06f),Dark,t);
+                          var mg=Cyl("MG"+i,new Vector3(Mathf.Sin(a)*d*0.60f,wh*0.66f,Mathf.Cos(a)*d*0.60f),new Vector3(0.10f,0.62f,0.10f),Metal,t);
+                          mg.transform.localRotation=Quaternion.Euler(90,0,0);
+                          Box("MGEmbr"+i,new Vector3(Mathf.Sin(a)*d*0.86f,wh*0.60f,Mathf.Cos(a)*d*0.86f),new Vector3(0.14f,0.22f,0.14f),Dark,t); }   // 四向枪口/射孔
                         break;
-                    default:               // watchtower 烽火台：四根粗木柱 + 双层横木 + 大锅 + 火焰
+                    default:               // watchtower 烽火台：四根粗木柱（矮架）+ 双层横木 + 大锅 + 常驻火焰（烟效由 MilitarySystem 每 3s 重放）
                         for(int i=0;i<4;i++)
                         { float a=i*90f*Mathf.Deg2Rad;
-                          Box("TimberLeg"+i,new Vector3(Mathf.Sin(a)*w*0.32f,wh*0.5f,Mathf.Cos(a)*d*0.32f),new Vector3(0.2f,wh*1.0f,0.2f),Wood,t); }
-                        Box("TimberCrossA",new Vector3(0,wh*0.78f,0),new Vector3(w*1.1f,0.2f,0.15f),Wood,t);
-                        Box("TimberCrossB",new Vector3(0,wh*0.78f,0),new Vector3(0.15f,0.2f,d*1.1f),Wood,t);
-                        Box("TimberDeck",new Vector3(0,wh+0.12f,0),new Vector3(w*0.95f,0.14f,d*0.95f),Wood,t);
+                          Box("TimberLeg"+i,new Vector3(Mathf.Sin(a)*w*0.34f,wh*0.40f,Mathf.Cos(a)*d*0.34f),new Vector3(0.24f,wh*0.80f,0.24f),Wood,t); }
+                        Box("TimberCrossA",new Vector3(0,wh*0.66f,0),new Vector3(w*1.15f,0.22f,0.16f),Wood,t);
+                        Box("TimberCrossB",new Vector3(0,wh*0.66f,0),new Vector3(0.16f,0.22f,d*1.15f),Wood,t);
+                        Box("TimberDeck",new Vector3(0,wh*0.82f,0),new Vector3(w*0.96f,0.14f,d*0.96f),Wood,t);
                         { var pot=GameObject.CreatePrimitive(PrimitiveType.Sphere);pot.name="Cauldron";pot.transform.SetParent(t);
-                          pot.transform.localPosition=new Vector3(0,wh+0.55f,0);pot.transform.localScale=new Vector3(0.62f,0.4f,0.62f);DestroyCol(pot);pot.GetComponent<Renderer>().material=Dark; }
+                          pot.transform.localPosition=new Vector3(0,wh*1.06f,0);pot.transform.localScale=new Vector3(0.66f,0.42f,0.66f);DestroyCol(pot);pot.GetComponent<Renderer>().material=Dark; }
                         { var fire=GameObject.CreatePrimitive(PrimitiveType.Sphere);fire.name="Beacon";fire.transform.SetParent(t);
-                          fire.transform.localPosition=new Vector3(0,wh+0.85f,0);fire.transform.localScale=Vector3.one*0.4f;DestroyCol(fire);fire.GetComponent<Renderer>().material=Fire; }
+                          fire.transform.localPosition=new Vector3(0,wh*1.34f,0);fire.transform.localScale=Vector3.one*0.44f;DestroyCol(fire);fire.GetComponent<Renderer>().material=Fire; }
                         break;
                 }
-                Box("Railing",new Vector3(0,top,0),new Vector3(w+0.2f,0.12f,d+0.2f),Wood,t);
+                Box("Railing",new Vector3(0,wh*0.74f,0),new Vector3(w+0.2f,0.10f,d+0.2f),Wood,t);
             }
             // 军营/新军：旗杆 + 红旗
             if(id=="barracks"||id=="new_army")
