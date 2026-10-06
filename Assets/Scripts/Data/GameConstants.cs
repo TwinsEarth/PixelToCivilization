@@ -32,7 +32,8 @@ namespace PixelToCivilization.Data
             {"steel","🔩"},{"concrete","🧱"},{"fusion","☢️"},{"carbon","💎"},{"helium3","🔮"}
         };
 
-        public static Dictionary<string, float> InitialResources() => new()
+        // V9.6.8 初始资源双精度（配合 GameState.Res 改 double，百万级精度治本）
+        public static Dictionary<string, double> InitialResources() => new()
         {
             {"wood",200},{"stone",100},{"food",150},{"gold",50},{"iron",0},{"bronze",0},
             {"goods",0},{"culture",0},{"research",0},{"power",0},{"steel",0},
