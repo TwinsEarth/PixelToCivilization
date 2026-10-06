@@ -51,6 +51,7 @@ namespace PixelToCivilization.Systems
             public float RX, RZ;           // 巡航随机航点
             public bool HasRoute;
             public int Kills;              // V9.5.7 战绩（每 2 杀战功升 1 级）
+            public bool Lifted;            // V9.6.1 远程投送中（运输机/直升机空运，原系统跳过 AI，坐标由 AirLiftSystem 接管）
         }
 
         public const int MaxGround = 60;   // 我方+敌方全局上限（地面部队规模显著小于舰队 200）
@@ -254,6 +255,7 @@ namespace PixelToCivilization.Systems
             for(int i=0;i<Ours.Count;i++)
             {
                 var u=Ours[i]; if(u.View==null) continue;
+                if (u.Lifted) continue;   // V9.6.1 远程投送中：不参与地面 AI（坐标/视图由 AirLiftSystem 接管）
                 u.AttackCd-=dt;
                 CombatTarget ct=GM.Combat.NearestHostile(u.X,u.Z,RadarGround*GameConstants.Tile,CombatSystem.PlayerKey);
                 if(ct!=null)
@@ -283,6 +285,8 @@ namespace PixelToCivilization.Systems
                             // 已入列阵圈：原地待命（不巡航）
                             continue;
                         }
+                        // V9.6.1 超 100 格：运输机/直升机远程投送（未解锁/无机队则回防巡航）
+                        if (GM.AirLift!=null && GM.AirLift.RequestLift(u,rp.Value.x,rp.Value.y,1f)) continue;
                     }
                     Cruise(u,dt);
                 }
