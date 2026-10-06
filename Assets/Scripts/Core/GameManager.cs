@@ -179,6 +179,9 @@ namespace PixelToCivilization.Core
             // V9.6.5 崩溃架构中枢：异常钩子（logMessageReceived + WebGL JS onerror）+ 崩溃标记 + 环形日志 + 安全模式
             Guard = gameObject.GetComponent<CrashGuardSystem>() ?? gameObject.AddComponent<CrashGuardSystem>();
             Guard.Init();
+            // V9.6.6 存档架构：ISaveable 注册（崩溃环形日志随档携带）+ 启动清理原子写残留临时键
+            SaveSystem.Register(Guard);
+            SaveSystem.CleanupTempKeys();
             Debug.Log("[GameManager] 子系统装配完成，数量=" + _systems.Count);
         }
 
@@ -1112,14 +1115,52 @@ namespace PixelToCivilization.Core
             try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch { }
         }
 
+        /// <summary>V9.6.6 存档探针：槽位存在位/schema/临时键/备份/回滚（读 window.pxcProbe）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebSaveProbe()
+        {
+            string s = SaveSystem != null ? SaveSystem.WebSaveProbe() : "savenull";
+            Debug.Log("[SaveProbe] " + s);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch { }
+        }
+
+        /// <summary>V9.6.6 异步存档探针（浏览器回归用；slot 传 JS 数字 0..5）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebSaveAsync(int slot)
+        {
+            if (SaveSystem == null) { WriteProbe("async:fail:nosave"); return; }
+            SaveSystem.SaveAsync(slot, ok => WriteProbe("async:" + (ok ? "ok" : "fail") + ":slot" + slot));
+        }
+
+        /// <summary>V9.6.6 从写前备份恢复探针（浏览器回归用；slot 传 JS 数字 1..5）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebRestoreBackup(int slot)
+        {
+            bool ok = SaveSystem != null && SaveSystem.RestoreBackup(slot);
+            WriteProbe("restore:" + (ok ? "ok" : "fail") + ":slot" + slot);
+        }
+
+        /// <summary>V9.6.6 探测：检查自动档是否带校验和（新档 schema=3）——验证校验架构生效。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebSaveProbe2()
+        {
+            string s = "autoschema:" + (SaveSystem != null ? SaveSystem.ReadSchemaForTest(0) : -1);
+            WriteProbe(s);
+        }
+
+        private void WriteProbe(string s)
+        {
+            Debug.Log("[Probe] " + s);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch { }
+        }
+
         /// <summary>V9.6.5 手动进入安全模式（浏览器/调试测试用）。</summary>
         [UnityEngine.Scripting.Preserve]
         public void WebSafeMode()
         {
             CrashGuardSystem.SafeMode = true;
             CrashGuardSystem.ApplySafeMode();
-            AddEvent("bad","⚠️ 已手动进入安全模式（阴影关闭/LOD 0.5/自动保存 20s）");
-            Debug.Log("[CrashSim] SafeMode=ON");
+            AddEvent("bad","⚠️ 已手动进入安全模式（阴影关闭/LOD 0.5/自动保存 20s）");            Debug.Log("[CrashSim] SafeMode=ON");
             try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString("safemode:on") + "');"); } catch { }
         }
 
