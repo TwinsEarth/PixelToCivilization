@@ -287,7 +287,7 @@ namespace PixelToCivilization.Systems
                     {
                         float dmg=b.Def.GetFunc("attack")*(1+(lv-1)*0.3f);
                         if (ct.Kind==CombatSystem.K_CAV && b.Type!="fire_tower") dmg*=1.5f;
-                        string kind = b.Type=="fire_tower"?"fire" : b.Type=="cannon_tower"?"cannonball":"arrow";
+                        string kind = b.Type=="fire_tower"?"fire" : b.Type=="cannon_tower"?"cannonball" : b.Type=="bunker"?"mg":"arrow";   // V9.6.3h 碉堡四向机枪
                         FireProjectile(b.X,b.Z,ct,dmg,kind);
                         b.AttackCooldown = b.Type=="bunker"?0.6f:1.5f;
                     }
@@ -297,16 +297,29 @@ namespace PixelToCivilization.Systems
 
         public void FireProjectile(float x, float z, CombatTarget target, float damage, string kind="arrow")
         {
+            bool mg = kind=="mg";
             var p = new ProjectileEntity
             {
-                Pos=new Vector3(x,2,z), Vel=new Vector3(target.X-x,0,target.Z-z).normalized*18f,
+                Pos=new Vector3(x,2,z), Vel=new Vector3(target.X-x,0,target.Z-z).normalized*(mg?26f:18f),
                 Damage=damage, Life=2f, Kind=kind, Target=target
             };
             // V9.5.3 统一武器特效：塔防开火炮口闪光（桶池化，见 WeaponFxSystem）
-            WeaponFxSystem.Muzzle(new Vector3(x, 3.2f, z), kind=="cannonball"?1.6f:(kind=="fire"?1.2f:0.9f));
+            WeaponFxSystem.Muzzle(new Vector3(x, 3.2f, z), kind=="cannonball"?1.6f:(kind=="fire"?1.2f:(mg?0.5f:0.9f)));
             Color c = kind=="cannonball"?new Color(0.2f,0.2f,0.2f)
                     : kind=="fire"?new Color(1f,0.45f,0.1f):new Color(0.9f,0.8f,0.4f);
-            p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,c,kind=="arrow"?0.22f:0.34f);
+            // V9.6.3h 投射物分型：箭矢=细长箭杆（沿飞行方向）、火球=橙球+外焰、炮弹=黑球、机枪=金黄短弹
+            if (kind=="arrow")
+            {
+                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Capsule,c,1f);
+                p.View.transform.localScale=new Vector3(0.07f,0.5f,0.07f);
+                var vd=new Vector3(p.Vel.x,0,p.Vel.z);
+                if (vd.sqrMagnitude>0.01f) p.View.transform.localRotation=Quaternion.FromToRotation(Vector3.up,vd.normalized);
+            }
+            else if (mg)
+                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,new Color(1f,0.82f,0.25f),0.12f);
+            else if (kind=="fire")
+                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,c,0.42f);
+            else p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,c,0.26f);
             S.Projectiles.Add(p);
         }
 
@@ -332,7 +345,7 @@ namespace PixelToCivilization.Systems
                         GM.Combat.Damage(t,p.Damage*0.5f); p.Life=0; }
                     else { WeaponFxSystem.Hit(hp); GM.Combat.Damage(t,p.Damage); p.Life=0; }
                 }
-                if (p.Life<=0){ if(p.View)EntityViewFactory.RecyclePooled(p.View,PrimitiveType.Sphere); S.Projectiles.RemoveAt(i); }
+                if (p.Life<=0){ if(p.View)EntityViewFactory.RecyclePooled(p.View,p.Kind=="arrow"?PrimitiveType.Capsule:PrimitiveType.Sphere); S.Projectiles.RemoveAt(i); }   // V9.6.3h 回收池 key 与投射物类型一致（箭矢=Capsule）
             }
         }
 
