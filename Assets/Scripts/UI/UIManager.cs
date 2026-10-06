@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -791,17 +791,17 @@ namespace PixelToCivilization.UI
             bool overUI=es!=null&&es.IsPointerOverGameObject();
             bool esc=Input.GetKeyDown(KeyCode.Escape);
             bool rmb=Input.GetMouseButtonDown(1)&&!overUI;
-            if (esc||rmb){ CloseShipCard(); CloseCart(); CloseTree(); if(_buildingModal)_buildingModal.SetActive(false); return; }
+            if (esc||rmb){ CloseShipCard(); CloseCart(); CloseTree(); CloseGround(); if(_buildingModal)_buildingModal.SetActive(false); return; }
             // 建造放置模式下左键用于放建筑，不做关闭
             if (!string.IsNullOrEmpty(S.SelectedBuildType)||S.Tool=="build") return;
             if (Input.GetMouseButtonDown(0)&&!overUI&&!PointerHitsEntity())
-            { CloseShipCard(); CloseCart(); CloseTree(); if(_buildingModal)_buildingModal.SetActive(false); }
+            { CloseShipCard(); CloseCart(); CloseTree(); CloseGround(); if(_buildingModal)_buildingModal.SetActive(false); }
         }
         private bool PointerHitsEntity()
         {
             var cam=Camera.main; if(cam==null) return false;
             var hits=Physics.RaycastAll(cam.ScreenPointToRay(Input.mousePosition),1000f);
-            foreach(var h in hits) if(h.collider!=null && (h.collider.GetComponentInParent<Systems.ShipClick>()!=null||h.collider.GetComponentInParent<Buildings.BuildingClick>()!=null||h.collider.GetComponentInParent<World.BanyanTree>()!=null)) return true;
+            foreach(var h in hits) if(h.collider!=null && (h.collider.GetComponentInParent<Systems.ShipClick>()!=null||h.collider.GetComponentInParent<Buildings.BuildingClick>()!=null||h.collider.GetComponentInParent<World.BanyanTree>()!=null||h.collider.GetComponentInParent<Systems.GroundWarfareSystem.GroundClick>()!=null)) return true;
             return false;
         }
         private void HideTimed()
