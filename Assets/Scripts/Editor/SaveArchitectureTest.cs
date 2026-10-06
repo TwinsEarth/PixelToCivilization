@@ -33,6 +33,8 @@ namespace PixelToCivilization.EditorTools
             MigrateOldToCurrent();
             MigrateIdempotent();
             IsaveableRegistryRoundtrip();
+            ResDoublePrecision();        // V9.6.8 资源双精度契约
+            OldSchemaResCompat();        // V9.6.8 旧档 ResVals(float) → double[] 无损兼容
 
             Debug.Log("===== [SAVE-TEST] 完成：PASS=" + _pass + " FAIL=" + _fail + " =====");
             if (_fail > 0) Debug.LogError("[SAVE-TEST] 存在失败项，禁止发布");
@@ -41,7 +43,7 @@ namespace PixelToCivilization.EditorTools
         static SaveData MakeData()
         {
             var d = new SaveData();
-            d.Version = "9.6.7";
+            d.Version = "9.6.8";
             d.Year = 2026; d.DynastyName = "测试王朝";
             d.Pop = 500; d.BuildingCount = 3;
             d.PowerRatio = 0.9f; d.IndustryChainMult = 1.2f;
@@ -138,6 +140,28 @@ namespace PixelToCivilization.EditorTools
             for (int i = 0; i < d.ExtKeys.Length && i < d.ExtVals.Length; i++)
                 if (d.ExtKeys[i] == mock.SaveKey) { mock.Deserialize(d.ExtVals[i]); restored = true; }
             Assert("6 ISaveable往返", restored && mock.Stored == "{\"v\":\"mock-ok\"}", "stored=" + mock.Stored);
+        }
+
+        // 7) V9.6.8 资源双精度累加契约：百万级 + 0.0625/次 ×1000 次 = 精确 1000062.5（float 在 1e6 ULP≈0.0625，
+        //    逐帧小增量会被舍入丢失 → "资源冻结不动"；double 存储下无损）
+        static void ResDoublePrecision()
+        {
+            var s = new GameState();
+            s.Res["gold"] = 1000000d;
+            for (int i = 0; i < 1000; i++) s.AddRes("gold", 0.0625f);
+            double val = s.Res["gold"];
+            bool ok = val == 1000062.5d;
+            Assert("7 资源双精度累加", ok, "gold=" + val.ToString("F6") + " (期望 1000062.500000)");
+        }
+
+        // 8) V9.6.8 旧档 ResVals(float[]) → double[] 无损兼容：旧 JSON 数值直接反序列化到 double[]
+        static void OldSchemaResCompat()
+        {
+            string oldJson = "{\"ResKeys\":[\"gold\",\"food\"],\"ResVals\":[123456.75,99.5],\"SaveSchema\":3}";
+            var d = UnityEngine.JsonUtility.FromJson<SaveData>(oldJson);
+            bool ok = d != null && d.ResVals != null && d.ResVals.Length == 2
+                      && d.ResVals[0] == 123456.75d && d.ResVals[1] == 99.5d;
+            Assert("8 旧档Res双精度兼容", ok, "ResVals[0]=" + (d != null && d.ResVals != null ? d.ResVals[0].ToString("F4") : "null"));
         }
 
         static void Assert(string name, bool ok, string detail)
