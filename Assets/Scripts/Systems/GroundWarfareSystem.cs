@@ -43,6 +43,7 @@ namespace PixelToCivilization.Systems
             public int Level;
             public float MaxHp, Hp, BaseAttack, Speed;
             public float BaseMaxHp;            // V9.5.7 升级基数（耐久线性成长 12%/级，防指数膨胀）
+            public int BaseRange;              // V9.6.3 升级基数（射程 +1 格/级，上限 +5 格）
             public int Range;
             public string FactionId; public long FactionColor;
             public GameObject View;
@@ -128,7 +129,7 @@ namespace PixelToCivilization.Systems
             { GM.AddEvent("bad","资源不足，无法列装"+d.Name); Debug.Log("[Ground] BuildGround reject: resources"); return false; }
             S.AddRes("steel",-d.CostSteel); S.AddRes("gold",-d.CostGold); S.AddRes("wood",-d.CostWood); S.AddRes("food",-d.CostFood);
             var u=new GroundUnit{TypeId=typeId,Name=d.Name,Side="ours",X=x,Z=z,Level=1,
-                BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,Range=d.Range,Speed=d.Speed};
+                BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,BaseRange=d.Range,Range=d.Range,Speed=d.Speed};
             u.View=BuildView(u,d);
             Ours.Add(u); AssignGroup(u);
             GM.AddEvent("good",d.Icon+" 新"+d.Name+"列装！");
@@ -157,7 +158,7 @@ namespace PixelToCivilization.Systems
                 }
                 if(!land) continue;
                 var u=new GroundUnit{TypeId=t,Name=d.Name,Side="ours",X=x,Z=z,Level=1,
-                    BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,Range=d.Range,Speed=d.Speed};
+                    BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,BaseRange=d.Range,Range=d.Range,Speed=d.Speed};
                 u.View=BuildView(u,d);
                 Ours.Add(u); AssignGroup(u); made++;
             }
@@ -203,7 +204,7 @@ namespace PixelToCivilization.Systems
               x=Mathf.Cos(a)*rr; z=Mathf.Sin(a)*rr;
               if(_terrain==null||!_terrain.IsWater(x,z)) land=true; }
             var u=new GroundUnit{TypeId=t,Name=fac.name+"·"+d.Name,Side="enemy",X=x,Z=z,Level=1,
-                BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,Range=d.Range,Speed=d.Speed,
+                BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,BaseRange=d.Range,Range=d.Range,Speed=d.Speed,
                 FactionId=fac.name,FactionColor=fac.color};
             u.View=BuildView(u,d,fac.color);
             Enemies.Add(u); AssignGroup(u);
@@ -376,13 +377,21 @@ namespace PixelToCivilization.Systems
             return idx;
         }
 
+        /// <summary>V9.6.3 地面部队速度统一钳制：Lv1=0.01 格/秒 → Lv10=0.10 格/秒（最高 0.1、最低 0.01，随等级线性成长）</summary>
+        public static float ClampedGroundSpeed(GroundUnit u)
+        {
+            float lv = Mathf.Clamp(u!=null ? u.Level : 1, 1, 10);
+            return 0.01f + 0.09f * (lv - 1f) / 9f;
+        }
+
         void MoveToward(GroundUnit u,float tx,float tz,float dt,float mul)
         {
             if(_terrain==null) return;
             float dx=tx-u.X,dz=tz-u.Z; float dist=Mathf.Sqrt(dx*dx+dz*dz);
             if(dist<0.5f) return;
-            float sp=u.Speed*mul;
-            float nx=u.X+dx/dist*sp*30f*dt, nz=u.Z+dz/dist*sp*30f*dt;
+            // V9.6.3 速度统一钳制 [0.01,0.10] 格/秒（×Tile=世界单位/秒，随等级成长）；去掉旧 30f 帧因子防"飞跑"
+            float sp=ClampedGroundSpeed(u)*GameConstants.Tile*mul;
+            float nx=u.X+dx/dist*sp*dt, nz=u.Z+dz/dist*sp*dt;
             // 陆地约束：不得下水；前方是水则贴岸转向
             if(_terrain.IsWater(nx,nz))
             {
@@ -393,7 +402,7 @@ namespace PixelToCivilization.Systems
                     for(int side=-1;side<=1&&!slid;side+=2)
                     {
                         float rx=dx/dist*cs-side*dz/dist*sn, rz=dz/dist*cs+side*dx/dist*sn;
-                        float sx=u.X+rx*sp*30f*dt, sz=u.Z+rz*sp*30f*dt;
+                        float sx=u.X+rx*sp*dt, sz=u.Z+rz*sp*dt;   // V9.6.3 与世界速度一致（去 30f 帧因子）
                         if(!_terrain.IsWater(sx,sz)){ nx=sx; nz=sz; slid=true; }
                     }
                 }
@@ -476,9 +485,10 @@ namespace PixelToCivilization.Systems
             u.Level++;
             u.MaxHp=Mathf.RoundToInt(u.BaseMaxHp*(1f+0.12f*(u.Level-1)));
             u.BaseAttack=Mathf.RoundToInt(u.BaseAttack*1.08f);
+            u.Range=Mathf.Min(u.BaseRange+5, u.BaseRange+(u.Level-1));   // V9.6.3 射程 +1 格/级（上限 +5）
             u.Hp=Mathf.Min(u.MaxHp, u.Hp+u.MaxHp*0.3f);
             GM.AddEvent("good","🎖 "+(free?"战功晋升":"升级")+"："+u.Name+" → Lv"+u.Level
-                +"（攻击 "+u.BaseAttack+" 耐久 "+u.MaxHp+"）");
+                +"（攻击 "+u.BaseAttack+" 耐久 "+u.MaxHp+" 射程 "+u.Range+"）");
         }
         /// <summary>玩家资源升级造价：按当前等级线性上涨（钢/金按基础造价的 55%/级，古典型按木/粮/金）</summary>
         public Dictionary<string,int> UpgradeGroundCost(GroundUnit u)
@@ -711,6 +721,18 @@ namespace PixelToCivilization.Systems
             int f=0; var seen=new HashSet<string>();
             foreach(var e in Enemies) if(seen.Add(e.FactionId)) f++;
             return "groundActive="+(Active?"1":"0")+" ours="+Ours.Count+" enemy="+Enemies.Count+" factions="+f+" max="+MaxGround;
+        }
+        /// <summary>V9.6.3 浏览器回归：输出我方每单位 等级/坐标/钳制速度（ClampedGroundSpeed）与首单位 10 秒位移测速基线</summary>
+        public string Probe963()
+        {
+            var sb=new System.Text.StringBuilder();
+            sb.Append("G[");
+            int n=0;
+            foreach(var u in Ours){ if(n++>=4) break;
+                sb.Append(u.TypeId).Append(":Lv").Append(u.Level).Append("(").Append(u.X.ToString("F1")).Append(",")
+                  .Append(u.Z.ToString("F1")).Append(")spd").Append(ClampedGroundSpeed(u).ToString("F3")).Append(";"); }
+            sb.Append("]");
+            return sb.ToString();
         }
     }
 }
