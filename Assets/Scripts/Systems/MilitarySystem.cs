@@ -407,8 +407,8 @@ namespace PixelToCivilization.Systems
                         }
                         else
                         {
-                            // V9.6.1 超 100 格：运输机/直升机远程投送（成功则原地待机等机，否则回 Home）
-                            if (GM.AirLift!=null && GM.AirLift.RequestLift(fu,rp.Value.x,rp.Value.y,0f)) { fu.State=0; }
+                            // V9.6.2 超 100 格：运输机/直升机远程投送（未解锁广播提示；成功则原地待机等机，否则回 Home）
+                            if (GM.AirLift!=null && GM.AirLift.RequestLiftAuto(fu,rp.Value.x,rp.Value.y)) { fu.State=0; }
                             else
                             {
                                 Vector3 home=new(fu.HomeX,0,fu.HomeZ);
