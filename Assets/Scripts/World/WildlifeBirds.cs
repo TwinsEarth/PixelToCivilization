@@ -55,6 +55,7 @@ namespace PixelToCivilization.World
         Transform _root;
         Vector3 _home;
         float _range=220f;   // 兜底活动半径
+        float _sepAt;        // V9.4.6 鸟个体分离节流（4Hz）
         WorldGenerator _terrain;
         float Range { get {   // V6.3.7(真扩展) 鸟群活动半径随真实活动疆域扩大
             if(_terrain==null)_terrain=Object.FindObjectOfType<WorldGenerator>();
@@ -303,22 +304,23 @@ namespace PixelToCivilization.World
             float mid=(total-1)*0.5f;
             switch(f)
             {
-                case BirdFormation.I:    return new Vector3(0,0,(slot-mid)*1.7f);
-                case BirdFormation.Line: return new Vector3((slot-mid)*1.7f,0,0);
+                // V9.4.6 阵型间距 ×1.6（原 1.7→2.72 等）：编队成员带体积碰撞，鸟体不再重叠
+                case BirdFormation.I:    return new Vector3(0,0,(slot-mid)*2.72f);
+                case BirdFormation.Line: return new Vector3((slot-mid)*2.72f,0,0);
                 case BirdFormation.V:
                     if(slot==0)return Vector3.zero;
-                    {int row=(slot+1)/2;float side=(slot%2==1)?-1f:1f;return new Vector3(side*1.35f*row,0,1.65f*row);}
-                case BirdFormation.S: return new Vector3(Mathf.Sin(t*Mathf.PI*2f)*2.3f,0,(t-0.5f)*total*1.6f);
-                case BirdFormation.W: return new Vector3(((slot%2==0)?1f:-1f)*1.25f,0,(slot-mid)*1.6f);
+                    {int row=(slot+1)/2;float side=(slot%2==1)?-1f:1f;return new Vector3(side*2.16f*row,0,2.64f*row);}
+                case BirdFormation.S: return new Vector3(Mathf.Sin(t*Mathf.PI*2f)*3.68f,0,(t-0.5f)*total*2.56f);
+                case BirdFormation.W: return new Vector3(((slot%2==0)?1f:-1f)*2.0f,0,(slot-mid)*2.56f);
                 case BirdFormation.L:
                 {   // 前半段沿 z 竖列，到转折点后沿 x 横列，组成 L
                     int half=Mathf.Max(1,total/2);
-                    if(slot<half) return new Vector3(0,0,(slot-mid)*1.7f);
-                    float turnZ=(half-1-mid)*1.7f;
-                    return new Vector3((slot-half+1)*1.7f,0,turnZ);
+                    if(slot<half) return new Vector3(0,0,(slot-mid)*2.72f);
+                    float turnZ=(half-1-mid)*2.72f;
+                    return new Vector3((slot-half+1)*2.72f,0,turnZ);
                 }
                 case BirdFormation.O:
-                    {float a=t*Mathf.PI*2f,rr=total*0.34f;return new Vector3(Mathf.Cos(a)*rr,0,Mathf.Sin(a)*rr);}
+                    {float a=t*Mathf.PI*2f,rr=total*0.544f;return new Vector3(Mathf.Cos(a)*rr,0,Mathf.Sin(a)*rr);}
             }
             return Vector3.zero;
         }
@@ -416,9 +418,35 @@ namespace PixelToCivilization.World
                 if(nowYear-b.BirthYear>=b.LifeYears){RemoveBird(b,i);}
             }
             // 维持种群：低于 80 上限则缓慢补群
-            if(_all.Count<MaxBirds*0.7f && Random.value<dt*0.25f)
+            if(_all.Count<MaxBirds*0.7f && Random.value<dt*0.25f && Core.MemoryBudgetManager.GlobalSpawnGate)   // V9.6.4 临界水位钳制补群
             {
                 if(_flocks.Count<48)SpawnFlock(); else SpawnLone();
+            }
+            SeparateBirds(dt);   // V9.4.6 鸟个体体积分离（含孤鸟，4Hz）
+        }
+
+        /// <summary>V9.4.6 鸟个体体积分离：两两推开，防编队/游荡重叠；半径 1.8 世界单位</summary>
+        void SeparateBirds(float dt)
+        {
+            if(Time.unscaledTime<_sepAt) return;
+            _sepAt=Time.unscaledTime+0.25f;
+            const float minSq=1.8f*1.8f;
+            for(int i=0;i<_all.Count;i++)
+            {
+                var a=_all[i]; if(a.Root==null) continue;
+                for(int j=i+1;j<_all.Count;j++)
+                {
+                    var b=_all[j]; if(b.Root==null) continue;
+                    Vector3 pa=a.Root.position,pb=b.Root.position;
+                    float dx=pb.x-pa.x,dz=pb.z-pa.z; float d2=dx*dx+dz*dz;
+                    if(d2>0.0001f&&d2<minSq)
+                    {
+                        float d=Mathf.Sqrt(d2); float push=(1.8f-d)*0.3f;
+                        float ux=dx/d,uz=dz/d;
+                        a.Root.position=pa-new Vector3(ux*push,0,uz*push);
+                        b.Root.position=pb+new Vector3(ux*push,0,uz*push);
+                    }
+                }
             }
         }
 
