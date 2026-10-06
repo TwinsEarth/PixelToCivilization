@@ -25,7 +25,7 @@ namespace PixelToCivilization.Core
         public bool WarActive,Victory; public string VictoryType;
         public float ResearchProgress; public string CurrentResearch;
         public string[] SocialKeys; public float[] SocialVals;
-        public string[] ResKeys; public float[] ResVals;
+        public string[] ResKeys; public double[] ResVals;   // V9.6.8 资源双精度（旧档 float 值 JSON 数值无损兼容，schema 保持 3）
         public string[] Techs; public string[] Policies;
         // 运河 / 潮汐 / 电力
         public int CanalSegments; public float CanalBonus,AiBonus,ElectricGrid,PowerCoverage;
