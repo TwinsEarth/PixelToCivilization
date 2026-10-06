@@ -122,7 +122,81 @@ namespace PixelToCivilization.Core
         private float _autoTimer;
         public const float AutoSaveInterval = 300f;   // v5.9.9：现实 5 分钟
         public const int ManualSlots = 5;
+        // V9.6.5 崩溃架构：回滚槽（自动档滚动保存，崩溃后依次回退）
+        public const int RollbackSlots = 3;           // rollback0/1/2
         public float AutoCountdown => Mathf.Max(0f, AutoSaveInterval-_autoTimer);
+
+        /// <summary>V9.6.5 自动保存（含回滚滚动 + 健康标记）；安全模式下降频至 20s。</summary>
+        public void AutoSaveNow()
+        {
+            // 1) 先把当前自动档滚动进回滚链：rollback2 <- rollback1 <- rollback0 <- 旧 auto
+            string cur = PlayerPrefs.GetString(Key(0), "");
+            if (!string.IsNullOrEmpty(cur))
+            {
+                for (int i = RollbackSlots - 1; i >= 1; i--)
+                {
+                    if (PlayerPrefs.HasKey(RollKey(i - 1)))
+                        PlayerPrefs.SetString(RollKey(i), PlayerPrefs.GetString(RollKey(i - 1)));
+                    else if (PlayerPrefs.HasKey(RollKey(i)))
+                        PlayerPrefs.DeleteKey(RollKey(i));
+                }
+                PlayerPrefs.SetString(RollKey(0), cur);
+                if (PlayerPrefs.HasKey(SumKey(0)))
+                    PlayerPrefs.SetString(RollSumKey(0), PlayerPrefs.GetString(SumKey(0)));
+            }
+            // 2) 写新自动档
+            SaveToSlot(0);
+            // 3) 健康标记：最近一次"成功"自动存档时间戳（崩溃恢复的锚点）
+            PlayerPrefs.SetString(CrashGuardSystem.KeyGood, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>V9.6.5 崩溃恢复：按 auto → rollback0 → rollback1 → rollback2 依次尝试；成功返回所用槽位名。</summary>
+        public bool LoadBestForRecovery(out string usedSlot)
+        {
+            usedSlot = "";
+            int[] order = { 0, RollSlot(0), RollSlot(1), RollSlot(2) };
+            for (int i = 0; i < order.Length; i++)
+            {
+                if (TryLoadQuiet(order[i]))
+                {
+                    usedSlot = order[i] == 0 ? "自动槽" : "回滚槽 " + (order[i] - RollSlot(0));
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool TryLoadQuiet(int slot)
+        {
+            if (slot >= 0 && slot <= ManualSlots && !HasSlot(slot)) return false;
+            bool isRoll = slot >= RollSlot(0) && slot < RollSlot(0) + RollbackSlots;
+            if (isRoll && !PlayerPrefs.HasKey(RollKey(slot - RollSlot(0)))) return false;
+            try
+            {
+                string json = isRoll ? PlayerPrefs.GetString(RollKey(slot - RollSlot(0)))
+                                     : PlayerPrefs.GetString(Key(slot));
+                var d = JsonUtility.FromJson<SaveData>(json);
+                if (d == null || d.Year == 0 && d.BuildingCount == 0 && d.AgentCount == 0 && d.Pop == 0) return false; // 空/损坏快照拒绝
+                Apply(d);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>V9.6.5 模拟：损坏自动存档（供 WebCrashSimulate mode=2 崩溃恢复测试）。</summary>
+        public void WebCrashCorruptAuto()
+        {
+            PlayerPrefs.SetString(Key(0), "{\"Version\":\"CORRUPTED\",\"");   // 非法 JSON
+            PlayerPrefs.DeleteKey(SumKey(0));
+            PlayerPrefs.Save();
+            Debug.LogWarning("[CrashSim] 已故意损坏自动槽（模拟崩溃时写坏档）");
+        }
+
+        /// <summary>回滚槽全量键（100=rollback0 起，避开 0..5 手动槽编号）</summary>
+        private static int RollSlot(int i) => 100 + i;
+        private static string RollKey(int i) => "PxC_Roll_" + i;
+        private static string RollSumKey(int i) => "PxC_RollSum_" + i;
 
         public void Init(GameManager gm){ _gm=gm; }
 
@@ -614,7 +688,9 @@ namespace PixelToCivilization.Core
         {
             if(_gm==null||_gm.State==null||!_gm.State.Running||_gm.State.Paused)return;
             _autoTimer+=Time.unscaledDeltaTime;   // 现实时间计时，不受倍速影响
-            if(_autoTimer>=AutoSaveInterval){_autoTimer=0;SaveToSlot(0);}
+            // V9.6.5 安全模式下自动保存降频至 20s（崩溃恢复更快锚点）
+            float interval = CrashGuardSystem.SafeMode ? 20f : AutoSaveInterval;
+            if(_autoTimer>=interval){_autoTimer=0;AutoSaveNow();}
         }
     }
 }
