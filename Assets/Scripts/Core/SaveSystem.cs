@@ -98,6 +98,19 @@ namespace PixelToCivilization.Core
         public string Name,Dynasty; public int Year,BuildingCount; public long Time;
     }
 
+    /// <summary>V9.6.4 内存架构：槽位摘要（极小 JSON，列表/最近槽只反序列化它，不再全量解析 SaveData）。
+    /// 与完整档同写同删；旧档无摘要时 Summarize/LatestSlot 自动回退全量解析，行为兼容。</summary>
+    [Serializable]
+    public class SlotSummaryData
+    {
+        public int Slot;
+        public int Year;
+        public string DynastyName="";
+        public int BuildingCount;
+        public long SaveTime;
+        public string SlotName="";
+    }
+
     /// <summary>
     /// 存档系统 —— V6.1.2 对齐 v5.9.9：自动槽(auto,每5分钟现实时间)+5 个手动槽，
     /// 每槽可覆盖/读档/删除，列表显示年份·朝代·建筑数·时间；支持 JSON 导出/导入，全量快照。
@@ -114,6 +127,31 @@ namespace PixelToCivilization.Core
         public void Init(GameManager gm){ _gm=gm; }
 
         private static string Key(int slot)=>"PxC_Save_"+(slot==0?"auto":slot.ToString());
+        /// <summary>V9.6.4 槽位摘要键（独立小 JSON，与完整档同生命周期）</summary>
+        private static string SumKey(int slot)=>"PxC_SaveSum_"+(slot==0?"auto":slot.ToString());
+        /// <summary>读槽位摘要：优先小 JSON；无（旧档/被清）则回退全量解析。</summary>
+        private SlotSummaryData ReadSummary(int slot)
+        {
+            if (!HasSlot(slot)) return null;
+            if (PlayerPrefs.HasKey(SumKey(slot)))
+            {
+                try
+                {
+                    var d=JsonUtility.FromJson<SlotSummaryData>(PlayerPrefs.GetString(SumKey(slot)));
+                    if (d!=null && d.SaveTime>0) return d;
+                }
+                catch { /* 摘要损坏 → 回退全量解析 */ }
+            }
+            try
+            {
+                var full=JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(Key(slot)));
+                if (full==null) return null;
+                return new SlotSummaryData{ Slot=slot, Year=full.Year, DynastyName=full.DynastyName,
+                    BuildingCount=full.BuildingCount, SaveTime=full.SaveTime,
+                    SlotName=slot==0?"自动存档":"存档"+slot };
+            }
+            catch { return null; }
+        }
 
         private SaveData Snapshot()
         {
@@ -269,33 +307,39 @@ namespace PixelToCivilization.Core
             {
                 var data=Snapshot();
                 data.SlotName = slot==0?"自动存档":"存档"+slot;
-                PlayerPrefs.SetString(Key(slot),JsonUtility.ToJson(data));PlayerPrefs.Save();
+                PlayerPrefs.SetString(Key(slot),JsonUtility.ToJson(data));
+                // V9.6.4 同写槽位摘要（列表/最近槽只读小 JSON，避免全量解析 GC 尖峰）
+                PlayerPrefs.SetString(SumKey(slot),JsonUtility.ToJson(new SlotSummaryData
+                {
+                    Slot=slot,Year=data.Year,DynastyName=data.DynastyName,
+                    BuildingCount=data.BuildingCount,SaveTime=data.SaveTime,SlotName=data.SlotName
+                }));
+                PlayerPrefs.Save();
                 _gm.AddEvent("good",(slot==0?"🤖 自动":"💾 已")+"保存到"+(slot==0?"自动槽":"存档位 "+slot));
             }
             catch(Exception e){ Debug.LogError(e);_gm.AddEvent("bad","存档失败："+e.Message); }
         }
         public bool HasSlot(int slot)=>PlayerPrefs.HasKey(Key(slot));
 
-        /// <summary>返回 0(自动)..5(手动) 中存档时间最新的非空槽位，损坏槽跳过；没有任何有效存档返回 -1</summary>
+        /// <summary>返回 0(自动)..5(手动) 中存档时间最新的非空槽位，损坏槽跳过；没有任何有效存档返回 -1。
+        /// V9.6.4 改为读槽位摘要（无摘要旧档自动回退全量解析），不再每槽全量反序列化。</summary>
         public int LatestSlot()
         {
             int best=-1; long bestTime=long.MinValue;
             for(int slot=0;slot<=ManualSlots;slot++)
             {
                 if(!HasSlot(slot)) continue;
-                try
-                {
-                    var d=JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(Key(slot)));
-                    if(d!=null && d.SaveTime>=bestTime){bestTime=d.SaveTime;best=slot;}
-                }
-                catch{ /* 损坏槽忽略，继续找下一个 */ }
+                var sum=ReadSummary(slot);
+                if(sum!=null && sum.SaveTime>=bestTime){bestTime=sum.SaveTime;best=slot;}
             }
             return best;
         }
         public void DeleteSlot(int slot)
         {
             if(slot==0) return;                 // 自动槽不允许删除
-            PlayerPrefs.DeleteKey(Key(slot));PlayerPrefs.Save();
+            PlayerPrefs.DeleteKey(Key(slot));
+            PlayerPrefs.DeleteKey(SumKey(slot)); // V9.6.4 摘要随档同删
+            PlayerPrefs.Save();
             _gm.AddEvent("info","已删除存档位 "+slot);
         }
         public bool LoadFromSlot(int slot)
@@ -311,18 +355,15 @@ namespace PixelToCivilization.Core
             catch(Exception e){ _gm.AddEvent("bad","读档失败："+e.Message);return false; }
         }
 
-        /// <summary>读取槽位摘要（列表用，损坏也能识别）</summary>
+        /// <summary>读取槽位摘要（列表用，损坏也能识别）。V9.6.4 优先小 JSON，旧档回退全量解析。</summary>
         public SlotSummary Summarize(int slot)
         {
             var sum=new SlotSummary{Slot=slot,Exists=HasSlot(slot)};
             if(!sum.Exists) return sum;
-            try
-            {
-                var d=JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(Key(slot)));
-                sum.Year=d.Year;sum.Dynasty=d.DynastyName;sum.BuildingCount=d.BuildingCount;
-                sum.Time=d.SaveTime;sum.Name=slot==0?"🤖 自动存档":"💾 存档"+slot;
-            }
-            catch{ sum.Damaged=true; }
+            var d=ReadSummary(slot);
+            if(d==null){ sum.Damaged=true; return sum; }
+            sum.Year=d.Year;sum.Dynasty=d.DynastyName;sum.BuildingCount=d.BuildingCount;
+            sum.Time=d.SaveTime;sum.Name=slot==0?"🤖 自动存档":"💾 存档"+slot;
             return sum;
         }
 
