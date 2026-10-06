@@ -63,6 +63,8 @@ namespace PixelToCivilization.Core
         public SaveSystem SaveSystem;
         /// <summary>V9.6.4 内存架构中枢（预算水位/临界钳制/GC采样/慢系统/池报告）</summary>
         public MemoryBudgetManager MemBudget;
+        /// <summary>V9.6.5 崩溃架构中枢（异常捕获/崩溃标记/环形日志/安全模式/恢复引导）</summary>
+        public CrashGuardSystem Guard;
         // 策划书扩展系统
         public PhilosophySystem Philosophy;
         public DisasterSystem Disaster;
@@ -174,6 +176,9 @@ namespace PixelToCivilization.Core
             SaveSystem.Init(this);
             // V9.6.4 内存架构中枢：预算水位/临界钳制/GC采样/慢系统统计/池报告（非游戏系统，挂 GM 下用 Update 现实秒采样）
             MemBudget = gameObject.GetComponent<MemoryBudgetManager>() ?? gameObject.AddComponent<MemoryBudgetManager>();
+            // V9.6.5 崩溃架构中枢：异常钩子（logMessageReceived + WebGL JS onerror）+ 崩溃标记 + 环形日志 + 安全模式
+            Guard = gameObject.GetComponent<CrashGuardSystem>() ?? gameObject.AddComponent<CrashGuardSystem>();
+            Guard.Init();
             Debug.Log("[GameManager] 子系统装配完成，数量=" + _systems.Count);
         }
 
@@ -193,6 +198,8 @@ namespace PixelToCivilization.Core
             AirLift?.ResetRuntime();
             // V9.0.1 开局公元1700（游戏年4700·清康熙·大航海殖民末期）：静默把朝代/时代对齐到 era4，不连发 0→4 时代切换事件
             Time?.SnapToStartYear();
+            // V9.6.5 玩家主动开始新局 = 自愿放弃崩溃恢复 → 清崩溃标记
+            CrashGuardSystem.MarkClean();
             State.Running = true; State.Paused = false; State.Speed = 1f;
             StateType = GameStateType.Playing;
             OnStateChanged?.Invoke(StateType);
@@ -1017,6 +1024,111 @@ namespace PixelToCivilization.Core
             report("FLOOD",8);
         }
         public void WebQuickLoad(){ bool ok=SaveSystem!=null && SaveSystem.LoadFromSlot(1); Debug.Log("[Web] QuickLoad "+(ok?"OK":"FAIL")); }
+
+        // ===== V9.6.5 崩溃架构：恢复 / 模拟崩溃 / 探针 =====
+        /// <summary>安全模式恢复：按 auto→rollback0→1→2 自动载入最近健康档并进入 Playing；无档则留在主菜单提示。</summary>
+        public void TryCrashRecovery()
+        {
+            if (SaveSystem==null || State==null) return;
+            State.Reset();
+            string used="";
+            if (SaveSystem.LoadBestForRecovery(out used))
+            {
+                State.Running=true; State.Paused=false; State.Speed=1f;
+                StateType=GameStateType.Playing;
+                OnStateChanged?.Invoke(StateType);
+                CrashGuardSystem.MarkClean();
+                AddEvent("bad","⚠️ 安全模式：上次异常退出，已自动恢复至 "+used+"（阴影已关，请检查资源与建筑）");
+                UIManager.Instance?.Toast("⚠️ 已从"+used+"恢复（安全模式）",false);
+                Debug.Log("[CrashGuard] 恢复成功："+used);
+            }
+            else
+            {
+                AddEvent("info","⚠️ 安全模式：上次异常退出，无可用回滚存档，请开始新局");
+                Debug.LogWarning("[CrashGuard] 无可用回滚存档，停留主菜单");
+            }
+        }
+
+        /// <summary>V9.6.5 模拟崩溃（供浏览器回归）：
+        /// mode=0 抛托管异常（验证异常钩子+崩溃标记）；mode=1 模拟硬崩溃（写 crashed 标记，刷新后进安全模式）；
+        /// mode=2 先损坏自动档再抛异常（验证下次启动回滚恢复）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebCrashSimulate(int mode)
+        {
+            if (Guard==null || SaveSystem==null) { Debug.LogWarning("[CrashSim] Guard/Save 未就绪"); return; }
+            string result = "mode="+mode;
+            try
+            {
+                if (mode==0)
+                {
+                    throw new System.InvalidOperationException("[CrashSim] 模拟托管异常：崩溃钩子应捕获并写崩溃标记");
+                }
+                else if (mode==1)
+                {
+                    CrashGuardSystem.LastCrashSummary = "模拟硬崩溃(强杀)";
+                    UnityEngine.PlayerPrefs.SetString(CrashGuardSystem.KeyState,"crashed");
+                    UnityEngine.PlayerPrefs.SetString(CrashGuardSystem.KeyLast,CrashGuardSystem.LastCrashSummary);
+                    UnityEngine.PlayerPrefs.Save();
+                    result += "|ok:hardkill(刷新页面验证安全模式)";
+                }
+                else if (mode==2)
+                {
+                    SaveSystem.WebCrashCorruptAuto();
+                    CrashGuardSystem.LastCrashSummary = "模拟崩溃：自动档已损坏，验证回滚恢复";
+                    UnityEngine.PlayerPrefs.SetString(CrashGuardSystem.KeyState,"crashed");
+                    UnityEngine.PlayerPrefs.SetString(CrashGuardSystem.KeyLast,CrashGuardSystem.LastCrashSummary);
+                    UnityEngine.PlayerPrefs.Save();
+                    result += "|ok:auto-corrupted(刷新验证回滚)";
+                }
+                else
+                {
+                    result += "|bad:unknown-mode";
+                }
+            }
+            catch (System.Exception e)
+            {
+                result += "|thrown:" + e.GetType().Name;
+            }
+            Debug.Log("[CrashSim] " + result);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch { }
+        }
+
+        /// <summary>V9.6.5 崩溃探针：安全模式/崩溃状态/回滚槽/最近日志（读 window.pxcProbe）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebCrashProbe()
+        {
+            string rb = "roll:";
+            if (SaveSystem!=null)
+            {
+                for (int i=0;i<SaveSystem.RollbackSlots;i++)
+                {
+                    string k="PxC_Roll_"+i;
+                    rb += (UnityEngine.PlayerPrefs.HasKey(k)?"1":"0")+(i<SaveSystem.RollbackSlots-1?",":"");
+                }
+            }
+            string s = Guard!=null ? Guard.Probe() : "guardnull";
+            s = s + "|" + rb;
+            Debug.Log("[CrashProbe] " + s);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch { }
+        }
+
+        /// <summary>V9.6.5 手动进入安全模式（浏览器/调试测试用）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebSafeMode()
+        {
+            CrashGuardSystem.SafeMode = true;
+            CrashGuardSystem.ApplySafeMode();
+            AddEvent("bad","⚠️ 已手动进入安全模式（阴影关闭/LOD 0.5/自动保存 20s）");
+            Debug.Log("[CrashSim] SafeMode=ON");
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString("safemode:on") + "');"); } catch { }
+        }
+
+        /// <summary>WebGL JS window.onerror 转发入口（CrashGuard 桥；带参 SendMessage）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebJsError(string payload)
+        {
+            if (Guard!=null) Guard.WebJsError(payload);
+        }
         public void WebAdvanceEra(){ bool ok=Time!=null && Time.DebugAdvanceEra(); Debug.Log("[Web] AdvanceEra "+(ok?"OK":"FAIL")); }
         // V9.3.5 时间推进探针：无参 Web 入口（SendMessage 可绑），回归直接读 Year/Day/Era/Paused/Speed/有效倍速
         public void WebYearProbe(){
