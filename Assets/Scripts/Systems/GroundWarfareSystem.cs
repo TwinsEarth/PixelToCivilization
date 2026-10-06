@@ -270,6 +270,22 @@ namespace PixelToCivilization.Systems
                         GroundFire(u,ct); u.AttackCd=2f;
                     }
                 }
+                // V9.6.0 紧急集结令：绿旗（地面部队）100 格内优先向军旗集结列阵（高于巡航）
+                else if (GM.Rally!=null && GM.Rally.Active("ground"))
+                {
+                    var rp=GM.Rally.Target("ground");
+                    if (rp.HasValue)
+                    {
+                        float rd=Mathf.Sqrt((rp.Value.x-u.X)*(rp.Value.x-u.X)+(rp.Value.y-u.Z)*(rp.Value.y-u.Z));
+                        if (rd<=RallySystem.RallyRange*GameConstants.Tile)
+                        {
+                            if (rd>RallySystem.FormRange) MoveToward(u,rp.Value.x,rp.Value.y,dt,1f);
+                            // 已入列阵圈：原地待命（不巡航）
+                            continue;
+                        }
+                    }
+                    Cruise(u,dt);
+                }
                 else Cruise(u,dt);
             }
         }
