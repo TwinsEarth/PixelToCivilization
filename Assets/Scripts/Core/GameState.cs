@@ -28,7 +28,10 @@ namespace PixelToCivilization.Core
         public int DynastyIdx;
 
         // ---- 15种资源 ----
-        public Dictionary<string, float> Res = ResourceDatabase.InitialResources();
+        // V9.6.8 资源双精度存储：Dictionary&lt;string,double&gt;。现象：float 在百万级精度约 0.125（ULP），
+        // 每秒产出零点几逐帧累加（约 0.008/帧）会被 float 舍入直接丢弃 → 资源"冻结不动"；
+        // 存档 ResVals 同步改 double[]（旧档 float 值 JSON 数值反序列化无损兼容，schema 保持 3）。
+        public Dictionary<string, double> Res = ResourceDatabase.InitialResources();
 
         // ---- 人口/社会 ----
         public int Pop = GameConstants.StartPop;
@@ -175,17 +178,18 @@ namespace PixelToCivilization.Core
         public bool WonderAuto;                        // 九神自动援建开关（默认关）
 
         // ===== 便捷访问器 =====
-        public float GetRes(string id) => Res.TryGetValue(id, out var v) ? v : 0f;
+        public float GetRes(string id) => (float)(Res.TryGetValue(id, out var v) ? v : 0d);
         public void AddRes(string id, float delta)
         {
             // V9.1.3 修复：资源键不存在且为扣减时不写入 0 值键，防止长期运行资源键只增不减
-            if (!Res.TryGetValue(id, out var v)) { if (delta <= 0f) return; v = 0f; Res[id] = 0f; }
-            float nv = v + delta;
+            if (!Res.TryGetValue(id, out var v)) { if (delta <= 0f) return; v = 0d; Res[id] = 0d; }
+            // V9.6.8 双精度累加：double 在 1e7 内增量无舍入丢失（float 在百万级 ULP≈0.125，零点几的产出/帧被丢弃）
+            double nv = v + delta;
             // V9.5.6 资源异常扣减审计：v>1000 且单次扣减超过 2%（按比例复利是"几百万骤降到几千"的主因），
             // 用 Debug.LogWarning 由 Unity 打印调用栈（IL2CPP/WebGL 下 Debug.Log 自动附带调用栈）。
-            if (delta < 0f && v > 1000f && -delta > v * 0.02f)
+            if (delta < 0f && v > 1000d && -delta > v * 0.02d)
                 Debug.LogWarning($"[RES-AUDIT] {id}: {v:F0} -> {nv:F0}（-{(-delta/v*100f):F1}%，年{Year}）");
-            Res[id] = Mathf.Max(0, nv);
+            Res[id] = System.Math.Max(0d, nv);
         }
         public bool CanAfford(Dictionary<string,int> cost)
         {
