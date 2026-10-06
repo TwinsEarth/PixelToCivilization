@@ -283,6 +283,8 @@ namespace PixelToCivilization.Systems
                 if (ct!=null)
                 {
                     b.AttackCooldown = Mathf.Max(0,b.AttackCooldown-dt);
+                    // V9.6.4 炮塔/弩机随攻击转向目标（模型子物体 LookAt，XZ 平面）
+                    AimTowerAt(b, ct);
                     if (b.AttackCooldown<=0)
                     {
                         float dmg=b.Def.GetFunc("attack")*(1+(lv-1)*0.3f);
@@ -293,33 +295,121 @@ namespace PixelToCivilization.Systems
                     }
                 }
             }
+            // V9.6.4 烽火台常驻传警烟效：无攻击属性，每 3 秒在 Beacon 位置重放烟柱
+            if (_beaconCd>0f) _beaconCd-=dt;
+            else
+            {
+                _beaconCd=3f;
+                foreach (var b in S.Buildings)
+                {
+                    if (b.Type!="watchtower" || b.View==null) continue;
+                    var beacon=b.View.transform.Find("Beacon");
+                    float h = beacon!=null ? beacon.position.y : b.View.transform.position.y+2f;
+                    WeaponFxSystem.Smoke(new Vector3(b.X,h,b.Z), 0.9f);
+                }
+            }
+        }
+        float _beaconCd=0f;
+
+        /// <summary>V9.6.4 炮塔(炮管)/箭塔(弩臂) 朝向目标（水平面 LookAt）</summary>
+        static void AimTowerAt(BuildingEntity b, CombatTarget ct)
+        {
+            if (b.View==null) return;
+            var dir = new Vector3(ct.X-b.X, 0f, ct.Z-b.Z);
+            if (dir.sqrMagnitude<0.0001f) return;
+            Quaternion q=Quaternion.LookRotation(dir.normalized);
+            var gun = b.View.transform.Find(b.Type=="arrow_tower" ? "BowArm" : "TurretGun");
+            if (gun!=null) gun.localRotation=q;
         }
 
         public void FireProjectile(float x, float z, CombatTarget target, float damage, string kind="arrow")
         {
+            // V9.6.4 碉堡四面机枪齐射：目标方向 + 逆时针 90/180/270° 共 4 发，每发 25% 总伤（总伤=全额，四面扫射观感）
+            if (kind=="mg")
+            {
+                Vector3 main = new Vector3(target.X-x, 0f, target.Z-z);
+                if (main.sqrMagnitude<0.0001f) main=Vector3.forward;
+                main=main.normalized;
+                for (int i=0;i<4;i++)
+                {
+                    float a = i*90f*Mathf.Deg2Rad;
+                    Vector3 d = new Vector3(main.x*Mathf.Cos(a)-main.z*Mathf.Sin(a), 0f, main.x*Mathf.Sin(a)+main.z*Mathf.Cos(a));
+                    SpawnProjectileView(x, z, target.X, target.Z, damage*0.25f, kind, d, target);
+                }
+                return;
+            }
+            SpawnProjectileView(x, z, target.X, target.Z, damage, kind, new Vector3(target.X-x,0f,target.Z-z), target);
+        }
+
+        /// <summary>V9.6.4 单发投射物：创建 ProjectileEntity + 分型视图（箭矢/火龙/炮弹/机枪弹），统一 Muzzle 闪光与弹道拖尾。</summary>
+        void SpawnProjectileView(float x, float z, float tx, float tz, float damage, string kind, Vector3 dir, CombatTarget target)
+        {
             bool mg = kind=="mg";
+            var vel = new Vector3(tx-x, 0f, tz-z);
+            if (vel.sqrMagnitude<0.0001f) vel=Vector3.forward;
+            vel=vel.normalized*(mg?26f:18f);
             var p = new ProjectileEntity
             {
-                Pos=new Vector3(x,2,z), Vel=new Vector3(target.X-x,0,target.Z-z).normalized*(mg?26f:18f),
-                Damage=damage, Life=2f, Kind=kind, Target=target
+                Pos=new Vector3(x,2.3f,z), Vel=vel,
+                Damage=damage, Life=2f, Kind=kind,
+                Target=mg?null:(object)target, HomeX=target!=null?target.X:x, HomeZ=target!=null?target.Z:z
             };
             // V9.5.3 统一武器特效：塔防开火炮口闪光（桶池化，见 WeaponFxSystem）
-            WeaponFxSystem.Muzzle(new Vector3(x, 3.2f, z), kind=="cannonball"?1.6f:(kind=="fire"?1.2f:(mg?0.5f:0.9f)));
-            Color c = kind=="cannonball"?new Color(0.2f,0.2f,0.2f)
-                    : kind=="fire"?new Color(1f,0.45f,0.1f):new Color(0.9f,0.8f,0.4f);
-            // V9.6.3h 投射物分型：箭矢=细长箭杆（沿飞行方向）、火球=橙球+外焰、炮弹=黑球、机枪=金黄短弹
+            WeaponFxSystem.Muzzle(new Vector3(x, 3.4f, z), kind=="cannonball"?1.6f:(kind=="fire"?1.5f:(mg?0.5f:0.9f)));
+            // V9.6.4 分型发射表现：箭矢=弩箭(杆+红箭头)、火龙=火球+外焰(开火喷火龙)、炮弹=黑球(弹道拖尾)、机枪=金黄短弹(拖尾)
             if (kind=="arrow")
             {
-                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Capsule,c,1f);
-                p.View.transform.localScale=new Vector3(0.07f,0.5f,0.07f);
-                var vd=new Vector3(p.Vel.x,0,p.Vel.z);
+                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Capsule,new Color(0.85f,0.6f,0.25f),1f);
+                p.View.transform.localScale=new Vector3(0.09f,0.8f,0.09f);
+                var vd=new Vector3(vel.x,0,vel.z);
                 if (vd.sqrMagnitude>0.01f) p.View.transform.localRotation=Quaternion.FromToRotation(Vector3.up,vd.normalized);
+                // 红箭头（前头铁簇）+ V9.6.4 尾羽（两片木羽，增强弩箭辨识）
+                var head=GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Object.Destroy(head.GetComponent<Collider>());
+                head.name="head";
+                head.transform.SetParent(p.View.transform,false);
+                head.transform.localPosition=new Vector3(0,0.42f,0);
+                head.transform.localScale=Vector3.one*0.11f;
+                head.GetComponent<Renderer>().sharedMaterial=ShaderHelper.Emissive(new Color(1f,0.15f,0.1f),new Color(2f,0.2f,0.1f));
+                for(int fi=0; fi<2; fi++)
+                {
+                    var fin=GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Object.Destroy(fin.GetComponent<Collider>());
+                    fin.name="fin"+fi;
+                    fin.transform.SetParent(p.View.transform,false);
+                    fin.transform.localPosition=new Vector3((fi==0?-0.07f:0.07f),-0.42f,0f);
+                    fin.transform.localScale=new Vector3(0.05f,0.18f,0.09f);
+                    fin.GetComponent<Renderer>().sharedMaterial=ShaderHelper.Pbr(new Color(0.86f,0.75f,0.55f),0f,0.3f,909,1.2f);
+                }
             }
             else if (mg)
-                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,new Color(1f,0.82f,0.25f),0.12f);
+            {
+                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,new Color(1f,0.82f,0.25f),0.16f);
+                WeaponFxSystem.Tracer(p.Pos, p.Pos + vel.normalized*5f);   // 机枪弹道拖尾
+            }
             else if (kind=="fire")
-                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,c,0.42f);
-            else p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,c,0.26f);
+            {
+                // V9.6.4 火龙：拉长火焰体（capsule 沿飞行方向）+ 外焰半透明球；开火瞬间喷火龙（FlameJet）
+                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Capsule,new Color(1f,0.45f,0.1f),1f);
+                p.View.transform.localScale=new Vector3(0.34f,1.3f,0.34f);
+                var vd2=new Vector3(vel.x,0,vel.z);
+                if (vd2.sqrMagnitude>0.01f) p.View.transform.localRotation=Quaternion.FromToRotation(Vector3.up,vd2.normalized);
+                p.View.GetComponent<Renderer>().sharedMaterial=ShaderHelper.Emissive(new Color(1f,0.4f,0.06f),new Color(3f,1.2f,0.2f));
+                var halo=GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Object.Destroy(halo.GetComponent<Collider>());
+                halo.name="halo";
+                halo.transform.SetParent(p.View.transform,false);
+                halo.transform.localPosition=new Vector3(0,0.6f,0);
+                halo.transform.localScale=Vector3.one*0.55f;
+                halo.GetComponent<Renderer>().sharedMaterial=ShaderHelper.Trans(new Color(1f,0.55f,0.12f,0.35f));
+                WeaponFxSystem.FlameJet(new Vector3(x,3f,z), new Vector3(vel.x,0,vel.z), 1f);
+            }
+            else
+            {
+                p.View=EntityViewFactory.SpawnPooled("Projectile",_root,PrimitiveType.Sphere,new Color(0.2f,0.2f,0.2f),0.34f);
+                WeaponFxSystem.Tracer(p.Pos, p.Pos + vel.normalized*7f);   // 炮弹弹道拖尾
+                WeaponFxSystem.Smoke(new Vector3(x,3.3f,z),0.55f);         // V9.6.4 炮口硝烟（发射瞬间）
+            }
             S.Projectiles.Add(p);
         }
 
@@ -333,17 +423,23 @@ namespace PixelToCivilization.Systems
                     p.Vel=new Vector3(ct.X-p.Pos.x,0f,ct.Z-p.Pos.z).normalized*18f;
                 p.Pos += p.Vel*dt;
                 if (p.View) p.View.transform.position=p.Pos;
-                if (p.Target is CombatTarget t && t.Hp>0f &&
-                    Vector3.Distance(p.Pos,new Vector3(t.X,p.Pos.y,t.Z))<1.6f)
+                // V9.6.4 命中判定：有目标(箭/龙/炮)按目标距离；无目标(碉堡四向直飞)按固定命中点
+                bool hit;
+                Vector3 hp;
+                if (p.Target is CombatTarget t2 && t2.Hp>0f)
+                { hit = Vector3.Distance(p.Pos,new Vector3(t2.X,p.Pos.y,t2.Z))<1.6f; hp=new Vector3(t2.X,1.2f,t2.Z); }
+                else
+                { hit = Vector3.Distance(p.Pos,new Vector3(p.HomeX,p.Pos.y,p.HomeZ))<1.6f; hp=new Vector3(p.HomeX,1.2f,p.HomeZ); }
+                if (hit)
                 {
                     // V9.5.3 统一武器特效：命中火花/爆炸 + 音效（桶池化）
-                    var hp=new Vector3(t.X,1.2f,t.Z);
-                    if (p.Kind=="fire"){ WeaponFxSystem.Explosion(hp); WeaponFxSystem.Sfx("cannon_explode",hp,0.85f); GM.Combat.DamageArea(t.X,t.Z,4f,p.Damage,CombatSystem.PlayerKey); p.Life=0; }
+                    if (p.Kind=="fire"){ WeaponFxSystem.Explosion(hp); WeaponFxSystem.Burn(hp,0.9f); WeaponFxSystem.Sfx("cannon_explode",hp,0.85f); GM.Combat.DamageArea(p.HomeX,p.HomeZ,4f,p.Damage,CombatSystem.PlayerKey); p.Life=0; }
                     else if (p.Kind=="cannonball"){
                         WeaponFxSystem.Explosion(hp); WeaponFxSystem.Sfx("cannon_explode",hp,0.9f);
-                        GM.Combat.DamageArea(t.X,t.Z,5f,p.Damage*0.5f,CombatSystem.PlayerKey);
-                        GM.Combat.Damage(t,p.Damage*0.5f); p.Life=0; }
-                    else { WeaponFxSystem.Hit(hp); GM.Combat.Damage(t,p.Damage); p.Life=0; }
+                        GM.Combat.DamageArea(p.HomeX,p.HomeZ,5f,p.Damage*0.5f,CombatSystem.PlayerKey);
+                        if (p.Target is CombatTarget t3) GM.Combat.Damage(t3,p.Damage*0.5f); p.Life=0; }
+                    else if (p.Kind=="mg"){ WeaponFxSystem.Hit(hp); if (p.Target is CombatTarget t4) GM.Combat.Damage(t4,p.Damage); p.Life=0; }
+                    else { WeaponFxSystem.Hit(hp); if (p.Target is CombatTarget t5) GM.Combat.Damage(t5,p.Damage); p.Life=0; }
                 }
                 if (p.Life<=0){ if(p.View)EntityViewFactory.RecyclePooled(p.View,p.Kind=="arrow"?PrimitiveType.Capsule:PrimitiveType.Sphere); S.Projectiles.RemoveAt(i); }   // V9.6.3h 回收池 key 与投射物类型一致（箭矢=Capsule）
             }
