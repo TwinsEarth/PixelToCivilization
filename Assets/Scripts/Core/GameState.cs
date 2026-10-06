@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Data;
@@ -54,6 +54,10 @@ namespace PixelToCivilization.Core
         public BuildingEntity SelectedBuilding;
         public string Tool = "select";
         public string BuildCat = "居住";
+
+        // ---- V9.6.0 紧急集结令（插旗）：navy=海军 / ground=地面部队 / inf=军人；-9999 表示无旗 ----
+        public string RallyKind = "";
+        public float RallyX = -9999f, RallyZ = -9999f;
 
         // ---- 科技/政策 ----
         public HashSet<string> ResearchedTechs = new();
