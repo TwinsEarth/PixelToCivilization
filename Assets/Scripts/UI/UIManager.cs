@@ -101,7 +101,7 @@ namespace PixelToCivilization.UI
             _splash.GetComponent<Image>().raycastTarget=false;
             var title=UITheme.Label("Title",_splash.transform,"从 像 素 到 文 明",64,TextAnchor.MiddleCenter,UITheme.HexA(0xffffff,1));
             Place(title.rectTransform,new Vector2(0.5f,0.68f),new Vector2(0.5f,0.68f),new Vector2(-400,-40),new Vector2(400,40));
-            var sub=UITheme.Label("Sub",_splash.transform,"V9.5.6 · 资源异常扣减审计 · 地面部队编队修复 · 存档空槽 · 车辆越野 · 九神AI · 真实地球",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
+            var sub=UITheme.Label("Sub",_splash.transform,"V9.6.0 · 紧急集结令（三军插旗列阵） · 建筑真实化（屋顶等级/三层台基/现实高度） · 九神AI · 真实地球",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
             Place(sub.rectTransform,new Vector2(0.5f,0.56f),new Vector2(0.5f,0.56f),new Vector2(-400,-18),new Vector2(400,18));
             // 主按钮：开始新游戏（带 10 秒无操作自动开局倒计时）
             var start=UITheme.Btn("Start",_splash.transform,"",26,UITheme.BtnGold); // V7.0.2 橙色主按钮
@@ -447,6 +447,13 @@ namespace PixelToCivilization.UI
                 bool on=kv.Key==tool && tool!="build";
                 var timg=kv.Value.GetComponent<Image>();timg.color = on?UITheme.ChipActive:UITheme.Chip;
                 var ttx=kv.Value.GetComponentInChildren<Text>();if(ttx)ttx.color=on?UITheme.ChipActiveText:UITheme.Text;
+            }
+            // V9.6.0 集结令：切到其他工具时撤销集结高亮（保持旗与集结目标，仅退出插旗模式）
+            if(_rallyBtn!=null && GM.Tool!="rally")
+            {
+                var rimg=_rallyBtn.GetComponent<Image>();
+                if(rimg!=null) rimg.color=UITheme.Chip;
+                UITheme.SetOutline(_rallyBtn.gameObject,UITheme.Text,1);
             }
         }
         private void ToggleSound()
