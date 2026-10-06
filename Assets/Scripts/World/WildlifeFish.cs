@@ -50,6 +50,7 @@ namespace PixelToCivilization.World
         readonly List<School> _schools=new();
         readonly List<Fish> _all=new();
         readonly List<Vector3> _waters=new();
+        float _sepAt;   // V9.4.6 鱼个体分离节流（4Hz）
         Transform _root;
         WorldGenerator _terrain;
         Vector3 _home;
@@ -280,12 +281,13 @@ namespace PixelToCivilization.World
             float mid=(total-1)*0.5f;
             switch(f)
             {
-                case FishFormation.I:    return new Vector3(0,0,(slot-mid)*1.1f);
-                case FishFormation.Line: return new Vector3((slot-mid)*1.1f,0,0);
+                // V9.4.6 阵型间距 ×1.4（原 1.1→1.54 等）：鱼体带体积碰撞不重叠
+                case FishFormation.I:    return new Vector3(0,0,(slot-mid)*1.54f);
+                case FishFormation.Line: return new Vector3((slot-mid)*1.54f,0,0);
                 case FishFormation.V:
                     if(slot==0)return Vector3.zero;
-                    {int row=(slot+1)/2;float side=(slot%2==1)?-1f:1f;return new Vector3(side*0.9f*row,0,1.0f*row);}
-                case FishFormation.S: return new Vector3(Mathf.Sin(t*Mathf.PI*2f)*1.4f,0,(t-0.5f)*total*1.0f);
+                    {int row=(slot+1)/2;float side=(slot%2==1)?-1f:1f;return new Vector3(side*1.26f*row,0,1.4f*row);}
+                case FishFormation.S: return new Vector3(Mathf.Sin(t*Mathf.PI*2f)*1.96f,0,(t-0.5f)*total*1.4f);
             }
             return Vector3.zero;
         }
@@ -370,9 +372,35 @@ namespace PixelToCivilization.World
                 if(nowYear-f.BirthYear>=f.LifeYears) RemoveFish(f,i);
             }
             // 缓慢维持种群
-            if(_all.Count<MaxFish*0.7f && Random.value<dt*0.2f)
+            if(_all.Count<MaxFish*0.7f && Random.value<dt*0.2f && Core.MemoryBudgetManager.GlobalSpawnGate)   // V9.6.4 临界水位钳制补群
             {
                 if(_schools.Count<58) SpawnSchool(); else SpawnLone();
+            }
+            SeparateFish(dt);   // V9.4.6 鱼个体体积分离（含孤鱼，4Hz）
+        }
+
+        /// <summary>V9.4.6 鱼个体体积分离：两两推开，防鱼群/游荡重叠；半径 1.0 世界单位</summary>
+        void SeparateFish(float dt)
+        {
+            if(Time.unscaledTime<_sepAt) return;
+            _sepAt=Time.unscaledTime+0.25f;
+            const float minSq=1.0f*1.0f;
+            for(int i=0;i<_all.Count;i++)
+            {
+                var a=_all[i]; if(a.Root==null) continue;
+                for(int j=i+1;j<_all.Count;j++)
+                {
+                    var b=_all[j]; if(b.Root==null) continue;
+                    Vector3 pa=a.Root.position,pb=b.Root.position;
+                    float dx=pb.x-pa.x,dz=pb.z-pa.z; float d2=dx*dx+dz*dz;
+                    if(d2>0.0001f&&d2<minSq)
+                    {
+                        float d=Mathf.Sqrt(d2); float push=(1.0f-d)*0.3f;
+                        float ux=dx/d,uz=dz/d;
+                        a.Root.position=pa-new Vector3(ux*push,0,uz*push);
+                        b.Root.position=pb+new Vector3(ux*push,0,uz*push);
+                    }
+                }
             }
         }
 
