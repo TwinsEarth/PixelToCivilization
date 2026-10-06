@@ -137,7 +137,8 @@ namespace PixelToCivilization.Systems
             return true;
         }
 
-        /// <summary>Debug/Web：无消耗造车（探针入口；按当前时代换型）</summary>
+        /// <summary>Debug/Web：无消耗造车（探针入口；按当前时代换型）。V9.6.3f：生成点改为出生地（主村落）附近 20–60 单位环，
+        /// 不再绕世界原点 (0,0)——原实现导致"生成后不在出生地"（主大陆中心在出生地而非原点）。</summary>
         public int DebugBuildOwn(int n)
         {
             if(_terrain==null) return 0;
@@ -145,6 +146,8 @@ namespace PixelToCivilization.Systems
             string[] types=S.Year>=4949
                 ? new[]{"tank","apc","missile_vehicle"}
                 : new[]{"cavalry","phalanx","chariot"};
+            float ox = GM.State.VillageX.Count>0 ? GM.State.VillageX[0] : 0f;   // V9.6.3f 出生地中心
+            float oz = GM.State.VillageZ.Count>0 ? GM.State.VillageZ[0] : 0f;
             for(int k=0;k<n;k++)
             {
                 string t=types[Random.Range(0,types.Length)]; var d=Defs[t];
@@ -152,8 +155,8 @@ namespace PixelToCivilization.Systems
                 float x=0,z=0; bool land=false;
                 for(int i=0;i<32&&!land;i++)
                 {
-                    float ang=Random.value*Mathf.PI*2f, dist=30f+Random.value*50f;
-                    x=Mathf.Cos(ang)*dist; z=Mathf.Sin(ang)*dist;
+                    float ang=Random.value*Mathf.PI*2f, dist=20f+Random.value*40f;
+                    x=ox+Mathf.Cos(ang)*dist; z=oz+Mathf.Sin(ang)*dist;
                     if(!_terrain.IsWater(x,z)) land=true;
                 }
                 if(!land) continue;
@@ -162,7 +165,7 @@ namespace PixelToCivilization.Systems
                 u.View=BuildView(u,d);
                 Ours.Add(u); AssignGroup(u); made++;
             }
-            if(made>0) GM.AddEvent("good","🛡 Debug 我方地面部队 "+made+" 辆就位");
+            if(made>0) GM.AddEvent("good","🛡 Debug 我方地面部队 "+made+" 辆就位（出生地附近）");
             return made;
         }
 
@@ -198,10 +201,14 @@ namespace PixelToCivilization.Systems
                 : new[]{"cavalry","phalanx","chariot","cavalry","phalanx"};
             string t=types[Random.Range(0,types.Length)]; var d=Defs[t];
             var fac=LeastRepresentedFaction();
+            // V9.6.3f：敌方镜像同样以出生地为中心（60–140 单位环），与我方出生地部队处于同一雷达作战半径内
+            // （原绕原点 (0,0) 生成，出生地偏离原点时双方相距过远 → 互不可见 → "不主动寻敌/不战斗"）
+            float ox = GM.State.VillageX.Count>0 ? GM.State.VillageX[0] : 0f;
+            float oz = GM.State.VillageZ.Count>0 ? GM.State.VillageZ[0] : 0f;
             float x=0,z=0; bool land=false;
             for(int k=0;k<32&&!land;k++)
-            { float a=Random.value*Mathf.PI*2, rr=60f+Random.value*40f;
-              x=Mathf.Cos(a)*rr; z=Mathf.Sin(a)*rr;
+            { float a=Random.value*Mathf.PI*2, rr=60f+Random.value*80f;
+              x=ox+Mathf.Cos(a)*rr; z=oz+Mathf.Sin(a)*rr;
               if(_terrain==null||!_terrain.IsWater(x,z)) land=true; }
             var u=new GroundUnit{TypeId=t,Name=fac.name+"·"+d.Name,Side="enemy",X=x,Z=z,Level=1,
                 BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,BaseRange=d.Range,Range=d.Range,Speed=d.Speed,
@@ -342,13 +349,14 @@ namespace PixelToCivilization.Systems
                 u.HasRoute=true;                             // 已到位：保持待命状态，防下帧重新选点被拉走
                 return;
             }
-            // 领队 / 无组：陆地随机巡航
+            // 领队 / 无组：陆地随机巡航。V9.6.3f：航点以单位自身为中心（40–100 单位环）——
+            // 原绕世界原点 (0,0) 找点，出生地偏离原点时单位会被拉到原点附近"莫名坐标"，视觉即"被拉到某处不动"
             if(!u.HasRoute)
             {
                 u.HasRoute=true;
                 for(int k=0;k<24;k++)
                 { float a=Random.value*Mathf.PI*2, rr=40f+Random.value*60f;
-                  float nx=Mathf.Cos(a)*rr, nz=Mathf.Sin(a)*rr;
+                  float nx=u.X+Mathf.Cos(a)*rr, nz=u.Z+Mathf.Sin(a)*rr;
                   if(!_terrain.IsWater(nx,nz)){ u.RX=nx; u.RZ=nz; break; } }
             }
             float dx=u.RX-u.X,dz=u.RZ-u.Z;
@@ -377,11 +385,14 @@ namespace PixelToCivilization.Systems
             return idx;
         }
 
-        /// <summary>V9.6.3 地面部队速度统一钳制：Lv1=0.01 格/秒 → Lv10=0.10 格/秒（最高 0.1、最低 0.01，随等级线性成长）</summary>
+        /// <summary>V9.6.3 地面部队速度统一钳制：Lv1=0.01 格/秒 → Lv10=0.10 格/秒（最高 0.1、最低 0.01，随等级线性成长）。
+        /// V9.6.3f：钳制整体上调 ×10 → Lv1=0.10 格/秒 → Lv10=1.00 格/秒。
+        /// 根因：0.01–0.10 格/秒 ×Tile4 = 0.04–0.40 世界单位/秒，肉眼不可见移动，60 格雷达内追击需数十分钟
+        /// → "生成后不主动寻敌、组队、战斗"（实际在动但极慢）。保留钳制语义与随等级成长，恢复可感知作战移动。</summary>
         public static float ClampedGroundSpeed(GroundUnit u)
         {
             float lv = Mathf.Clamp(u!=null ? u.Level : 1, 1, 10);
-            return 0.01f + 0.09f * (lv - 1f) / 9f;
+            return 0.10f + 0.90f * (lv - 1f) / 9f;
         }
 
         void MoveToward(GroundUnit u,float tx,float tz,float dt,float mul)
@@ -485,7 +496,7 @@ namespace PixelToCivilization.Systems
             u.Level++;
             u.MaxHp=Mathf.RoundToInt(u.BaseMaxHp*(1f+0.12f*(u.Level-1)));
             u.BaseAttack=Mathf.RoundToInt(u.BaseAttack*1.08f);
-            u.Range=Mathf.Min(u.BaseRange+5, u.BaseRange+(u.Level-1));   // V9.6.3 射程 +1 格/级（上限 +5）
+            u.Range=Mathf.Min(50, Mathf.Min(u.BaseRange+5, u.BaseRange+(u.Level-1)));   // V9.6.3 射程 +1 格/级（上限 +5）；V9.6.3f2 硬上限 50 格（用户要求"地面作战单位≤50格"）
             u.Hp=Mathf.Min(u.MaxHp, u.Hp+u.MaxHp*0.3f);
             GM.AddEvent("good","🎖 "+(free?"战功晋升":"升级")+"："+u.Name+" → Lv"+u.Level
                 +"（攻击 "+u.BaseAttack+" 耐久 "+u.MaxHp+" 射程 "+u.Range+"）");
