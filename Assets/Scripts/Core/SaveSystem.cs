@@ -89,6 +89,13 @@ namespace PixelToCivilization.Core
         public int WonderCount; public string[] WId; public int[] WYear; public float[] WX,WZ;
         public string[] Achievements; public bool WonderAuto;
         public long SaveTime;
+        // V9.6.6 存档架构：schema 版本 / 格式标识 / 校验和 / 迁移链 / ISaveable 扩展区
+        public int SaveSchema;                 // 0=旧档（V9.6.5 及以前）→ 3=当前（SaveVersionMigrator.CurrentSchema）
+        public string SaveFormat;              // "PxC-SAVE-V1"
+        public string ChecksumHex;             // FNV-1a 64 over 排除本字段的完整 JSON
+        public string MigrationChain;          // 已应用迁移记录，如 "0->3"
+        public string[] ExtKeys;               // ISaveable 注册系统键
+        public string[] ExtVals;               // ISaveable 序列化 JSON
     }
 
     /// <summary>槽位摘要（供存档列表渲染，不反序列化全部）</summary>
@@ -126,7 +133,211 @@ namespace PixelToCivilization.Core
         public const int RollbackSlots = 3;           // rollback0/1/2
         public float AutoCountdown => Mathf.Max(0f, AutoSaveInterval-_autoTimer);
 
-        /// <summary>V9.6.5 自动保存（含回滚滚动 + 健康标记）；安全模式下降频至 20s。</summary>
+        // ---------- V9.6.6 存档架构 ----------
+        private readonly List<ISaveable> _saveables = new List<ISaveable>();
+        private readonly Queue<PendingSave> _pendingEncode = new Queue<PendingSave>();
+        private readonly object _pendingLock = new object();          // 异步入队（桌面端后台线程）与主线程提交的互斥
+        private bool _busyAsync;
+        private sealed class PendingSave { public int Slot; public string JsonNoChecksum; public string SumJson; public string Hex; }
+
+        /// <summary>注册可存档系统（ISaveable）。重复注册同一 SaveKey 覆盖。</summary>
+        public void Register(ISaveable s)
+        {
+            if (s == null) return;
+            _saveables.RemoveAll(x => x.SaveKey == s.SaveKey);
+            _saveables.Add(s);
+        }
+
+        /// <summary>V9.6.6 浏览器探针：槽位存在位/schema/校验状态/临时键/备份键/回滚槽（回归用）。</summary>
+        public string WebSaveProbe()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("slot:");
+            for (int i = 0; i <= ManualSlots; i++) sb.Append(HasSlot(i) ? "1" : "0");
+            sb.Append("|roll:");
+            for (int i = 0; i < RollbackSlots; i++) sb.Append(PlayerPrefs.HasKey(RollKey(i)) ? "1" : "0");
+            sb.Append("|schema:");
+            int anySchema = 0;
+            for (int i = 0; i <= ManualSlots; i++)
+                if (HasSlot(i)) { var s = ReadSchemaForTest(i); if (s > 0) { anySchema = s; break; } }
+            sb.Append(anySchema);
+            sb.Append("|tmp:");
+            bool hasTmp = false;
+            for (int i = 0; i <= ManualSlots; i++) if (PlayerPrefs.HasKey("PxC_Tmp_" + i)) hasTmp = true;
+            sb.Append(hasTmp ? "1" : "0");
+            sb.Append("|bak:");
+            int baks = 0;
+            for (int i = 1; i <= ManualSlots; i++) if (PlayerPrefs.HasKey("PxC_Bak_" + i)) baks++;
+            sb.Append(baks);
+            return sb.ToString();
+        }
+        /// <summary>读取槽位存档 schema 版本（0=旧档/空；用于探针与迁移检查）。</summary>
+        public int ReadSchemaForTest(int slot)
+        {
+            if (!HasSlot(slot)) return 0;
+            try
+            {
+                var d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(Key(slot)));
+                return d != null ? d.SaveSchema : 0;
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>V9.6.6 启动清理：删除残留临时键（原子写中断留下的 PxC_Tmp_*）。</summary>
+        public void CleanupTempKeys()
+        {
+            for (int i = 0; i <= ManualSlots; i++)
+                if (PlayerPrefs.HasKey("PxC_Tmp_" + i)) PlayerPrefs.DeleteKey("PxC_Tmp_" + i);
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>V9.6.6 槽位列表（0..5 摘要，损坏也标出）。</summary>
+        public List<SlotSummary> ListSlots()
+        {
+            var list = new List<SlotSummary>(ManualSlots + 1);
+            for (int i = 0; i <= ManualSlots; i++) list.Add(Summarize(i));
+            return list;
+        }
+
+        /// <summary>V9.6.6 写前备份：手动槽覆盖前把旧档备份到 PxC_Bak_&lt;slot&gt;（自动槽走回滚链）。</summary>
+        private void BackupBeforeWrite(int slot)
+        {
+            if (slot == 0) return;
+            string k = Key(slot);
+            if (!PlayerPrefs.HasKey(k)) return;
+            PlayerPrefs.SetString("PxC_Bak_" + slot, PlayerPrefs.GetString(k));
+            if (PlayerPrefs.HasKey(SumKey(slot))) PlayerPrefs.SetString("PxC_BakSum_" + slot, PlayerPrefs.GetString(SumKey(slot)));
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>V9.6.6 从写前备份恢复指定手动槽（防覆盖误操作）。</summary>
+        public bool RestoreBackup(int slot)
+        {
+            if (slot == 0) return false;
+            string bk = "PxC_Bak_" + slot;
+            if (!PlayerPrefs.HasKey(bk)) { _gm?.AddEvent("bad", "存档位 " + slot + " 无写前备份"); return false; }
+            PlayerPrefs.SetString(Key(slot), PlayerPrefs.GetString(bk));
+            if (PlayerPrefs.HasKey("PxC_BakSum_" + slot)) PlayerPrefs.SetString(SumKey(slot), PlayerPrefs.GetString("PxC_BakSum_" + slot));
+            PlayerPrefs.Save();
+            _gm?.AddEvent("good", "↩ 已从写前备份恢复存档位 " + slot);
+            return true;
+        }
+
+        /// <summary>V9.6.6 原子写入：临时键（阶段1）→ 校验 → 正式键（阶段2）→ 清临时。
+        /// 任意阶段中断，正式槽要么旧档完整、要么新档完整，绝无半写状态。</summary>
+        private bool AtomicWrite(int slot, string finalJson, string sumJson)
+        {
+            string tmp = "PxC_Tmp_" + slot;
+            PlayerPrefs.SetString(tmp, finalJson);
+            PlayerPrefs.Save();                                   // 阶段1：写临时（校验前）
+            if (SaveEnvelope.Verify(finalJson) == null)           // 校验（新档校验和精确匹配 / 旧档结构放行）
+            {
+                PlayerPrefs.DeleteKey(tmp);
+                PlayerPrefs.Save();
+                return false;                                     // 校验失败：丢弃，正式档不变
+            }
+            PlayerPrefs.SetString(Key(slot), finalJson);
+            if (!string.IsNullOrEmpty(sumJson)) PlayerPrefs.SetString(SumKey(slot), sumJson);
+            PlayerPrefs.DeleteKey(tmp);
+            PlayerPrefs.Save();                                   // 阶段2：提交正式档
+            return true;
+        }
+
+        /// <summary>V9.6.6 版本打标 + 迁移（写入路径：旧 schema 自动升到当前；读档路径由 Decode 触发）。</summary>
+        private static void MigrateAndStamp(SaveData d)
+        {
+            if (d.SaveSchema != SaveVersionMigrator.CurrentSchema)
+            {
+                if (!SaveVersionMigrator.Migrate(d))
+                    Debug.LogWarning("[Save] 迁移失败，仍按原数据存档（schema=" + d.SaveSchema + "）");
+            }
+            else if (string.IsNullOrEmpty(d.SaveFormat)) d.SaveFormat = SaveVersionMigrator.FormatId;
+        }
+
+        /// <summary>V9.6.6 异步存档：主线程快照 + 后台算校验和 + 主线程提交（Update 队列 drain）。
+        /// done 回调在主线程触发；一次仅允许一个在途异步存档。</summary>
+        public void SaveAsync(int slot, Action<bool> done = null)
+        {
+            if (_busyAsync) { done?.Invoke(false); return; }
+            try
+            {
+                var data = Snapshot();
+                data.SlotName = slot == 0 ? "自动存档" : "存档" + slot;
+                MigrateAndStamp(data);
+                if (slot != 0) BackupBeforeWrite(slot);
+                string jsonNoChecksum = JsonUtility.ToJson(data);     // 主线程（Unity 状态快照已在此收集）
+                string sumJson = JsonUtility.ToJson(new SlotSummaryData
+                {
+                    Slot = slot, Year = data.Year, DynastyName = data.DynastyName,
+                    BuildingCount = data.BuildingCount, SaveTime = data.SaveTime, SlotName = data.SlotName
+                });
+                _busyAsync = true;
+#if UNITY_WEBGL
+                // WebGL 单线程：无后台线程/线程池，Task.Run 不调度 → 校验和计算在主线程同步完成（FNV-1a64 全档 hash 毫秒级）；
+                // 提交仍统一走 Update 队列主线程原子写，保证与桌面端同一提交路径。
+                try
+                {
+                    string hex = SaveChecksum.Fnv1a64Hex(jsonNoChecksum);
+                    if (string.IsNullOrEmpty(hex)) throw new InvalidOperationException("校验和计算失败");
+                    lock (_pendingLock)
+                        _pendingEncode.Enqueue(new PendingSave { Slot = slot, JsonNoChecksum = jsonNoChecksum, SumJson = sumJson, Hex = hex });
+                }
+                catch (Exception e)
+                {
+                    _busyAsync = false;
+                    Debug.LogError("[SaveAsync] " + e.Message);
+                    done?.Invoke(false);
+                    return;
+                }
+#else
+                // 桌面端：后台线程算校验和，避免大档 hash 阻塞主线程
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        string hex = SaveChecksum.Fnv1a64Hex(jsonNoChecksum);
+                        lock (_pendingLock)
+                            _pendingEncode.Enqueue(new PendingSave { Slot = slot, JsonNoChecksum = jsonNoChecksum, SumJson = sumJson, Hex = hex });
+                    }
+                    catch (Exception e) { Debug.LogError("[SaveAsync] " + e.Message); }
+                });
+#endif
+                done?.Invoke(true);   // 已入队（实际落盘由 Update 队列原子提交完成）
+            }
+            catch (Exception e)
+            {
+                _busyAsync = false;
+                Debug.LogError(e);
+                _gm?.AddEvent("bad", "存档失败：" + e.Message);
+                done?.Invoke(false);
+            }
+        }
+
+        /// <summary>V9.6.6 同步存档（保留兼容旧调用点，内部走信封+原子写）。</summary>
+        public void SaveToSlot(int slot)
+        {
+            try
+            {
+                var data = Snapshot();
+                data.SlotName = slot == 0 ? "自动存档" : "存档" + slot;
+                MigrateAndStamp(data);
+                if (slot != 0) BackupBeforeWrite(slot);
+                string final = SaveEnvelope.AttachChecksum(data);
+                if (final == null) throw new Exception("信封序列化失败");
+                string sumJson = JsonUtility.ToJson(new SlotSummaryData
+                {
+                    Slot = slot, Year = data.Year, DynastyName = data.DynastyName,
+                    BuildingCount = data.BuildingCount, SaveTime = data.SaveTime, SlotName = data.SlotName
+                });
+                bool ok = AtomicWrite(slot, final, sumJson);
+                _gm?.AddEvent(ok ? "good" : "bad", ok ? (slot == 0 ? "🤖 自动" : "💾 已") + "保存到" + (slot == 0 ? "自动槽" : "存档位 " + slot)
+                                                     : "存档校验失败，已回滚");
+            }
+            catch (Exception e) { Debug.LogError(e); _gm?.AddEvent("bad", "存档失败：" + e.Message); }
+        }
+
+        /// <summary>V9.6.5 自动保存（含回滚滚动 + 健康标记）；V9.6.6 改为异步写（后台校验和 + 主线程原子提交）。
+        /// 安全模式下降频至 20s。</summary>
         public void AutoSaveNow()
         {
             // 1) 先把当前自动档滚动进回滚链：rollback2 <- rollback1 <- rollback0 <- 旧 auto
@@ -144,11 +355,16 @@ namespace PixelToCivilization.Core
                 if (PlayerPrefs.HasKey(SumKey(0)))
                     PlayerPrefs.SetString(RollSumKey(0), PlayerPrefs.GetString(SumKey(0)));
             }
-            // 2) 写新自动档
-            SaveToSlot(0);
-            // 3) 健康标记：最近一次"成功"自动存档时间戳（崩溃恢复的锚点）
-            PlayerPrefs.SetString(CrashGuardSystem.KeyGood, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-            PlayerPrefs.Save();
+            // 2) 写新自动档（异步原子写）
+            SaveAsync(0, ok =>
+            {
+                if (ok)
+                {
+                    // 3) 健康标记：最近一次"成功"自动存档时间戳（崩溃恢复的锚点）
+                    PlayerPrefs.SetString(CrashGuardSystem.KeyGood, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+                    PlayerPrefs.Save();
+                }
+            });
         }
 
         /// <summary>V9.6.5 崩溃恢复：按 auto → rollback0 → rollback1 → rollback2 依次尝试；成功返回所用槽位名。</summary>
@@ -176,8 +392,11 @@ namespace PixelToCivilization.Core
             {
                 string json = isRoll ? PlayerPrefs.GetString(RollKey(slot - RollSlot(0)))
                                      : PlayerPrefs.GetString(Key(slot));
-                var d = JsonUtility.FromJson<SaveData>(json);
-                if (d == null || d.Year == 0 && d.BuildingCount == 0 && d.AgentCount == 0 && d.Pop == 0) return false; // 空/损坏快照拒绝
+                // V9.6.6 信封校验：新档校验和精确匹配，旧档结构放行；篡改/损坏拒绝
+                var d = SaveEnvelope.Verify(json);
+                if (d == null) return false;                             // 校验失败 → 损坏
+                if (!SaveVersionMigrator.Migrate(d)) return false;       // 版本迁移失败 → 拒绝
+                if (d.Year == 0 && d.BuildingCount == 0 && d.AgentCount == 0 && d.Pop == 0) return false; // 空快照拒绝
                 Apply(d);
                 return true;
             }
@@ -218,7 +437,8 @@ namespace PixelToCivilization.Core
             }
             try
             {
-                var full=JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(Key(slot)));
+                // V9.6.6 全量回退走信封校验（损坏档不参与摘要/最近槽）
+                var full=SaveEnvelope.Verify(PlayerPrefs.GetString(Key(slot)));
                 if (full==null) return null;
                 return new SlotSummaryData{ Slot=slot, Year=full.Year, DynastyName=full.DynastyName,
                     BuildingCount=full.BuildingCount, SaveTime=full.SaveTime,
@@ -358,6 +578,22 @@ namespace PixelToCivilization.Core
             d.WX=s.Wonders.Select(w=>w.X).ToArray();
             d.WZ=s.Wonders.Select(w=>w.Z).ToArray();
             d.Achievements=s.Achievements.ToArray(); d.WonderAuto=s.WonderAuto;
+            // V9.6.6 ISaveable 扩展区：注册系统的序列化 JSON（纯数据，失败单系统跳过）
+            if (_saveables.Count > 0)
+            {
+                var exK = new List<string>(_saveables.Count);
+                var exV = new List<string>(_saveables.Count);
+                for (int i = 0; i < _saveables.Count; i++)
+                {
+                    try
+                    {
+                        string j = _saveables[i].Serialize();
+                        if (!string.IsNullOrEmpty(j)) { exK.Add(_saveables[i].SaveKey); exV.Add(j); }
+                    }
+                    catch (Exception e) { Debug.LogWarning("[Save] ISaveable serialize fail " + _saveables[i].SaveKey + ": " + e.Message); }
+                }
+                d.ExtKeys = exK.ToArray(); d.ExtVals = exV.ToArray();
+            }
             return d;
         }
 
@@ -375,24 +611,6 @@ namespace PixelToCivilization.Core
         }
 
         // ---------- 槽位读写 ----------
-        public void SaveToSlot(int slot)
-        {
-            try
-            {
-                var data=Snapshot();
-                data.SlotName = slot==0?"自动存档":"存档"+slot;
-                PlayerPrefs.SetString(Key(slot),JsonUtility.ToJson(data));
-                // V9.6.4 同写槽位摘要（列表/最近槽只读小 JSON，避免全量解析 GC 尖峰）
-                PlayerPrefs.SetString(SumKey(slot),JsonUtility.ToJson(new SlotSummaryData
-                {
-                    Slot=slot,Year=data.Year,DynastyName=data.DynastyName,
-                    BuildingCount=data.BuildingCount,SaveTime=data.SaveTime,SlotName=data.SlotName
-                }));
-                PlayerPrefs.Save();
-                _gm.AddEvent("good",(slot==0?"🤖 自动":"💾 已")+"保存到"+(slot==0?"自动槽":"存档位 "+slot));
-            }
-            catch(Exception e){ Debug.LogError(e);_gm.AddEvent("bad","存档失败："+e.Message); }
-        }
         public bool HasSlot(int slot)=>PlayerPrefs.HasKey(Key(slot));
 
         /// <summary>返回 0(自动)..5(手动) 中存档时间最新的非空槽位，损坏槽跳过；没有任何有效存档返回 -1。
@@ -411,6 +629,8 @@ namespace PixelToCivilization.Core
         public void DeleteSlot(int slot)
         {
             if(slot==0) return;                 // 自动槽不允许删除
+            // V9.6.6 删除前备份（防误删，可 RestoreBackup 找回）
+            BackupBeforeWrite(slot);
             PlayerPrefs.DeleteKey(Key(slot));
             PlayerPrefs.DeleteKey(SumKey(slot)); // V9.6.4 摘要随档同删
             PlayerPrefs.Save();
@@ -421,7 +641,10 @@ namespace PixelToCivilization.Core
             if(!HasSlot(slot)){ _gm.AddEvent("bad",(slot==0?"自动槽":"存档位 "+slot)+" 为空");return false; }
             try
             {
-                var d=JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(Key(slot)));
+                // V9.6.6 信封校验 + 版本迁移（新档校验和精确匹配；篡改/损坏拒绝）
+                var d = SaveEnvelope.Verify(PlayerPrefs.GetString(Key(slot)));
+                if (d == null) { _gm.AddEvent("bad", "存档位 " + slot + " 校验失败（损坏/篡改），已拒绝加载"); return false; }
+                if (!SaveVersionMigrator.Migrate(d)) { _gm.AddEvent("bad", "存档位 " + slot + " 版本迁移失败，已拒绝加载"); return false; }
                 Apply(d);
                 _gm.AddEvent("good","📂 已读取"+(slot==0?"自动存档":"存档位 "+slot));
                 return true;
@@ -665,6 +888,17 @@ namespace PixelToCivilization.Core
                         Z=d.WZ!=null&&i<d.WZ.Length?d.WZ[i]:0});
             s.Achievements=new System.Collections.Generic.List<string>(d.Achievements??System.Array.Empty<string>());
             s.WonderAuto=d.WonderAuto;
+            // V9.6.6 ISaveable 扩展区恢复：逐个按键匹配注册系统，损坏单系统跳过不影响主流程
+            if (d.ExtKeys != null && d.ExtKeys.Length > 0 && d.ExtVals != null)
+            {
+                for (int i = 0; i < d.ExtKeys.Length && i < d.ExtVals.Length; i++)
+                {
+                    var sys = _saveables.Find(x => x.SaveKey == d.ExtKeys[i]);
+                    if (sys == null) continue;
+                    try { sys.Deserialize(d.ExtVals[i]); }
+                    catch (Exception e) { Debug.LogWarning("[Save] ISaveable restore fail " + d.ExtKeys[i] + ": " + e.Message); }
+                }
+            }
             s.Running=true;
         }
 
@@ -686,6 +920,29 @@ namespace PixelToCivilization.Core
 
         private void Update()
         {
+            // V9.6.6 异步存档提交队列：后台算完校验和 → 主线程原子写（PlayerPrefs 主线程）；锁保护桌面端跨线程入队
+            while (true)
+            {
+                PendingSave e;
+                lock (_pendingLock)
+                {
+                    if (_pendingEncode.Count == 0) break;
+                    e = _pendingEncode.Dequeue();
+                }
+                _busyAsync = false;
+                if (string.IsNullOrEmpty(e.Hex)) { _gm?.AddEvent("bad", "存档后台序列化失败"); continue; }
+                try
+                {
+                    var d = JsonUtility.FromJson<SaveData>(e.JsonNoChecksum);
+                    if (d == null) continue;
+                    d.ChecksumHex = e.Hex;
+                    string final = JsonUtility.ToJson(d);        // 主线程拼装最终存储 JSON
+                    bool ok = AtomicWrite(e.Slot, final, e.SumJson);
+                    _gm?.AddEvent(ok ? "good" : "bad", ok ? (e.Slot == 0 ? "🤖 自动" : "💾 已") + "保存到" + (e.Slot == 0 ? "自动槽" : "存档位 " + e.Slot)
+                                                           : "存档校验失败，已回滚");
+                }
+                catch (Exception ex) { Debug.LogError(ex); _gm?.AddEvent("bad", "存档提交失败：" + ex.Message); }
+            }
             if(_gm==null||_gm.State==null||!_gm.State.Running||_gm.State.Paused)return;
             _autoTimer+=Time.unscaledDeltaTime;   // 现实时间计时，不受倍速影响
             // V9.6.5 安全模式下自动保存降频至 20s（崩溃恢复更快锚点）
