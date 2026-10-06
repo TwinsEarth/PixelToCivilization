@@ -1148,6 +1148,31 @@ namespace PixelToCivilization.Core
             WriteProbe(s);
         }
 
+        /// <summary>V9.6.8 资源双精度探针：gold 置 1000000，逐次 +0.0625×16 → 读回精确值（float 在百万级 ULP≈0.0625 会部分丢失，double 无损）。
+        /// 注：V9.5.6 已有 WebResProbe 综合资源探针，本探针专测双精度累加路径。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebResPrecisionProbe()
+        {
+            if (State == null) { WriteProbe("res:null"); return; }
+            State.Res["gold"] = 1000000d;
+            for (int i = 0; i < 16; i++) State.AddRes("gold", 0.0625f);
+            double v = State.Res["gold"];
+            WriteProbe("res:gold=" + v.ToString("F6") + " expect1000001.000000");
+        }
+
+        /// <summary>V9.6.8 时间帧预算探针：输出年份/倍速/帧年结预算/剩余 Day（切后台大 dt 时剩余 Day 结转下帧，单帧年结≤60）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebTimeProbe()
+        {
+            if (State == null || Time == null) { WriteProbe("time:null"); return; }
+            WriteProbe("time:y=" + State.Year + " spd=" + State.Speed.ToString("F1") + " day=" + State.Day.ToString("F1")
+                + " budget=" + Core.GameTime.MaxYearsPerFrame + " cryo=" + (State.CryoActive ? "on" : "off"));
+        }
+
+        /// <summary>V9.6.8 帧年结计数（编辑器/浏览器统一验证单帧补算上限；GameTime.Tick 每帧推进后由本方法读 Year 增量）。
+        /// 说明：WebGL 下 Unity 帧序稳定，探针两次采样 Year 差 ≤ MaxYearsPerFrame 即证明预算生效。</summary>
+        int _lastProbeYear = int.MinValue;
+
         private void WriteProbe(string s)
         {
             Debug.Log("[Probe] " + s);
