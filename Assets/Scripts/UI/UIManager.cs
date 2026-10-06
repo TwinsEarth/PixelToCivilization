@@ -721,13 +721,14 @@ namespace PixelToCivilization.UI
             UITheme.Label("l1",st.transform,"第"+S.Year+"年·"+GM.Time.DynastyName+"·"+GM.Time.EraName+" 地图:"+(S.CurrentMap=="home"?"母大陆":S.CurrentMap)+"｜人口"+S.Pop+"/"+Mathf.RoundToInt(S.Housing)+" 建筑"+S.Buildings.Count+" 状态"+(S.WarActive?"战":"和")+" 倍速x"+(int)S.Speed+" 航海"+(S.AgeOfSail?"开":"未"),11,TextAnchor.MiddleLeft,UITheme.Gold);
 
             // —— V9.3.10：AI 密钥入口（按钮弹窗输入，仿 Debug 密码门——弹窗出现即聚焦） ——
+            // V9.6.3f：整栏高度缩小到原 1/3（行高 24→8、状态行 12→6、字号 11/12→9/10）
             {
                 var cou=GM.Council;
                 string keyShow = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
-                var keyLbl=UITheme.Label("aiS",outer.transform,"AI 密钥："+keyShow+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://",""),11,TextAnchor.MiddleLeft,UITheme.Sky);
-                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=12;   // V9.3.13 16→14
-                var rk=Row(outer.transform,24);   // V9.3.13 26→24
-                var kbtn=UITheme.Btn("aikey",rk.transform,"设置 AI 密钥（弹窗输入）",12);
+                var keyLbl=UITheme.Label("aiS",outer.transform,"AI 密钥："+keyShow+"｜模型 "+cou.Model,9,TextAnchor.MiddleLeft,UITheme.Sky);
+                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=6;   // V9.6.3f 12→6（缩小1/3）
+                var rk=Row(outer.transform,8);   // V9.6.3f 24→8（缩小1/3）
+                var kbtn=UITheme.Btn("aikey",rk.transform,"AI 密钥",10);
                 kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
                 kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{},_hud!=null?_hud.transform:null); });
             }
