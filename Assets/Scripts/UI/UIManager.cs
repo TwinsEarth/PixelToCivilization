@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -175,7 +175,7 @@ namespace PixelToCivilization.UI
             _splash.GetComponent<Image>().raycastTarget=false;
             var title=UITheme.Label("Title",_splash.transform,"从 像 素 到 文 明",64,TextAnchor.MiddleCenter,UITheme.HexA(0xffffff,1));
             Place(title.rectTransform,new Vector2(0.5f,0.68f),new Vector2(0.5f,0.68f),new Vector2(-400,-40),new Vector2(400,40));
-            var sub=UITheme.Label("Sub",_splash.transform,"V9.6.2 · 投送链修复（机队复用/落地贴地/兜底复位） · 战场战时广播 · 顶部滚动信息条 · 远程投送 · 九神AI · 真实地球",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
+            var sub=UITheme.Label("Sub",_splash.transform,"V9.6.3 · 地面部队速度钳制（0.01-0.1格/秒随等级成长） · 车辆自由行驶（不再强制上路） · 九神AI · 真实地球",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
             Place(sub.rectTransform,new Vector2(0.5f,0.56f),new Vector2(0.5f,0.56f),new Vector2(-400,-18),new Vector2(400,18));
             // 主按钮：开始新游戏（带 10 秒无操作自动开局倒计时）
             var start=UITheme.Btn("Start",_splash.transform,"",26,UITheme.BtnGold); // V7.0.2 橙色主按钮
