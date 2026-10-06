@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Data;
@@ -38,6 +38,7 @@ namespace PixelToCivilization.Core
         public MilitarySystem Military;
         public NavalSystem Naval;
         public GroundWarfareSystem Ground;   // V9.4.6 地面作战部队：坦克/装甲车/导弹车（1949 起，战斗规则参照军舰）
+        public RallySystem Rally;            // V9.6.0 紧急集结令（插旗：蓝=海军/绿=地面/红=军人，100 格列阵）
         public CombatSystem Combat;   // V9.4.7 统一战斗目录：五类单位跨阵营索敌/伤害分发，建筑（除树）可破坏
         public OceanExpansionSystem Ocean;
         public SpaceExpansionSystem Space;
@@ -127,6 +128,7 @@ namespace PixelToCivilization.Core
         Add(Naval = gameObject.GetComponent<NavalSystem>() ?? gameObject.AddComponent<NavalSystem>());
         Add(Ground = gameObject.GetComponent<GroundWarfareSystem>() ?? gameObject.AddComponent<GroundWarfareSystem>()); // V9.4.6 地面作战部队
         Add(Combat = gameObject.GetComponent<CombatSystem>() ?? gameObject.AddComponent<CombatSystem>()); // V9.4.7 统一战斗目录（置于作战单位之后，Tick 末段用最新位置重建）
+        Add(Rally = gameObject.GetComponent<RallySystem>() ?? gameObject.AddComponent<RallySystem>()); // V9.6.0 紧急集结令（蓝旗海军/绿旗地面/红旗军人，100格集结）
             Add(Ocean = gameObject.GetComponent<OceanExpansionSystem>() ?? gameObject.AddComponent<OceanExpansionSystem>());
             Add(Space = gameObject.GetComponent<SpaceExpansionSystem>() ?? gameObject.AddComponent<SpaceExpansionSystem>());
             Add(Canal = gameObject.GetComponent<CanalSystem>() ?? gameObject.AddComponent<CanalSystem>());
@@ -1085,6 +1087,20 @@ namespace PixelToCivilization.Core
             string g = Ground!=null ? Ground.Probe() : "no-ground";
             Debug.Log("[Web] Ground "+g);
         }
+        /// <summary>V9.6.0 浏览器回归：紧急集结令探针（rally:kind|x,z / rally:none）</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebRallyProbe()
+        {
+            Debug.Log("[Web] " + (Rally!=null ? Rally.Probe() : "rally:no-system"));
+        }
+        /// <summary>V9.6.0 浏览器回归：直接落蓝旗（海军集结）于指定坐标</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebRallyNavy(float x, float z)
+        {
+            if (Rally==null){ Debug.Log("[Web] RallyNavy null"); return; }
+            Rally.SetRally("navy", x, z);
+            Debug.Log("[Web] "+Rally.Probe());
+        }
         [UnityEngine.Scripting.Preserve]
         public void WebBuildGround()
         {
@@ -1270,6 +1286,7 @@ namespace PixelToCivilization.Core
             State.Speed = s;
         }
         /// <summary>滑条设速：取整并限制在 [1, MaxSpeed]</summary>
+        [UnityEngine.Scripting.Preserve]
         public void SetSpeedClamped(float v) => State.Speed = Mathf.Clamp(Mathf.Round(v), 1f, MaxSpeed);
         public void SetSpeed(float v) => State.Speed = v;
 
