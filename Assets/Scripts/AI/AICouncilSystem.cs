@@ -171,7 +171,7 @@ namespace PixelToCivilization.AI
             // ② 技术神时代跃迁 → 组织神营建新 Era 基础设施（水井/道路，受经济保底约束）
             if (_synergyUsed < 2 && S.GetRes("food") > 80 && S.GetRes("wood") > 90 && Random.value < 0.45f)
             {
-                string[] cand = S.Era >= 5 ? new[]{"road","well","water_mill"} : S.Era >= 3 ? new[]{"road","well","granary"} : new[]{"road","well"};
+                string[] cand = S.Era >= 5 ? new[]{"well","water_mill"} : S.Era >= 3 ? new[]{"well","granary"} : new[]{"well"};   // V9.6.3 禁系统自动建路：候选剔除 road（道路只能玩家手动建）
                 foreach (var type in cand)
                 {
                     if (GM.Def(type) == null) continue;
@@ -325,7 +325,7 @@ namespace PixelToCivilization.AI
                     // V9.4.0 结构动作：基础设施（道路/水井）先于抽象效率
                     if (InfraBuildingCount()<3)
                     {
-                        string ob=TryBuildStructure(new[]{"road","well"});
+                        string ob=TryBuildStructure(new[]{"well"});   // V9.6.3 禁系统自动建路：候选剔除 road（道路只能玩家手动建）
                         if (ob!=null) return "厘清建制·"+ob+"（行政效率提升）";
                     }
                     // 行政效率：轻微降腐败、提民心
