@@ -63,17 +63,24 @@ namespace PixelToCivilization.Buildings
 
             float w=3f*style.BuildingScale, d=3f*style.BuildingScale, wallH=2.5f*style.BuildingHeight*style.BuildingScale;
             string cat=b.Def!=null?b.Def.Cat:"";
-            // 特殊形制尺寸
+            // 特殊形制尺寸（V9.6.0 现实建筑等级化：不同建筑不同高度）
             switch (b.Type)
             {
-                case "palace": case "grand_hall": w*=2.4f;d*=2.4f;wallH*=1.8f; break;
+                case "palace": case "grand_hall": w*=2.4f;d*=2.4f;wallH*=2.6f; break;   // 太和殿式：通高超殿身（重檐庑殿+三层台基）
                 case "great_wall": case "wall": w*=4f;d*=0.5f;wallH*=1.4f; break;
-                case "pagoda": case "water_clock": w*=0.7f;d*=0.7f;wallH*=3.2f; break;
+                case "pagoda": case "water_clock": w*=0.7f;d*=0.7f;wallH*=3.2f; break;  // 佛塔/水运仪象台：细高密檐
                 case "arrow_tower": case "fire_tower": case "cannon_tower":
-                case "watchtower": case "bunker": w*=0.9f;d*=0.9f;wallH*=2.2f; break;
-                case "skyscraper": w*=0.6f;d*=0.6f;wallH*=7f; break;
-                case "space_elevator": w*=0.4f;d*=0.4f;wallH*=12f; break;
-                case "hut": w*=0.7f;d*=0.7f;wallH*=0.55f; break;
+                case "watchtower": case "bunker": w*=0.9f;d*=0.9f;wallH*=2.2f; break;   // 城台塔楼：高而收分
+                case "skyscraper": w*=0.6f;d*=0.6f;wallH*=7f; break;                   // 高层 10+ 层
+                case "space_elevator": w*=0.4f;d*=0.4f;wallH*=12f; break;              // 超高层（>100m 级）
+                case "hut": w*=0.7f;d*=0.7f;wallH*=0.55f; break;                       // 低层 1-2 层
+                case "temple": w*=1.1f;d*=1.1f;wallH*=1.5f; break;                     // 大式殿堂：七间九架
+                case "barracks": case "new_army": wallH*=1.5f; break;                  // 营房：二层楼式
+                case "stable": wallH*=0.8f; break;                                     // 马厩：单层矮房
+                case "market": case "tea_house": case "caravanserai": wallH*=1.1f; break; // 单层商铺/驿站
+                case "academy_pre": case "school": case "printing_house":
+                case "customs_house": case "telegraph": wallH*=1.25f; break;           // 官署学馆：单层大式
+                case "bank": wallH*=1.4f; break;                                       // 交子铺：两层楼式
                 case "farm": BuildFarm(host,b); return;
                 case "road": case "highway": case "arterial": case "highway_modern": case "interchange": case "railway_pre":
                     BuildRoad(host,b,style); return;
@@ -98,8 +105,18 @@ namespace PixelToCivilization.Buildings
             }
 
             var wallMat = WallMat(style,eraId);
-            // —— 分层台基（接地、层次） ——
-            Box("Base",new Vector3(0,-0.18f,0),new Vector3(w+0.6f,0.36f,d+0.6f),Stone,tr);
+            // —— 分层台基（V9.6.0 现实三段式：台基-屋身-屋顶；太和殿三层汉白玉台基） ——
+            bool grand = b.Type=="palace"||b.Type=="grand_hall";
+            if(grand)  // 三层台基：下宽上收，高 0.84
+            {
+                Box("Base3",new Vector3(0,-0.42f,0),new Vector3(w+1.8f,0.30f,d+1.8f),Stone,tr);
+                Box("Base2",new Vector3(0,-0.14f,0),new Vector3(w+1.2f,0.28f,d+1.2f),Stone,tr);
+                Box("Base",new Vector3(0,0.12f,0),new Vector3(w+0.6f,0.26f,d+0.6f),Stone,tr);
+            }
+            else
+            {
+                Box("Base",new Vector3(0,-0.18f,0),new Vector3(w+0.6f,0.36f,d+0.6f),Stone,tr);
+            }
             Box("Step",new Vector3(0,0.02f,d*0.5f+0.35f),new Vector3(w*0.5f,0.18f,0.5f),Stone,tr);
             if(CurHigh) // LV3：第二级踏跺
                 Box("Step2",new Vector3(0,-0.08f,d*0.5f+0.72f),new Vector3(w*0.72f,0.16f,0.5f),Stone,tr);
@@ -204,7 +221,18 @@ namespace PixelToCivilization.Buildings
         {
             var roofMat=RoofMat(s,eraId);
             float baseY=wallH;
-            switch(s.RoofType)
+            // V9.6.0 屋顶等级按建筑类型裁决（现实古建等级制：重檐庑殿 > 庑殿/歇山 > 悬山 > 硬山）。
+            // 局部变量 rt，不修改共享的 era.Style（避免跨建筑污染）。
+            var rt = s.RoofType;
+            switch (type)
+            {
+                case "palace": case "grand_hall": rt = RoofType.Imperial; break;          // 重檐庑殿（最高礼制）
+                case "temple": case "altar": rt = RoofType.Curved; break;                  // 歇山式（佛寺/祭坛）
+                case "hut": case "rich_house": if (eraId<=3) rt = RoofType.Thatched; break;// 民居硬山草顶/瓦顶
+                case "watchtower": case "arrow_tower": case "fire_tower":
+                case "cannon_tower": case "bunker": rt = RoofType.Flat; break;             // 城台平顶（女墙垛口）
+            }
+            switch(rt)
             {
                 case RoofType.Flat:
                     Box("Roof",new Vector3(0,baseY+0.12f,0),new Vector3(w+0.3f,0.24f,d+0.3f),roofMat,parent);
