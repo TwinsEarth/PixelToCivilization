@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
 using PixelToCivilization.Systems;
@@ -39,6 +39,16 @@ namespace PixelToCivilization.World
                 // V6.1.2 底部工具：种树 / 招民（对齐 v5.9.9 setTool）
                 if (_gm.Tool=="tree") _gm.Env?.PlantTreeAt(tp.x,tp.z);
                 else if (_gm.Tool=="npc") _gm.Env?.RecruitAt(tp.x,tp.z);
+                // V9.6.0 紧急集结令：插旗模式点击陆地落旗（蓝旗海军/绿旗地面/红旗军人），落旗后回到选择
+                else if (_gm.Tool=="rally")
+                {
+                    if (_gm.Rally!=null && !string.IsNullOrEmpty(_gm.State.RallyKind))
+                    {
+                        _gm.Rally.SetRally(_gm.State.RallyKind, tp.x, tp.z);
+                        _gm.Tool="select";
+                    }
+                    else { _gm.Tool="select"; }
+                }
                 // V9.3.8 树木属性面板：选择模式下点击陆地（无建筑/船/车命中时）拾取 10 单位内最近树
                 else if (_gm.Tool=="select")
                 {
@@ -99,15 +109,14 @@ namespace PixelToCivilization.World
             else if (type=="rail") ok=_gm.Intercity!=null && _gm.Intercity.PlayerBuildRail(p.x,p.z);
             else if (type=="intercity_road") ok=_gm.Intercity!=null && _gm.Intercity.PlayerBuildRoad(p.x,p.z);
             // V9.5.3 地面作战部队列装：ground:tank / ground:apc / ground:missile_vehicle（公元1949 起）
-            else if (type!=null && type.StartsWith("ground:")) ok=_gm.Ground!=null && _gm.Ground.BuildGround(type.Substring(6),p.x,p.z);
+            else if (type!=null && type.StartsWith("ground:")) ok=_gm.Ground!=null && _gm.Ground.BuildGround(type.Substring(7),p.x,p.z);
             // V6.1.1 运输分类：cart:/ship: 前缀分流到车辆/船只系统，其余走建筑
             else if (type!=null && type.StartsWith("cart:")) ok=_gm.Cart.BuildCart(type.Substring(5),p.x,p.z);
             else if (type!=null && type.StartsWith("ship:")) ok=_gm.Naval.BuildShip(type.Substring(5),p.x,p.z);
             else
             {
                 ok=_gm.Building.PlaceBuilding(type,p.x,p.z);
-                // V9.4.4 玩家放置道路：40格内自动与最近路网相连（禁止系统自动铺路）
-                if (ok && _gm.ModernTraffic!=null && type!=null && ModernTrafficSystem.IsRoad(type)) _gm.ModernTraffic.OnPlayerRoadPlaced(p.x,p.z);
+                // V9.5.5 取消建筑间自动连接马路：玩家放置的道路保持独立，不自动与最近路网相连
                 // V9.4.5 bridge_* 桥建筑：放置后触发 PlayerBuildBridge（点岸边配对岸成真桥）；失败登记 5 秒自动重试
                 if (ok && _gm.Bridge!=null && type!=null && type.StartsWith("bridge_"))
                 {
