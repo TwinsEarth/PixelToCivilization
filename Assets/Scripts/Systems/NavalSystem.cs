@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
@@ -233,7 +233,7 @@ namespace PixelToCivilization.Systems
             if (!Defs.TryGetValue(s.ShipTypeId,out var d)) return 200f;
             return d.Radar*(1f+(s.Level-1)*0.15f);
         }
-        // V9.4.3 敌方雷达：100格基线×(1+0.15lv)，大舰(SizeCls>=3)加20（Lv1=100/115/130…）
+        // V9.4.3 敌方雷达：100格基线×(1+0.15lv)，大舰(SizeCls≥3)加20（Lv1=100/115/130…）
         public float EnemyDetectRangeOf(ShipEntity e)
         {
             if (!Defs.TryGetValue(e.ShipTypeId,out var d)) return 100f;
@@ -639,16 +639,35 @@ namespace PixelToCivilization.Systems
                     }
                     else {
                         // V9.4.3 优先级：战斗 > 支援低血友军 > 招人(50格) > 巡航
+                        // V9.6.0 紧急集结令：蓝旗（海军）100 格内军舰优先向军旗集结列阵（高于支援/招人/巡航）
                         float ox=s.X,oz=s.Z;
-                        if (support!=null)
+                        bool rallied=false;
+                        if (GM.Rally!=null && GM.Rally.Active("navy"))
                         {
-                            float ds=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(support.X,support.Z));
-                            if (ds>8f*GameConstants.Tile){ MoveToward(s,support.X,support.Z,dt,ref lookYaw,ref hasLook); }
-                            else { MoveToward(s, support.X+Mathf.Cos(Time.time*0.5f)*12f, support.Z+Mathf.Sin(Time.time*0.5f)*12f, dt, ref lookYaw, ref hasLook); }
+                            var rp=GM.Rally.Target("navy");
+                            if (rp.HasValue)
+                            {
+                                float rd=Vector2.Distance(new Vector2(s.X,s.Z),rp.Value);
+                                if (rd<=RallySystem.RallyRange*GameConstants.Tile)
+                                {
+                                    rallied=true;
+                                    if (rd>RallySystem.FormRange) MoveToward(s,rp.Value.x,rp.Value.y,dt,ref lookYaw,ref hasLook);
+                                    // 已入列阵圈：停泊待命
+                                }
+                            }
                         }
-                        else if(IsDocked(s)) { }
-                        else if(MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz)) { }
-                        else if(!CruiseMove(s,dt,ref lookYaw,ref hasLook)) PatrolMove(s,dt,ref lookYaw,ref hasLook);
+                        if (!rallied)
+                        {
+                            if (support!=null)
+                            {
+                                float ds=Vector2.Distance(new Vector2(s.X,s.Z),new Vector2(support.X,support.Z));
+                                if (ds>8f*GameConstants.Tile){ MoveToward(s,support.X,support.Z,dt,ref lookYaw,ref hasLook); }
+                                else { MoveToward(s, support.X+Mathf.Cos(Time.time*0.5f)*12f, support.Z+Mathf.Sin(Time.time*0.5f)*12f, dt, ref lookYaw, ref hasLook); }
+                            }
+                            else if(IsDocked(s)) { }
+                            else if(MoveToLoad(s,dt,ref lookYaw,ref hasLook,ox,oz)) { }
+                            else if(!CruiseMove(s,dt,ref lookYaw,ref hasLook)) PatrolMove(s,dt,ref lookYaw,ref hasLook);
+                        }
                     } // V9.2.3 无敌舰：自主巡逻
                     }catch(System.Exception ex){ Debug.LogError("[NAV:C5 ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
                 }
