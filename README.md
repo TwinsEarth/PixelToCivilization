@@ -4,14 +4,14 @@
 
 - **引擎**：团结引擎 Tuanjie 2022.3.62t12（基于 Unity 2022.3 LTS）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.6.8「检查修复完善」——P0 时间帧预算：GameTime.MaxYearsPerFrame=60，高倍速/切后台/大掉帧时单帧最多补算 60 年，剩余结转下帧，根治"日期又不动了/冻结卡死"（正常 1000 倍速 60fps 每帧仅 0.28 年）；P1 资源双精度治本：GameState.Res 由 float 升为 double（百万级 ULP≈0.125 的舍入丢弃全消除），AddRes 保留 delta<0 && v>1000 && -delta>v*2% 的 [RES-AUDIT] 审计警告，SaveData.ResVals float[]→double[]（旧档无损兼容 schema=3）；P2 契约测试：SaveArchitectureTest 新增 ResDoublePrecision（百万起点连续 +0.0625×1000 精确 1000062.5）与 OldSchemaResCompat（旧 float 档反序列化无损）；WebGL 实测 BUILD_SUCCESS errors=0 + 浏览器探针 time:y=4701 budget=60 / res:gold=1000001.000000 / autoschema:3 + 高倍速推进 + 存档读写闭环
+- **当前版本**：V9.6.9「回归验证与交付」——文档四件套补齐：README 迭版（本文件）/DeploymentGuide_V9.6.9.md（部署与运行，含完整回滚方案章节）/RollbackPlan_V9.6.9.md（独立回滚方案：构建/运行/存档/配置四维回滚）/TestReport_V9.6.9.md（测试报告：构建/冒烟/探针/存档/性能/兼容全表 + 未验证项显式标注）；版本点 12 处统一 9.6.9；WebGL 重建 BUILD_SUCCESS + 浏览器全量回归（加载/探针 budget=60/双精度/存档闭环/高倍速）+ zip 55.2MB 密钥 CLEAN + Release v9.6.9；诚实缺口逐条标注未验证
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
 ## ▶ 立即试玩（无需安装）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.6.8_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.6.9_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
 
 - **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
 - **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
@@ -185,6 +185,7 @@ export PXC_ARK_API_KEY="你的 Key"
 | V9.6.6 | 存档架构：ISaveable 注册表/SaveVersionMigrator 迁移链（schema 0→3 + MigrationChain）/SaveEnvelope FNV-1a64 校验（NaN/Infinity 拒写）/原子写入（临时键→正式键→清理）/手动槽写前备份 PxC_Bak_* + RestoreBackup/异步存档（主线程快照+队列原子提交，WebGL 修复 Task.Run 不调度）/多槽位 1..5 + 自动槽 + 槽摘要列表/WebSaveProbe 浏览器实测（slot:110000|schema:3|tmp:0）/EditMode 契约测试 6/6 PASS |
 | V9.6.7 | 部署与运行：多平台 BuildPipelineCLI（WebGL/Win64/Android/macOS/iOS 命令行一键构建 + BuildReport 摘要）/PlayerSettings 部署硬化（IL2CPP Release/.NET Standard/Android ARM64/iOS 12+/WebGL 单线程免压缩关 dataCaching）/Addressables 就绪评估（保持单包 Resources 不启用，附接入清单骨架）/日志路径表 + 常见错误排查表/DeploymentGuide_V9.6.7.md 部署文档；WebGL 实测 BUILD_SUCCESS errors=0 + 浏览器冒烟 + 存档探针 |
 | V9.6.8 | 检查修复完善：P0 时间帧预算（GameTime.MaxYearsPerFrame=60 单帧年结上限，根治高倍速/切后台"时间冻结卡死"）/P1 资源双精度（Res float→double 治本"几百万变几千"舍入丢失，AddRes 审计警告 + SaveData.ResVals double[] 旧档无损）/P2 契约测试（ResDoublePrecision + OldSchemaResCompat）+ WebGL 探针（budget=60 / 双精度精确累加 / schema=3 存档闭环）；实测 BUILD_SUCCESS errors=0 + 高倍速推进 |
+| V9.6.9 | 回归验证与交付：文档四件套（README 迭版 / DeploymentGuide_V9.6.9 / RollbackPlan_V9.6.9 / TestReport_V9.6.9）/版本点 12 处统一 9.6.9 + WebGL 重建 BUILD_SUCCESS/浏览器全量回归（加载·探针 budget=60·双精度·存档闭环·高倍速）/zip 55.2MB 密钥 CLEAN + Release v9.6.9；未验证项显式标注 |
 
 ## 🤝 贡献
 
