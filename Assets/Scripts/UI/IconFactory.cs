@@ -103,6 +103,7 @@ namespace PixelToCivilization.UI
             else if(k=="ship"||k=="boat"){ f=CShip; Tri(px,12,30,32,46,32,30,f);Rect(px,30,26,44,34,f);Line(px,32,30,32,14,3,Light);Tri(px,32,14,48,30,32,30,Light); }
             else if(k=="air"||k=="airport"||k=="airplane"){ f=CFactory; Tri(px,10,32,54,20,54,44,f);Tri(px,30,32,54,28,54,36,Light); }
             else if(k=="rocket"||k=="space"||k=="space_elevator"){ f=CRocket; Tri(px,32,6,22,26,42,26,f);Rect(px,22,26,42,46,f);Tri(px,22,46,16,54,26,46,Light);Tri(px,42,46,48,54,38,46,Light);Disc(px,32,34,5,CGold); }
+            else if(k=="flag"||k=="rally"){ f=CMil; Line(px,20,6,20,58,4,f);Tri(px,22,10,52,20,22,30,new Color(0.89f,0.23f,0.23f));Tri(px,22,26,46,34,22,42,new Color(0.12f,0.39f,0.96f)); } // 集结令：旗杆+红蓝双色旗面
             // —— UI 控制 ——
             else if(k=="play"){ Tri(px,22,14,22,50,50,32,f); }
             else if(k=="pause"){ Rect(px,22,14,30,50,f);Rect(px,34,14,42,50,f); }
