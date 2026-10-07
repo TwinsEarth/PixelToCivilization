@@ -236,7 +236,7 @@ namespace PixelToCivilization.Systems
             if(_terrain==null) _terrain=Object.FindObjectOfType<WorldGenerator>();
             // 敌方镜像：我方地面部队数 = 敌方数（3 秒补齐，≤60 上限）
             _spawnCd-=dt;
-            if(_spawnCd<=0 && Ours.Count>0)
+            if(_spawnCd<=0 && Ours.Count>0 && MemoryBudgetManager.EntitySpawnGate(MemoryBudgetManager.EntityKind.Ground,Ours.Count+Enemies.Count))
             {
                 int headroom=MaxGround-Ours.Count-Enemies.Count;
                 int target=Mathf.Min(Ours.Count,headroom);
