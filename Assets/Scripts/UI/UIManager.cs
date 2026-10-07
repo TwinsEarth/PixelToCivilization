@@ -175,7 +175,7 @@ namespace PixelToCivilization.UI
             _splash.GetComponent<Image>().raycastTarget=false;
             var title=UITheme.Label("Title",_splash.transform,"从 像 素 到 文 明",64,TextAnchor.MiddleCenter,UITheme.HexA(0xffffff,1));
             Place(title.rectTransform,new Vector2(0.5f,0.68f),new Vector2(0.5f,0.68f),new Vector2(-400,-40),new Vector2(400,40));
-            var sub=UITheme.Label("Sub",_splash.transform,"V9.7.1 · 混合存档（IndexedDB 正文 + 摘要，自动迁移） · 自适应分段（1000×不掉帧） · 实体上限门控 · 高架桥老化清柱 · 九神AI",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
+            var sub=UITheme.Label("Sub",_splash.transform,"V9.7.2 · 地面部队十维参数（速度/耐久/攻击/防御/射程/射速/载人/体积/军衔/智能）· 列装驻留宽限不被拉走 · 全移动实体速度参数总表 · 混合存档",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
             Place(sub.rectTransform,new Vector2(0.5f,0.56f),new Vector2(0.5f,0.56f),new Vector2(-400,-18),new Vector2(400,18));
             // 主按钮：开始新游戏（带 10 秒无操作自动开局倒计时）
             var start=UITheme.Btn("Start",_splash.transform,"",26,UITheme.BtnGold); // V7.0.2 橙色主按钮
@@ -195,7 +195,7 @@ namespace PixelToCivilization.UI
             _mapModeBtn.onClick.AddListener(OnClickMapMode);
             // 自动开局倒计时武装
             ArmAutoStart();
-            var ver=UITheme.Label("Ver",_splash.transform,"v9.7.1 · Unity / Tuanjie 2022.3.62t12 · URP 高清 · 混合存档/自适应分段/实体门控",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
+            var ver=UITheme.Label("Ver",_splash.transform,"v9.7.2 · Unity / Tuanjie 2022.3.62t12 · URP 高清 · 地面部队速度口径统一/十维参数",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
             Place(ver.rectTransform,new Vector2(0.5f,0.22f),new Vector2(0.5f,0.22f),new Vector2(-300,-15),new Vector2(300,15));
             var hint=UITheme.Label("FullHint",_splash.transform,"提示：界面太小时，按 F11 或点底部「全屏」按钮 · 10 秒无操作将自动开新局",14,TextAnchor.MiddleCenter,UITheme.HexA(0xd0e6ff,1));
             Place(hint.rectTransform,new Vector2(0.5f,0.28f),new Vector2(0.5f,0.28f),new Vector2(-360,-12),new Vector2(360,12));
