@@ -4,14 +4,14 @@
 
 - **引擎**：团结引擎 Tuanjie 2022.3.62t12（基于 Unity 2022.3 LTS）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.7.0「内存·崩溃·存档三大架构端到端升级」——内存架构：统一对象池 GameObjectPool + 内存预算 MemoryBudgetManager + Addressables 适配层 AddressablesManager（无包降级 Resources 镜像配对）+ SoA 连续数组人口聚合 SoAPopulationStore；崩溃架构：全局捕获 CrashGuardSystem + 崩溃上下文快照 LocalCrashReporter（朝代/年份/人口/势力/时代/倍速落盘）+ 安全模式 + 回滚恢复；存档架构：DTO/校验/版本迁移/原子写/备份/回滚链/多槽位 + 脏标记 SaveDirtySystem 自动存档节流；EditMode 契约测试（⑩ 存档架构测试 / ⑪ V9.7.0 架构测试）+ run_tests.ps1 + CI 模板（团结引擎镜像未验证已标注）；版本点 13 处统一 9.7.0；WebGL 重建 BUILD_SUCCESS + 浏览器全量回归（旧探针全绿 + 新增 Pool/SoA/Dirty/CrashCtx 四探针）+ zip 55.2MB 密钥 CLEAN + Release v9.7.0；诚实缺口逐条标注未验证
+- **当前版本**：V9.7.1「混合存档·自适应分段·实体门控·高架桥生命周期」——① 存档正文从 PlayerPrefs 迁至 **IndexedDB（库 PxC_SaveBody）**、槽位摘要/崩溃状态留 PlayerPrefs，启动协程自动迁移旧档；② 高倍速**自适应分段**（WebGL 帧预算 6ms/桌面 10ms，单帧年结硬上限 120）；③ **实体生成门控**（船200/鸟500/鱼300/地面60/车120/火车40/飞机80/建筑800，逼近上限 90% 暂停）；④ **高架桥地图错乱根治**（老化拆除同步清桥面格 BridgeCells + 新增 SyncPiers 清理废弃柱，生命周期实测 PASS）；⑤ 建造栏新增「基建」分类、地面部队古典/现代六型分代；⑥ 武器粒子池化位置漂移修复。浏览器实证：混合存档键、基建标签、公元1950 现代地面部队、高架桥建柱连片→老化清理 PASS；zip 55.2MB 密钥 CLEAN + Release v9.7.1；未验证项（门控逼近上限实触发/帧率快照/原生平台构建）已诚实标注
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
 ## ▶ 立即试玩（无需安装）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.7.0_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.7.1_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
 
 - **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
 - **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
@@ -186,6 +186,18 @@ export PXC_ARK_API_KEY="你的 Key"
 | V9.6.7 | 部署与运行：多平台 BuildPipelineCLI（WebGL/Win64/Android/macOS/iOS 命令行一键构建 + BuildReport 摘要）/PlayerSettings 部署硬化（IL2CPP Release/.NET Standard/Android ARM64/iOS 12+/WebGL 单线程免压缩关 dataCaching）/Addressables 就绪评估（保持单包 Resources 不启用，附接入清单骨架）/日志路径表 + 常见错误排查表/DeploymentGuide_V9.6.7.md 部署文档；WebGL 实测 BUILD_SUCCESS errors=0 + 浏览器冒烟 + 存档探针 |
 | V9.6.8 | 检查修复完善：P0 时间帧预算（GameTime.MaxYearsPerFrame=60 单帧年结上限，根治高倍速/切后台"时间冻结卡死"）/P1 资源双精度（Res float→double 治本"几百万变几千"舍入丢失，AddRes 审计警告 + SaveData.ResVals double[] 旧档无损）/P2 契约测试（ResDoublePrecision + OldSchemaResCompat）+ WebGL 探针（budget=60 / 双精度精确累加 / schema=3 存档闭环）；实测 BUILD_SUCCESS errors=0 + 高倍速推进 |
 | V9.7.0 | 内存·崩溃·存档三大架构端到端升级：对象池+内存预算+Addressables 适配层（无包降级）+SoA 人口聚合；全局异常捕获+崩溃上下文快照+安全模式+回滚恢复；DTO/校验/版本迁移/原子写/备份/回滚链/多槽位+脏标记自动存档节流；契约测试（⑩⑪）+run_tests.ps1+CI 模板；版本点 13 处统一；BUILD_SUCCESS+四新探针全回归+zip 密钥 CLEAN+Release v9.7.0 |
+| V9.7.1 | 混合存档（IndexedDB 正文 PxC_SaveBody + PlayerPrefs 摘要，自动迁移旧档）；高倍速自适应分段（帧预算 6ms/10ms、硬上限 120）；实体生成门控（八类上限，逼近 90% 暂停）；高架桥地图错乱根治（老化同步清桥面格+SyncPiers 清废弃柱，生命周期实测 PASS）；建造「基建」分类；地面部队古典/现代六型分代；武器粒子池化漂移修复；浏览器实证全通过、密钥 CLEAN、Release v9.7.1 |
+
+## 📋 项目审计摘要（V9.7.1）
+
+| 模块 | 现状 | 风险 | 处置 |
+|---|---|---|---|
+| 存档载体 | PlayerPrefs 单键承载大正文，容量/性能受限 | P1 | 改 IndexedDB 正文 + PlayerPrefs 摘要，旧档自动迁移 |
+| 高倍速 | 旧固定分段，1000× 单帧 tick 过载 | P0 | 自适应帧预算 + 硬上限 120 |
+| 实体规模 | 无统一上限，易无限膨胀 | P1 | 八类实体上限 + EntitySpawnGate 门控 |
+| 高架桥 | 老化只删记录，桥面格/柱残留致地图错乱 | P0 | 拆除同步清 BridgeCells + SyncPiers，生命周期 PASS |
+| 依赖 | 未装 Addressables/MemoryProfiler | P2 | 保持单包 Resources，不随意加依赖 |
+| 原生平台 | 仅 WebGL 实测 | P2 | C# 同套可构建，原生构建标注未验证 |
 
 ## 🤝 贡献
 
