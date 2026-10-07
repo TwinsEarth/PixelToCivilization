@@ -7,26 +7,40 @@ using PixelToCivilization.World;
 namespace PixelToCivilization.Systems
 {
     /// <summary>
-    /// V9.4.6 地面作战部队（V9.5.4 分代）：公元1949（游戏年4949）前为【古典】骑兵/列方阵兵/马拉战车；
-    /// 1949 起【直接替换】为【现代】坦克/装甲车/导弹车（与船只 V9.3.3"直接替换而非解锁"同规则）。
-    /// 战斗规则参照军舰闭环：雷达索敌（60 格）→ 射程内开火 → 射程外追击（航速+50%）→ 编队（3-7 辆）→ 巡航（无目标陆地巡逻）→ 敌方镜像（3 秒等比例补齐，3-5 阵营，敌方按我方当前时代换型）。
-    /// 运行时态不进存档；陆地约束：IsWater 禁行；古典三型造价走木/粮/金（1949 前无钢）。
+    /// V9.7.2 地面作战部队（V9.5.4 分代 + V9.7.2 十维参数与速度口径统一）：
+    /// 公元1949（游戏年4949）前为【古典】骑兵 / 3人一组列方阵兵 / 马拉战车；
+    /// 1949 起【直接替换】为【现代】坦克 / 装甲车 / 导弹车（与船只"直接替换而非解锁"同规则）。
+    /// V9.7.2 三项修复：
+    ///  1) 速度口径统一——实际移动速度 = 类型基础速度（世界单位/秒，骑兵快/方阵慢）× 等级成长系数，
+    ///     旧 ClampedGroundSpeed 无视类型基础速度（只按等级、Lv1=0.1格/秒）且与属性面板 u.Speed 脱节；
+    ///  2) 生成位置——新增列装驻留宽限 GraceT（20s 原地驻守只索敌不巡航），且巡航半径缩小到 20–45，
+    ///     旧实现一造出来即被 40–100 环随机航点拉走（"不在原地，被拉到某坐标"）；
+    ///  3) 十维参数——速度/耐久/攻击/防御/射程/射速/载人量/体积/军衔/智能等级，随等级差异化成长。
+    /// 运行时态不进存档；陆地约束 IsWater 禁行；古典三型造价走木/粮/金（1949 前无钢）。
     /// </summary>
     public class GroundWarfareSystem : GameSystemBase
     {
         public class GroundDef
         {
             public string Id, Name, Icon, ColorHex;
-            public float Durability, Attack, Speed;
-            public int Range;              // 射程（格）
-            public int CostSteel, CostGold;
-            public int CostWood, CostFood; // V9.5.4 古典三型（1949 前）以木/粮/金列装，不消耗钢
-            public bool Modern;            // true=坦克/装甲车/导弹车；false=骑兵/列方阵兵/马拉战车
-            public string Desc="";         // V9.5.7 属性面板说明
+            public float Speed;          // 基础移动速度（世界单位/秒，类型差异；与人员1.2、车辆3-8同口径）
+            public float Durability;     // 基础耐久（最大HP）
+            public float Attack;         // 基础攻击
+            public float Defense;        // 基础防御（减伤：实际受击=伤害×100/(100+防御)）
+            public int Range;            // 基础射程（格）
+            public float FireInterval;   // 基础攻击间隔（秒/发；越小射速越快）
+            public int Capacity;         // 载人量（装甲运兵/战车乘员）
+            public float Footprint;      // 体积/占地（世界单位，决定碰撞半径与阵型间距）
+            public string Rank;          // 军衔
+            public int Intel;            // 智能等级（1-5，决定自主索敌/编队/追击能力）
+            public int CostSteel, CostGold, CostWood, CostFood;
+            public bool Modern;          // true=坦克/装甲车/导弹车；false=骑兵/列方阵兵/马拉战车
+            public string Desc = "";
         }
-        /// <summary>V9.5.4 现代型标识集合（1949 后列装）</summary>
+
+        /// <summary>现代型标识集合（1949 后列装）</summary>
         static readonly HashSet<string> ModernTypes = new(){ "tank","apc","missile_vehicle" };
-        /// <summary>V9.5.4 当前时代可列装的地面部队（军事栏直接遍历；古典↔现代按年份替换，不灰显不叠加）</summary>
+        /// <summary>当前时代可列装的地面部队（军事栏直接遍历；古典↔现代按年份替换，不灰显不叠加）</summary>
         public List<GroundDef> AvailableDefs
         {
             get
@@ -36,31 +50,52 @@ namespace PixelToCivilization.Systems
                 return list;
             }
         }
+
         public class GroundUnit
         {
             public string TypeId, Name, Side;
             public float X, Z;
             public int Level;
-            public float MaxHp, Hp, BaseAttack, Speed;
-            public float BaseMaxHp;            // V9.5.7 升级基数（耐久线性成长 12%/级，防指数膨胀）
-            public int BaseRange;              // V9.6.3 升级基数（射程 +1 格/级，上限 +5 格）
-            public int Range;
+            // 十维运行时（含基础基数，供等级成长重算）
+            public float BaseSpeed;                 // 基础速度（世界单位/秒）
+            public float BaseMaxHp, MaxHp, Hp;
+            public float BaseAttack, Attack;
+            public float BaseDefense, Defense;
+            public int BaseRange, Range;
+            public float BaseFire;                  // 基础攻击间隔
+            public int Capacity;
+            public float Footprint;
+            public string Rank;
+            public int Intel;
             public string FactionId; public long FactionColor;
             public GameObject View;
             public float AttackCd, ThinkCd;
-            public int Group;              // 编队组号（我方 0-31 / 敌方 32-63，V9.5.7 阵营分离防"跟着敌方跑"）
-            public float RX, RZ;           // 巡航随机航点
+            public int Group;                       // 编队组号（我方 0-31 / 敌方 32-63，阵营分离）
+            public float RX, RZ;                    // 巡航随机航点
             public bool HasRoute;
-            public int Kills;              // V9.5.7 战绩（每 2 杀战功升 1 级）
-            public bool Lifted;            // V9.6.1 远程投送中（运输机/直升机空运，原系统跳过 AI，坐标由 AirLiftSystem 接管）
+            public int Kills;                       // 战绩（每 2 杀战功升 1 级）
+            public bool Lifted;                     // 远程投送中（AirLiftSystem 接管，跳过 AI）
+            public float GraceT;                    // V9.7.2 列装驻留宽限（秒）：原地驻守只索敌不巡航
         }
 
-        public const int MaxGround = 60;   // 我方+敌方全局上限（地面部队规模显著小于舰队 200）
-        public const float RadarGround = 60f;          // 发现距离（格）×Tile=世界单位
+        public const int MaxGround = 60;
+        public const float RadarGround = 60f;               // 基础发现距离（格）
+        public const float GraceSeconds = 20f;               // V9.7.2 列装驻留宽限
+        // V9.7.2 等级成长系数（参数随等级差异化，耐久线性防指数膨胀）
+        public const float LvSpeed = 0.08f;                  // 速度 +8%/级
+        public const float LvHp = 0.12f;                     // 耐久 +12%/级
+        public const float LvAtk = 0.08f;                    // 攻击 +8%/级
+        public const float LvDef = 0.10f;                     // 防御 +10%/级
+        public const float LvRadar = 0.06f;                   // 雷达 +6%/级
+        public const float LvFire = 0.03f;                    // 攻击间隔 -3%/级（射速变快）
+        public const float MinFireInterval = 0.4f;
+        public const int MaxRangeAdd = 5;                     // 射程最多 +5 格
+        public const int GroundRangeHardCap = 50;             // 地面单位射程硬上限 50 格
+
         public readonly Dictionary<string,GroundDef> Defs = new();
         public readonly List<GroundUnit> Ours = new();
         public readonly List<GroundUnit> Enemies = new();
-        public bool Active;                // 公元1949 起激活（游戏年4949）
+        public bool Active;
 
         // 地面部队敌对阵营（3-5，颜色与海军五阵营一致便于识别）
         static readonly (string name,long color)[] FactionDefs =
@@ -70,75 +105,104 @@ namespace PixelToCivilization.Systems
         readonly List<(string name,long color)> _enemyFactions = new();
         bool _factionsInited;
         float _spawnCd, _sepAt, _reformTimer;
+        bool _enemySeen;
         WorldGenerator _terrain;
         Transform _root;
         Material _matTank,_matApc,_matMissile,_matDark,_matTrack;
-        Material _matWood,_matHorse,_matHorseDk,_matBronze,_matPhalanx,_matCavalry;   // V9.5.4 古典三型材质
+        Material _matWood,_matHorse,_matHorseDk,_matBronze,_matPhalanx,_matCavalry;
 
         public override void Init(GameManager gm)
         {
             base.Init(gm);
             _terrain = Object.FindObjectOfType<WorldGenerator>();
-            _matTank    = ShaderHelper.Pbr(new Color(0.36f,0.50f,0.17f),0.25f,0.45f,9611,0.5f);    // 橄榄绿
-            _matApc     = ShaderHelper.Pbr(new Color(0.54f,0.56f,0.48f),0.2f,0.4f,9612,0.5f);     // 沙灰
-            _matMissile = ShaderHelper.Pbr(new Color(0.43f,0.31f,0.17f),0.2f,0.45f,9613,0.5f);    // 荒漠
-            _matDark    = ShaderHelper.Pbr(new Color(0.12f,0.12f,0.14f),0.2f,0.5f,9614,0.4f);     // 履带/发射架
-            _matTrack   = ShaderHelper.Pbr(new Color(0.08f,0.08f,0.09f),0f,0.3f,9615,0.3f);       // 履带
-            _matWood    = ShaderHelper.Pbr(new Color(0.52f,0.36f,0.18f),0.15f,0.4f,9621,0.4f);    // 古典·战车车身
-            _matHorse   = ShaderHelper.Pbr(new Color(0.45f,0.30f,0.16f),0.2f,0.45f,9622,0.4f);    // 古典·马匹棕
-            _matHorseDk = ShaderHelper.Pbr(new Color(0.30f,0.19f,0.10f),0.2f,0.4f,9623,0.4f);     // 古典·马鬃/蹄
-            _matBronze  = ShaderHelper.Pbr(new Color(0.72f,0.55f,0.20f),0.55f,0.5f,9624,0.4f);    // 古典·盾/矛头青铜
-            _matPhalanx = ShaderHelper.Pbr(new Color(0.62f,0.18f,0.15f),0.15f,0.45f,9625,0.4f);   // 古典·方阵兵红袍
-            _matCavalry = ShaderHelper.Pbr(new Color(0.20f,0.34f,0.28f),0.15f,0.45f,9626,0.4f);   // 古典·骑兵青甲
-            Defs["tank"]            = new GroundDef{Id="tank",Name="坦克",Icon="🛡",ColorHex="5B7F2B",Durability=180,Attack=40,Range=12,Speed=3.5f,CostSteel=120,CostGold=40,Modern=true,Desc="重型装甲突击，高耐久中射程，攻坚主力"};
-            Defs["apc"]             = new GroundDef{Id="apc",Name="装甲车",Icon="🚐",ColorHex="8A8F7A",Durability=100,Attack=15,Range=8,Speed=5.5f,CostSteel=60,CostGold=20,Modern=true,Desc="高速运兵装甲，机动侦察，支援步兵突击"};
-            Defs["missile_vehicle"] = new GroundDef{Id="missile_vehicle",Name="导弹车",Icon="🚀",ColorHex="6E4F2B",Durability=120,Attack=70,Range=20,Speed=2.5f,CostSteel=100,CostGold=60,Modern=true,Desc="超远程导弹打击，射程 20 格火力压制"};
-            // V9.5.4 古典三型（公元1949 前列装；木/粮/金造价，不耗钢）
-            Defs["cavalry"]   = new GroundDef{Id="cavalry",Name="骑兵",Icon="🐎",ColorHex="8B5E3C",Durability=80,Attack=12,Range=2,Speed=6f,CostWood=40,CostGold=10,CostFood=20,Modern=false,Desc="古典高速突击骑兵，机动冲击敌阵"};
-            Defs["phalanx"]   = new GroundDef{Id="phalanx",Name="列方阵兵",Icon="🛡",ColorHex="C0C0C8",Durability=140,Attack=18,Range=2,Speed=2f,CostWood=20,CostGold=10,CostFood=30,Modern=false,Desc="古典重装方阵，高耐久列阵防守"};
-            Defs["chariot"]   = new GroundDef{Id="chariot",Name="马拉战车",Icon="🏇",ColorHex="7A5C2E",Durability=100,Attack=15,Range=3,Speed=5f,CostWood=80,CostGold=30,CostFood=20,Modern=false,Desc="古典马拉战车，冲锋践踏撕裂敌阵"};
+            _matTank    = ShaderHelper.Pbr(new Color(0.36f,0.50f,0.17f),0.25f,0.45f,9611,0.5f);
+            _matApc     = ShaderHelper.Pbr(new Color(0.54f,0.56f,0.48f),0.2f,0.4f,9612,0.5f);
+            _matMissile = ShaderHelper.Pbr(new Color(0.43f,0.31f,0.17f),0.2f,0.45f,9613,0.5f);
+            _matDark    = ShaderHelper.Pbr(new Color(0.12f,0.12f,0.14f),0.2f,0.5f,9614,0.4f);
+            _matTrack   = ShaderHelper.Pbr(new Color(0.08f,0.08f,0.09f),0f,0.3f,9615,0.3f);
+            _matWood    = ShaderHelper.Pbr(new Color(0.52f,0.36f,0.18f),0.15f,0.4f,9621,0.4f);
+            _matHorse   = ShaderHelper.Pbr(new Color(0.45f,0.30f,0.16f),0.2f,0.45f,9622,0.4f);
+            _matHorseDk = ShaderHelper.Pbr(new Color(0.30f,0.19f,0.10f),0.2f,0.4f,9623,0.4f);
+            _matBronze  = ShaderHelper.Pbr(new Color(0.72f,0.55f,0.20f),0.55f,0.5f,9624,0.4f);
+            _matPhalanx = ShaderHelper.Pbr(new Color(0.62f,0.18f,0.15f),0.15f,0.45f,9625,0.4f);
+            _matCavalry = ShaderHelper.Pbr(new Color(0.20f,0.34f,0.28f),0.15f,0.45f,9626,0.4f);
+
+            // 现代三型（1949 起）
+            Defs["tank"] = new GroundDef{Id="tank",Name="坦克",Icon="🛡",ColorHex="5B7F2B",
+                Speed=3.5f,Durability=180,Attack=40,Defense=20,Range=12,FireInterval=2.4f,Capacity=3,Footprint=3.2f,
+                Rank="装甲营长",Intel=3,CostSteel=120,CostGold=40,Modern=true,Desc="重型装甲突击，高耐久中射程，攻坚主力"};
+            Defs["apc"] = new GroundDef{Id="apc",Name="装甲车",Icon="🚐",ColorHex="8A8F7A",
+                Speed=5.0f,Durability=100,Attack=15,Defense=12,Range=8,FireInterval=1.8f,Capacity=8,Footprint=2.8f,
+                Rank="侦察连长",Intel=3,CostSteel=60,CostGold=20,Modern=true,Desc="高速运兵装甲，机动侦察，支援步兵突击"};
+            Defs["missile_vehicle"] = new GroundDef{Id="missile_vehicle",Name="导弹车",Icon="🚀",ColorHex="6E4F2B",
+                Speed=2.5f,Durability=120,Attack=70,Defense=10,Range=20,FireInterval=3.5f,Capacity=3,Footprint=3.0f,
+                Rank="导弹营长",Intel=4,CostSteel=100,CostGold=60,Modern=true,Desc="超远程导弹打击，射程 20 格火力压制"};
+            // 古典三型（1949 前；木/粮/金列装，不耗钢）
+            Defs["cavalry"] = new GroundDef{Id="cavalry",Name="骑兵",Icon="🐎",ColorHex="8B5E3C",
+                Speed=3.2f,Durability=80,Attack=12,Defense=6,Range=2,FireInterval=1.8f,Capacity=1,Footprint=2.1f,
+                Rank="骑兵都尉",Intel=2,CostWood=40,CostGold=10,CostFood=20,Modern=false,Desc="古典高速突击骑兵，机动冲击敌阵"};
+            Defs["phalanx"] = new GroundDef{Id="phalanx",Name="列方阵兵",Icon="🛡",ColorHex="C0C0C8",
+                Speed=1.2f,Durability=140,Attack=18,Defense=14,Range=2,FireInterval=2.2f,Capacity=3,Footprint=3.0f,
+                Rank="百夫长",Intel=1,CostWood=20,CostGold=10,CostFood=30,Modern=false,Desc="古典 3 人一组重装方阵，高耐久列阵防守"};
+            Defs["chariot"] = new GroundDef{Id="chariot",Name="马拉战车",Icon="🏇",ColorHex="7A5C2E",
+                Speed=2.8f,Durability=100,Attack=15,Defense=8,Range=3,FireInterval=1.9f,Capacity=2,Footprint=2.6f,
+                Rank="战车校尉",Intel=2,CostWood=80,CostGold=30,CostFood=20,Modern=false,Desc="古典马拉战车，冲锋践踏撕裂敌阵"};
+
             var go=new GameObject("GroundWarfare"); go.transform.SetParent(gm.transform,false);
             _root=go.transform;
         }
 
-        /// <summary>V9.5.4 古典/现代时代匹配：现代型需 1949（游戏年4949）后；古典型需 1949 前</summary>
         bool EraMatch(string typeId)
         {
             bool modern=ModernTypes.Contains(typeId);
             return modern == (S.Year>=4949);
         }
 
-        /// <summary>建造地面部队（玩家）：按时代列装——1949 前古典三型（骑兵/列方阵兵/马拉战车）、1949 起现代三型（坦克/装甲车/导弹车）；扣对应资源，上限 60，须列装在陆地</summary>
+        /// <summary>由 Def 构造一个十维单位（统一基数初始化；新单位带驻留宽限）。</summary>
+        GroundUnit MakeUnit(GroundDef d,string side,float x,float z,string factionId="",long factionColor=0)
+        {
+            var u=new GroundUnit{
+                TypeId=d.Id,Name=side=="enemy"?(factionId+"·"+d.Name):d.Name,Side=side,X=x,Z=z,Level=1,
+                BaseSpeed=d.Speed, BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,
+                BaseAttack=d.Attack,Attack=d.Attack,
+                BaseDefense=d.Defense,Defense=d.Defense,
+                BaseRange=d.Range,Range=d.Range,
+                BaseFire=d.FireInterval,
+                Capacity=d.Capacity,Footprint=d.Footprint,
+                Rank=d.Rank,Intel=d.Intel,
+                FactionId=factionId,FactionColor=factionColor,
+                AttackCd=0f,GraceT=GraceSeconds
+            };
+            return u;
+        }
+
+        /// <summary>玩家列装地面部队：按时代列装，扣资源，上限 60，须在陆地；列装点即生成点（带驻留宽限，不会被立即拉走）。</summary>
         public bool BuildGround(string typeId,float x,float z)
         {
             if(!Defs.TryGetValue(typeId,out var d)){ Debug.Log("[Ground] BuildGround reject: unknown type "+typeId); return false; }
-            // V9.5.4 防坦克/装甲车/导弹车列装在水面
             if(_terrain==null) _terrain=Object.FindObjectOfType<WorldGenerator>();
-            if(_terrain!=null && _terrain.IsWater(x,z)){ GM.AddEvent("bad","陆地载具不能列装在水面"); Debug.Log("[Ground] BuildGround reject: water at "+x.ToString("F1")+","+z.ToString("F1")); return false; }
-            // V9.5.4 分代替换：现代型需 1949（游戏年4949）后、古典型需 1949 前；同时段只列装对应世代
+            if(_terrain!=null && _terrain.IsWater(x,z)){ GM.AddEvent("bad","陆地载具不能列装在水面"); Debug.Log("[Ground] BuildGround reject: water"); return false; }
             if(!EraMatch(typeId))
             {
                 bool modern=ModernTypes.Contains(typeId);
-                if(modern) GM.AddEvent("bad",d.Name+" 公元1949年才列装（当前 公元"+(S.Year-3000)+"，还需 "+(4949-S.Year)+" 年）");
-                else       GM.AddEvent("bad","公元1949年起已列装现代地面部队（坦克/装甲车/导弹车），古典"+d.Name+"不再列装");
-                Debug.Log("[Ground] BuildGround reject: era mismatch "+typeId+" year="+S.Year);
+                if(modern) GM.AddEvent("bad",d.Name+" 公元1949年才列装（当前 公元"+(S.Year-3000)+"）");
+                else       GM.AddEvent("bad","公元1949年起已列装现代地面部队，古典"+d.Name+"不再列装");
+                Debug.Log("[Ground] BuildGround reject: era mismatch "+typeId);
                 return false;
             }
-            if(Ours.Count+Enemies.Count>=MaxGround){ GM.AddEvent("bad","已达地面部队上限 "+MaxGround+" 辆"); Debug.Log("[Ground] BuildGround reject: max"); return false; }
+            if(Ours.Count+Enemies.Count>=MaxGround){ GM.AddEvent("bad","已达地面部队上限 "+MaxGround+" 辆"); return false; }
             if(S.GetRes("steel")<d.CostSteel||S.GetRes("gold")<d.CostGold||S.GetRes("wood")<d.CostWood||S.GetRes("food")<d.CostFood)
-            { GM.AddEvent("bad","资源不足，无法列装"+d.Name); Debug.Log("[Ground] BuildGround reject: resources"); return false; }
+            { GM.AddEvent("bad","资源不足，无法列装"+d.Name); return false; }
             S.AddRes("steel",-d.CostSteel); S.AddRes("gold",-d.CostGold); S.AddRes("wood",-d.CostWood); S.AddRes("food",-d.CostFood);
-            var u=new GroundUnit{TypeId=typeId,Name=d.Name,Side="ours",X=x,Z=z,Level=1,
-                BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,BaseRange=d.Range,Range=d.Range,Speed=d.Speed};
+            var u=MakeUnit(d,"ours",x,z);
             u.View=BuildView(u,d);
             Ours.Add(u); AssignGroup(u);
             GM.AddEvent("good",d.Icon+" 新"+d.Name+"列装！");
-            Debug.Log("[Ground] BuildGround OK: "+d.Name+" at "+x.ToString("F1")+","+z.ToString("F1")+" ours="+Ours.Count);
+            Debug.Log("[Ground] BuildGround OK: "+d.Name+" at "+x.ToString("F1")+","+z.ToString("F1")+" effSpeed="+EffectiveSpeed(u).ToString("F2"));
             return true;
         }
 
-        /// <summary>Debug/Web：无消耗造车（探针入口；按当前时代换型）。V9.6.3f：生成点改为出生地（主村落）附近 20–60 单位环，
-        /// 不再绕世界原点 (0,0)——原实现导致"生成后不在出生地"（主大陆中心在出生地而非原点）。</summary>
+        /// <summary>Debug/Web：无消耗列装（探针入口；按当前时代换型），生成点在出生地（主村落）附近 20–60 单位环陆地。</summary>
         public int DebugBuildOwn(int n)
         {
             if(_terrain==null) return 0;
@@ -146,7 +210,7 @@ namespace PixelToCivilization.Systems
             string[] types=S.Year>=4949
                 ? new[]{"tank","apc","missile_vehicle"}
                 : new[]{"cavalry","phalanx","chariot"};
-            float ox = GM.State.VillageX.Count>0 ? GM.State.VillageX[0] : 0f;   // V9.6.3f 出生地中心
+            float ox = GM.State.VillageX.Count>0 ? GM.State.VillageX[0] : 0f;
             float oz = GM.State.VillageZ.Count>0 ? GM.State.VillageZ[0] : 0f;
             for(int k=0;k<n;k++)
             {
@@ -160,8 +224,7 @@ namespace PixelToCivilization.Systems
                     if(!_terrain.IsWater(x,z)) land=true;
                 }
                 if(!land) continue;
-                var u=new GroundUnit{TypeId=t,Name=d.Name,Side="ours",X=x,Z=z,Level=1,
-                    BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,BaseRange=d.Range,Range=d.Range,Speed=d.Speed};
+                var u=MakeUnit(d,"ours",x,z);
                 u.View=BuildView(u,d);
                 Ours.Add(u); AssignGroup(u); made++;
             }
@@ -195,14 +258,12 @@ namespace PixelToCivilization.Systems
         void SpawnEnemy()
         {
             EnsureFactions();
-            // V9.5.4 敌方镜像按我方当前时代换型（1949 前古典三型，1949 起现代三型）
             string[] types=S.Year>=4949
                 ? new[]{"tank","apc","missile_vehicle","tank","apc"}
                 : new[]{"cavalry","phalanx","chariot","cavalry","phalanx"};
             string t=types[Random.Range(0,types.Length)]; var d=Defs[t];
             var fac=LeastRepresentedFaction();
-            // V9.6.3f：敌方镜像同样以出生地为中心（60–140 单位环），与我方出生地部队处于同一雷达作战半径内
-            // （原绕原点 (0,0) 生成，出生地偏离原点时双方相距过远 → 互不可见 → "不主动寻敌/不战斗"）
+            // 敌方镜像以出生地为中心（60–140 环），与我方出生地部队在同一雷达作战半径内
             float ox = GM.State.VillageX.Count>0 ? GM.State.VillageX[0] : 0f;
             float oz = GM.State.VillageZ.Count>0 ? GM.State.VillageZ[0] : 0f;
             float x=0,z=0; bool land=false;
@@ -210,14 +271,12 @@ namespace PixelToCivilization.Systems
             { float a=Random.value*Mathf.PI*2, rr=60f+Random.value*80f;
               x=ox+Mathf.Cos(a)*rr; z=oz+Mathf.Sin(a)*rr;
               if(_terrain==null||!_terrain.IsWater(x,z)) land=true; }
-            var u=new GroundUnit{TypeId=t,Name=fac.name+"·"+d.Name,Side="enemy",X=x,Z=z,Level=1,
-                BaseMaxHp=d.Durability,MaxHp=d.Durability,Hp=d.Durability,BaseAttack=d.Attack,BaseRange=d.Range,Range=d.Range,Speed=d.Speed,
-                FactionId=fac.name,FactionColor=fac.color};
+            var u=MakeUnit(d,"enemy",x,z,fac.name,fac.color);
             u.View=BuildView(u,d,fac.color);
             Enemies.Add(u); AssignGroup(u);
         }
 
-        /// <summary>V9.5.0 新局清理：地面部队运行时列表不进 GameState，必须在此销毁视图并清空，防上一局坦克/装甲残留。</summary>
+        /// <summary>新局清理：地面部队运行时列表不进 GameState，销毁视图并清空，防上一局残留。</summary>
         public void ResetForNewGame()
         {
             foreach (var u in Ours) if (u.View != null) Object.Destroy(u.View);
@@ -231,10 +290,8 @@ namespace PixelToCivilization.Systems
 
         public override void Tick(float dt)
         {
-            // V9.5.4 地面部队自开局即可用（1949 前列装古典三型）；敌方镜像随我方数量触发
             if(!Active) Active=true;
             if(_terrain==null) _terrain=Object.FindObjectOfType<WorldGenerator>();
-            // 敌方镜像：我方地面部队数 = 敌方数（3 秒补齐，≤60 上限）
             _spawnCd-=dt;
             if(_spawnCd<=0 && Ours.Count>0 && MemoryBudgetManager.EntitySpawnGate(MemoryBudgetManager.EntityKind.Ground,Ours.Count+Enemies.Count))
             {
@@ -254,7 +311,6 @@ namespace PixelToCivilization.Systems
             SeparateGround(dt);
             CleanupDead();
         }
-        bool _enemySeen;
 
         void UpdateOurs(float dt)
         {
@@ -263,24 +319,22 @@ namespace PixelToCivilization.Systems
             for(int i=0;i<Ours.Count;i++)
             {
                 var u=Ours[i]; if(u.View==null) continue;
-                if (u.Lifted) continue;   // V9.6.1 远程投送中：不参与地面 AI（坐标/视图由 AirLiftSystem 接管）
+                if (u.Lifted) continue;
+                if (u.GraceT>0f) u.GraceT-=dt;   // 驻留宽限倒计时
                 u.AttackCd-=dt;
-                CombatTarget ct=GM.Combat.NearestHostile(u.X,u.Z,RadarGround*GameConstants.Tile,CombatSystem.PlayerKey);
+                float radar=EffectiveRadar(u)*GameConstants.Tile;
+                CombatTarget ct=GM.Combat.NearestHostile(u.X,u.Z,radar,CombatSystem.PlayerKey);
                 if(ct!=null)
                 {
                     float d=Mathf.Sqrt((ct.X-u.X)*(ct.X-u.X)+(ct.Z-u.Z)*(ct.Z-u.Z));
                     float engage=u.Range*GameConstants.Tile;
-                    if(d>engage)
-                    {
-                        // 追击：战斗航速 +50%；陆地约束防下水
-                        MoveToward(u,ct.X,ct.Z,dt,1.5f);
-                    }
+                    if(d>engage) MoveToward(u,ct.X,ct.Z,dt,1.5f);                 // 追击：战斗航速+50%
                     else if(u.AttackCd<=0)
                     {
-                        GroundFire(u,ct); u.AttackCd=2f;
+                        GroundFire(u,ct); u.AttackCd=EffectiveFireInterval(u);
                     }
                 }
-                // V9.6.0 紧急集结令：绿旗（地面部队）100 格内优先向军旗集结列阵（高于巡航）
+                // 紧急集结令（绿旗=地面部队）：100 格内优先向军旗集结列阵（高于巡航）
                 else if (GM.Rally!=null && GM.Rally.Active("ground"))
                 {
                     var rp=GM.Rally.Target("ground");
@@ -290,10 +344,8 @@ namespace PixelToCivilization.Systems
                         if (rd<=RallySystem.RallyRange*GameConstants.Tile)
                         {
                             if (rd>RallySystem.FormRange) MoveToward(u,rp.Value.x,rp.Value.y,dt,1f);
-                            // 已入列阵圈：原地待命（不巡航）
                             continue;
                         }
-                        // V9.6.2 超 100 格：运输机/直升机远程投送（未解锁广播提示；成功则等机，失败落巡航）
                         if (GM.AirLift!=null && GM.AirLift.RequestLiftAuto(u,rp.Value.x,rp.Value.y)) continue;
                     }
                     Cruise(u,dt);
@@ -307,8 +359,11 @@ namespace PixelToCivilization.Systems
             for(int i=Enemies.Count-1;i>=0;i--)
             {
                 var e=Enemies[i]; if(e.View==null) continue;
+                if (e.Lifted) continue;
+                if (e.GraceT>0f) e.GraceT-=dt;
                 e.AttackCd-=dt;
-                CombatTarget ct=GM.Combat.NearestHostile(e.X,e.Z,RadarGround*GameConstants.Tile,e.FactionId);
+                float radar=EffectiveRadar(e)*GameConstants.Tile;
+                CombatTarget ct=GM.Combat.NearestHostile(e.X,e.Z,radar,e.FactionId);
                 if(ct!=null)
                 {
                     float d=Mathf.Sqrt((ct.X-e.X)*(ct.X-e.X)+(ct.Z-e.Z)*(ct.Z-e.Z));
@@ -316,46 +371,41 @@ namespace PixelToCivilization.Systems
                     if(d>engage) MoveToward(e,ct.X,ct.Z,dt,1.4f);
                     else if(e.AttackCd<=0)
                     {
-                        EnemyGroundFire(e,ct); e.AttackCd=2.2f;
+                        EnemyGroundFire(e,ct); e.AttackCd=EffectiveFireInterval(e)+0.2f;
                     }
                 }
                 else Cruise(e,dt);
             }
         }
 
-        /// <summary>V9.5.7 巡航+组阵：领队自由巡航；组员围绕领队按槽位环形阵型跟随（阵型半径 6），
-        /// 距阵位 >3 格才向阵位移动，到位即保持——不再被强制拉回组中心点"原地徘徊"。
-        /// 旧实现 Cruise 把组员目标强制覆盖为 GroupCenter（最后加入者）坐标，到达 d²<4 后 HasRoute=false，
-        /// 下一帧重新选点又被覆盖回组中心 → 整组被拉到某坐标堆叠不动，且不与敌人接战。</summary>
+        /// <summary>巡航+组阵：① 驻留宽限内原地驻守（只索敌）；② 组员围绕领队按槽位环形阵型跟随；
+        /// ③ 领队/无组在自身 20–45 小环陆地巡逻（V9.7.2 缩小，旧 40–100 环一造出来就跑没影）。</summary>
         void Cruise(GroundUnit u,float dt)
         {
             if(_terrain==null) return;
-            // 组员（非领队）：向"领队+槽位偏移"阵位移动，到位后原地待命保持阵型
+            // ① 驻留宽限：列装后原地驻守，不被巡航拉走
+            if(u.GraceT>0f) return;
+            // ② 组员：向"领队+槽位偏移"阵位移动，到位后保持
             if(u.Group>=0 && GroupCenter.TryGetValue(u.Group,out var leader) && leader!=null && leader!=u)
             {
                 int idx=GroupIndexIn(leader.Group,u);
                 int cnt=GroupCount(leader.Group);
                 float ang=(idx*360f/Mathf.Max(1,cnt))*Mathf.Deg2Rad;
-                float sx=leader.X+Mathf.Sin(ang)*6f, sz=leader.Z+Mathf.Cos(ang)*6f;
-                // 阵位落水则绕领队旋转找最近陆地（最多 12 次）
+                float formR=4f+Mathf.Max(leader.Footprint,u.Footprint);   // 阵型间距随体积
+                float sx=leader.X+Mathf.Sin(ang)*formR, sz=leader.Z+Mathf.Cos(ang)*formR;
                 for(int k=0;k<12&&_terrain.IsWater(sx,sz);k++)
-                { ang+=0.52f; sx=leader.X+Mathf.Sin(ang)*6f; sz=leader.Z+Mathf.Cos(ang)*6f; }
+                { ang+=0.52f; sx=leader.X+Mathf.Sin(ang)*formR; sz=leader.Z+Mathf.Cos(ang)*formR; }
                 float ddx=sx-u.X, ddz=sz-u.Z;
-                if(ddx*ddx+ddz*ddz>9f)                       // 距阵位 >3 格：向阵位移动
-                {
-                    MoveToward(u,sx,sz,dt,0.85f);
-                    return;
-                }
-                u.HasRoute=true;                             // 已到位：保持待命状态，防下帧重新选点被拉走
+                if(ddx*ddx+ddz*ddz>9f){ MoveToward(u,sx,sz,dt,0.85f); return; }
+                u.HasRoute=true;
                 return;
             }
-            // 领队 / 无组：陆地随机巡航。V9.6.3f：航点以单位自身为中心（40–100 单位环）——
-            // 原绕世界原点 (0,0) 找点，出生地偏离原点时单位会被拉到原点附近"莫名坐标"，视觉即"被拉到某处不动"
+            // ③ 领队/无组：小环陆地巡逻
             if(!u.HasRoute)
             {
                 u.HasRoute=true;
                 for(int k=0;k<24;k++)
-                { float a=Random.value*Mathf.PI*2, rr=40f+Random.value*60f;
+                { float a=Random.value*Mathf.PI*2, rr=20f+Random.value*25f;
                   float nx=u.X+Mathf.Cos(a)*rr, nz=u.Z+Mathf.Sin(a)*rr;
                   if(!_terrain.IsWater(nx,nz)){ u.RX=nx; u.RZ=nz; break; } }
             }
@@ -372,7 +422,6 @@ namespace PixelToCivilization.Systems
             foreach(var e in Enemies) if(e.Group==g) n++;
             return n;
         }
-        /// <summary>同组同阵营中排在 u 之前的非领队个数（阵型槽位索引）</summary>
         int GroupIndexIn(int g,GroundUnit u)
         {
             int idx=0; var list=u.Side=="ours"?Ours:Enemies;
@@ -385,14 +434,24 @@ namespace PixelToCivilization.Systems
             return idx;
         }
 
-        /// <summary>V9.6.3 地面部队速度统一钳制：Lv1=0.01 格/秒 → Lv10=0.10 格/秒（最高 0.1、最低 0.01，随等级线性成长）。
-        /// V9.6.3f：钳制整体上调 ×10 → Lv1=0.10 格/秒 → Lv10=1.00 格/秒。
-        /// 根因：0.01–0.10 格/秒 ×Tile4 = 0.04–0.40 世界单位/秒，肉眼不可见移动，60 格雷达内追击需数十分钟
-        /// → "生成后不主动寻敌、组队、战斗"（实际在动但极慢）。保留钳制语义与随等级成长，恢复可感知作战移动。</summary>
-        public static float ClampedGroundSpeed(GroundUnit u)
+        // ===== V9.7.2 实际生效参数（类型基础 × 等级成长；属性面板与移动/开火全部读这里，口径唯一）=====
+        /// <summary>实际移动速度（世界单位/秒）= 基础速度 ×(1+8%×(lv-1))。</summary>
+        public float EffectiveSpeed(GroundUnit u)
         {
-            float lv = Mathf.Clamp(u!=null ? u.Level : 1, 1, 10);
-            return 0.10f + 0.90f * (lv - 1f) / 9f;
+            if(u==null) return 0f;
+            return u.BaseSpeed*(1f+LvSpeed*(u.Level-1));
+        }
+        /// <summary>实际雷达/发现距离（格）= 60 ×(1+6%×(lv-1))。</summary>
+        public float EffectiveRadar(GroundUnit u)
+        {
+            if(u==null) return RadarGround;
+            return RadarGround*(1f+LvRadar*(u.Level-1));
+        }
+        /// <summary>实际攻击间隔（秒）= 基础间隔 ×(1-3%×(lv-1))，下限 0.4。</summary>
+        public float EffectiveFireInterval(GroundUnit u)
+        {
+            if(u==null) return 2f;
+            return Mathf.Max(MinFireInterval, u.BaseFire*(1f-LvFire*(u.Level-1)));
         }
 
         void MoveToward(GroundUnit u,float tx,float tz,float dt,float mul)
@@ -400,8 +459,8 @@ namespace PixelToCivilization.Systems
             if(_terrain==null) return;
             float dx=tx-u.X,dz=tz-u.Z; float dist=Mathf.Sqrt(dx*dx+dz*dz);
             if(dist<0.5f) return;
-            // V9.6.3 速度统一钳制 [0.01,0.10] 格/秒（×Tile=世界单位/秒，随等级成长）；去掉旧 30f 帧因子防"飞跑"
-            float sp=ClampedGroundSpeed(u)*GameConstants.Tile*mul;
+            // V9.7.2 速度直接为世界单位/秒（类型差异 × 等级成长）；不再用旧 ClampedGroundSpeed×Tile
+            float sp=EffectiveSpeed(u)*mul;
             float nx=u.X+dx/dist*sp*dt, nz=u.Z+dz/dist*sp*dt;
             // 陆地约束：不得下水；前方是水则贴岸转向
             if(_terrain.IsWater(nx,nz))
@@ -413,7 +472,7 @@ namespace PixelToCivilization.Systems
                     for(int side=-1;side<=1&&!slid;side+=2)
                     {
                         float rx=dx/dist*cs-side*dz/dist*sn, rz=dz/dist*cs+side*dx/dist*sn;
-                        float sx=u.X+rx*sp*dt, sz=u.Z+rz*sp*dt;   // V9.6.3 与世界速度一致（去 30f 帧因子）
+                        float sx=u.X+rx*sp*dt, sz=u.Z+rz*sp*dt;
                         if(!_terrain.IsWater(sx,sz)){ nx=sx; nz=sz; slid=true; }
                     }
                 }
@@ -429,35 +488,6 @@ namespace PixelToCivilization.Systems
             }
         }
 
-        GroundUnit NearestEnemy(GroundUnit u,float range)
-        {
-            GroundUnit best=null; float bd=range*range;
-            foreach(var e in Enemies)
-            {
-                if(e.View==null) continue;
-                float dx=e.X-u.X,dz=e.Z-u.Z,d=dx*dx+dz*dz;
-                if(d<bd){ bd=d; best=e; }
-            }
-            return best;
-        }
-        GroundUnit NearestOurs(GroundUnit e,float range)
-        {
-            GroundUnit best=null; float bd=range*range;
-            foreach(var o in Ours)
-            {
-                if(o.View==null) continue;
-                float dx=o.X-e.X,dz=o.Z-e.Z,d=dx*dx+dz*dz;
-                if(d<bd){ bd=d; best=o; }
-            }
-            return best;
-        }
-
-        void Hit(GroundUnit t,float atk)
-        {
-            if(t==null) return;
-            t.Hp-=atk;
-            if(t.View!=null) t.View.transform.localScale=new Vector3(1,1,1);   // 命中反馈占位（保持稳定）
-        }
         void DestroyUnit(GroundUnit u,List<GroundUnit> list)
         {
             if(u.View!=null) Object.Destroy(u.View);
@@ -468,40 +498,42 @@ namespace PixelToCivilization.Systems
         // ===== V9.4.7 统一战斗目录接线 =====
         public void RegisterCombat(CombatSystem c)
         {
-            // V9.5.7 不再因 View==null 跳过注册：View 只是表现（被销毁/延迟生成），逻辑坐标与 HP 仍有效；
-            // 旧实现 View 丢失单位不进战斗目录 → 敌人"看不见"它 → 不自动战斗。
+            // 不因 View==null 跳过：View 只是表现，逻辑坐标与 HP 仍有效
             foreach(var u in Ours)
             {
                 if(u==null||u.Hp<=0f) continue;
-                c.Add(CombatSystem.K_GROUND,u,u.X,u.Z,u.Hp,u.BaseAttack,u.Range*GameConstants.Tile,CombatSystem.PlayerKey);
+                c.Add(CombatSystem.K_GROUND,u,u.X,u.Z,u.Hp,u.Attack,u.Range*GameConstants.Tile,CombatSystem.PlayerKey);
             }
             foreach(var e in Enemies)
             {
                 if(e==null||e.Hp<=0f) continue;
-                c.Add(CombatSystem.K_GROUND,e,e.X,e.Z,e.Hp,e.BaseAttack,e.Range*GameConstants.Tile,e.FactionId);
+                c.Add(CombatSystem.K_GROUND,e,e.X,e.Z,e.Hp,e.Attack,e.Range*GameConstants.Tile,e.FactionId);
             }
         }
 
+        /// <summary>受到伤害（含防御减伤：实际受击=伤害×100/(100+防御)）。</summary>
         public void DamageGround(GroundUnit u,float dmg)
         {
             if(u==null||u.Hp<=0f||dmg<=0f) return;
-            u.Hp-=dmg;
+            float mitigated=dmg*100f/(100f+Mathf.Max(0f,u.Defense));
+            u.Hp-=mitigated;
         }
 
-        // ===== V9.5.7 地面部队升级/得分 =====
-        /// <summary>升级：耐久按基础值线性 +12%/级（防指数膨胀）、攻击 +8%/级、回血 30%；战斗中击杀达 2 的倍数自动战功升级</summary>
+        // ===== V9.7.2 升级：十维全套随等级成长 =====
+        /// <summary>升级：耐久+12%/级、攻击+8%/级、防御+10%/级、速度+8%/级、射程+1（上限+5、硬上限50）、射速间隔-3%/级；回血30%。</summary>
         public void LevelUp(GroundUnit u,bool free=false)
         {
             if(u==null||u.Level>=10){ if(!free&&u!=null) GM.AddEvent("bad","该部队已达最高等级 Lv10"); return; }
             u.Level++;
-            u.MaxHp=Mathf.RoundToInt(u.BaseMaxHp*(1f+0.12f*(u.Level-1)));
-            u.BaseAttack=Mathf.RoundToInt(u.BaseAttack*1.08f);
-            u.Range=Mathf.Min(50, Mathf.Min(u.BaseRange+5, u.BaseRange+(u.Level-1)));   // V9.6.3 射程 +1 格/级（上限 +5）；V9.6.3f2 硬上限 50 格（用户要求"地面作战单位≤50格"）
+            u.MaxHp=Mathf.RoundToInt(u.BaseMaxHp*(1f+LvHp*(u.Level-1)));
+            u.Attack=Mathf.RoundToInt(u.BaseAttack*Mathf.Pow(1f+LvAtk,u.Level-1));
+            u.Defense=Mathf.RoundToInt(u.BaseDefense*(1f+LvDef*(u.Level-1)));
+            u.Range=Mathf.Min(GroundRangeHardCap, Mathf.Min(u.BaseRange+MaxRangeAdd, u.BaseRange+(u.Level-1)));
             u.Hp=Mathf.Min(u.MaxHp, u.Hp+u.MaxHp*0.3f);
             GM.AddEvent("good","🎖 "+(free?"战功晋升":"升级")+"："+u.Name+" → Lv"+u.Level
-                +"（攻击 "+u.BaseAttack+" 耐久 "+u.MaxHp+" 射程 "+u.Range+"）");
+                +"（攻击 "+u.Attack+" 耐久 "+u.MaxHp+" 防御 "+u.Defense+" 射程 "+u.Range+" 速度 "+EffectiveSpeed(u).ToString("0.0")+"）");
         }
-        /// <summary>玩家资源升级造价：按当前等级线性上涨（钢/金按基础造价的 55%/级，古典型按木/粮/金）</summary>
+        /// <summary>玩家资源升级造价：按当前等级线性（现代钢/金，古典木/粮/金）。</summary>
         public Dictionary<string,int> UpgradeGroundCost(GroundUnit u)
         {
             if(u==null||u.Level>=10) return null;
@@ -520,21 +552,19 @@ namespace PixelToCivilization.Systems
             return true;
         }
 
-        /// <summary>我方军车开火：同类型军车走 Hit+DestroyUnit；跨类型（舰/步/骑/建筑）走统一 Damage</summary>
+        // ===== 开火 =====
         void GroundFire(GroundUnit u,CombatTarget ct)
         {
-            // V9.5.4 统一武器特效：坦克炮口闪光+开火音效 / 命中爆炸+爆炸音效（桶池化）
             WeaponFxSystem.Muzzle(new Vector3(u.X,1.4f,u.Z),1.5f);
             WeaponFxSystem.Sfx("cannon_fire",new Vector3(u.X,1.4f,u.Z),0.65f);
             if(ct.Ref is GroundUnit tgt)
             {
                 var hp=new Vector3(ct.X,1f,ct.Z);
                 WeaponFxSystem.Explosion(hp); WeaponFxSystem.Sfx("cannon_explode",hp,0.8f);
-                Hit(tgt,u.BaseAttack);
+                DamageGround(tgt,u.Attack);
                 if(tgt.Hp<=0f)
                 {
                     DestroyUnit(tgt,Enemies);
-                    // V9.5.7 战斗得分与战功升级：每 2 杀升 1 级（免费，战斗中即时生效）
                     u.Kills++;
                     GM.AddEvent("good","💥 击毁一辆敌"+tgt.Name+"！（"+u.Name+" 战绩 "+u.Kills+"）");
                     if(u.Kills%2==0 && u.Level<10) LevelUp(u,true);
@@ -542,20 +572,17 @@ namespace PixelToCivilization.Systems
                 return;
             }
             WeaponFxSystem.Explosion(new Vector3(ct.X,1f,ct.Z)); WeaponFxSystem.Sfx("cannon_explode",new Vector3(ct.X,1f,ct.Z),0.8f);
-            GM.Combat.Damage(ct,u.BaseAttack);
+            GM.Combat.Damage(ct,u.Attack);
         }
-
-        /// <summary>敌方军车开火：目标为我方/他派军车走 Hit+DestroyUnit（敌方各派混战）；跨类型走统一 Damage</summary>
         void EnemyGroundFire(GroundUnit e,CombatTarget ct)
         {
-            // V9.5.4 统一武器特效（敌方同样生效）
             WeaponFxSystem.Muzzle(new Vector3(e.X,1.4f,e.Z),1.5f);
             WeaponFxSystem.Sfx("cannon_fire",new Vector3(e.X,1.4f,e.Z),0.65f);
             if(ct.Ref is GroundUnit tgt)
             {
                 var hp=new Vector3(ct.X,1f,ct.Z);
                 WeaponFxSystem.Explosion(hp); WeaponFxSystem.Sfx("cannon_explode",hp,0.8f);
-                Hit(tgt,e.BaseAttack);
+                DamageGround(tgt,e.Attack);
                 if(tgt.Hp<=0f)
                 {
                     if(ct.Key==CombatSystem.PlayerKey){ DestroyUnit(tgt,Ours); GM.AddEvent("bad","💥 我方一辆"+tgt.Name+"被击毁！"); }
@@ -564,18 +591,16 @@ namespace PixelToCivilization.Systems
                 return;
             }
             WeaponFxSystem.Explosion(new Vector3(ct.X,1f,ct.Z)); WeaponFxSystem.Sfx("cannon_explode",new Vector3(ct.X,1f,ct.Z),0.8f);
-            GM.Combat.Damage(ct,e.BaseAttack);
+            GM.Combat.Damage(ct,e.Attack);
         }
 
-        /// <summary>统一清理外部（舰/塔/步骑）击杀的军车，销毁视图后移除</summary>
         void CleanupDead()
         {
-            Ours.RemoveAll(u=>{ if(u.Hp<=0f){ if(u.View!=null)Object.Destroy(u.View); return true; } return false; });
-            Enemies.RemoveAll(u=>{ if(u.Hp<=0f){ if(u.View!=null)Object.Destroy(u.View); return true; } return false; });
+            Ours.RemoveAll(u=>{ if(u.Hp<=0f){ if(u.View!=null)Object.Destroy(u.View); GroupCenter.Remove(u.Group); return true; } return false; });
+            Enemies.RemoveAll(u=>{ if(u.Hp<=0f){ if(u.View!=null)Object.Destroy(u.View); GroupCenter.Remove(u.Group); return true; } return false; });
         }
 
-        /// <summary>V9.5.7 编队分配：我方组号 0-31、敌方组号 32-63（阵营分离，防止我方单位与敌方同组被领到敌方位置）；
-        /// 组中心=本阵营首个加入者（领队），不再被"最后加入者"覆盖（旧实现组员全被拉到最后加入者坐标堆叠）。</summary>
+        // ===== 编队 =====
         void AssignGroup(GroundUnit u)
         {
             bool ours=u.Side=="ours";
@@ -585,9 +610,8 @@ namespace PixelToCivilization.Systems
             int start=ours?0:32, end=ours?32:64, g=start;
             for(int k=start;k<end;k++){ if(!cnt.TryGetValue(k,out var c)||c<3){ g=k; break; } }
             u.Group=g;
-            if(!GroupCenter.ContainsKey(g)) GroupCenter[g]=u;   // 领队=首个加入者
+            if(!GroupCenter.ContainsKey(g)) GroupCenter[g]=u;
         }
-        /// <summary>V9.5.7 重建组中心：保留各阵营首个单位作领队（我方 0-31 / 敌方 32-63 互不覆盖）</summary>
         void RebuildGroups()
         {
             GroupCenter.Clear();
@@ -595,15 +619,14 @@ namespace PixelToCivilization.Systems
             foreach(var e in Enemies) if(!GroupCenter.ContainsKey(e.Group)) GroupCenter[e.Group]=e;
         }
 
-        /// <summary>V9.4.6 地面部队体积分离（4Hz）：防编队/巡航重叠，半径 5</summary>
+        /// <summary>体积分离（4Hz）：防编队/巡航重叠，半径随 Footprint。</summary>
         void SeparateGround(float dt)
         {
             if(Time.unscaledTime<_sepAt) return;
             _sepAt=Time.unscaledTime+0.25f;
-            const float minSq=5f*5f;
-            SeparateList(Ours,minSq,dt); SeparateList(Enemies,minSq,dt);
+            SeparateList(Ours,dt); SeparateList(Enemies,dt);
         }
-        void SeparateList(List<GroundUnit> list,float minSq,float dt)
+        void SeparateList(List<GroundUnit> list,float dt)
         {
             for(int i=0;i<list.Count;i++)
             {
@@ -612,9 +635,11 @@ namespace PixelToCivilization.Systems
                 {
                     var b=list[j]; if(b.View==null) continue;
                     float dx=b.X-a.X,dz=b.Z-a.Z; float d2=dx*dx+dz*dz;
+                    float minR=Mathf.Max(1f,(a.Footprint+b.Footprint)*0.5f);
+                    float minSq=minR*minR;
                     if(d2>0.0001f&&d2<minSq)
                     {
-                        float d=Mathf.Sqrt(d2); float push=(5f-d)*0.5f*4f*dt;
+                        float d=Mathf.Sqrt(d2); float push=(minR-d)*0.5f*4f*dt;
                         float ux=dx/d,uz=dz/d;
                         a.X-=ux*push; a.Z-=uz*push; b.X+=ux*push; b.Z+=uz*push;
                     }
@@ -622,18 +647,20 @@ namespace PixelToCivilization.Systems
             }
         }
 
-        // ===== 程序化视图（Cube 组合，顶点量安全；绝不用内置 Sphere）=====
+        // ===== 程序化视图（Cube 组合；phalanx 为 3 人一组；不用内置 Sphere）=====
         GameObject BuildView(GroundUnit u,GroundDef d,long?factionColor=null)
         {
             var go=new GameObject("Ground_"+d.Id);
             go.transform.SetParent(_root,false);
             var colorHex=factionColor!=null?("#"+((long)factionColor).ToString("X6")):d.ColorHex;
-            // V9.5.4 古典三型材质：骑兵青甲 / 方阵兵红袍 / 战车木身；现代按原橄榄绿/沙灰/荒漠
             Material body = d.Id=="tank"?_matTank : d.Id=="apc"?_matApc
                          : d.Id=="missile_vehicle"?_matMissile
                          : d.Id=="cavalry"?_matCavalry : d.Id=="phalanx"?_matPhalanx : _matWood;
-            ColorUtility.TryParseHtmlString(colorHex,out var fc);
-            if(factionColor!=null) body=ShaderHelper.Pbr(fc,0.25f,0.5f,9700+(int)fc.GetHashCode()%200,0.5f);
+            if(factionColor!=null)
+            {
+                ColorUtility.TryParseHtmlString(colorHex,out var fc);
+                body=ShaderHelper.Pbr(fc,0.25f,0.5f,9700+(int)fc.GetHashCode()%200,0.5f);
+            }
             if(d.Id=="cavalry")
             {   // 骑兵：青甲骑手 + 战马 + 长矛
                 var horse=Prim(_matHorse,new Vector3(1.5f,0.8f,2.1f)); horse.transform.localPosition=new Vector3(0,0.4f,0);
@@ -648,12 +675,16 @@ namespace PixelToCivilization.Systems
                 var tip=Prim(_matBronze,new Vector3(0.2f,0.3f,0.2f)); tip.transform.localPosition=new Vector3(0.45f,2.5f,0.3f);
             }
             else if(d.Id=="phalanx")
-            {   // 列方阵兵：红袍兵 + 巨盾 + 长矛（盾防正面）
-                var shield=Prim(_matBronze,new Vector3(0.45f,1.5f,1.45f)); shield.transform.localPosition=new Vector3(0,0.75f,0.2f);
-                var bodyGo=Prim(body,new Vector3(0.6f,0.9f,0.5f)); bodyGo.transform.localPosition=new Vector3(0,0.55f,-0.35f);
-                var helm=Prim(_matBronze,new Vector3(0.4f,0.42f,0.4f)); helm.transform.localPosition=new Vector3(0,1.4f,-0.35f);
-                var spear=Prim(_matDark,new Vector3(0.12f,2.0f,0.12f)); spear.transform.localPosition=new Vector3(0.3f,1.7f,-0.3f);
-                var tip=Prim(_matBronze,new Vector3(0.2f,0.32f,0.2f)); tip.transform.localPosition=new Vector3(0.3f,2.65f,-0.3f);
+            {   // 列方阵兵：3 人一组并排（红袍兵 + 巨盾 + 长矛），V9.7.2 由单兵改为 3 人编组
+                for(int m=-1;m<=1;m++)
+                {
+                    float off=m*0.95f;
+                    var shield=Prim(_matBronze,new Vector3(0.4f,1.3f,1.2f)); shield.transform.localPosition=new Vector3(off,0.7f,0.2f);
+                    var man=Prim(body,new Vector3(0.5f,0.8f,0.42f)); man.transform.localPosition=new Vector3(off,0.5f,-0.35f);
+                    var helm=Prim(_matBronze,new Vector3(0.34f,0.36f,0.34f)); helm.transform.localPosition=new Vector3(off,1.25f,-0.35f);
+                    var spear=Prim(_matDark,new Vector3(0.1f,1.8f,0.1f)); spear.transform.localPosition=new Vector3(off+0.22f,1.5f,-0.3f);
+                    var stip=Prim(_matBronze,new Vector3(0.16f,0.26f,0.16f)); stip.transform.localPosition=new Vector3(off+0.22f,2.4f,-0.3f);
+                }
             }
             else if(d.Id=="chariot")
             {   // 马拉战车：双马 + 车架 + 双轮 + 车夫
@@ -690,8 +721,6 @@ namespace PixelToCivilization.Systems
                 TrackPair(go,go);
             }
             go.transform.position=new Vector3(u.X, _terrain!=null?_terrain.HeightAt(u.X,u.Z)+0.5f:0.5f, u.Z);
-            // V9.5.7 可点击选中：根节点补 BoxCollider + GroundClick（旧实现 Prim 销毁全部 Collider 且无 OnMouseDown，
-            // 地面部队永远无法被鼠标拾取 → 无法查看属性/升级）。子部件仍销毁 Collider 防射线干扰。
             var col=go.AddComponent<BoxCollider>();
             col.size=new Vector3(2.8f,1.4f,2.0f); col.center=new Vector3(0,0.6f,0);
             var click=go.AddComponent<GroundClick>(); click.Unit=u;
@@ -701,8 +730,8 @@ namespace PixelToCivilization.Systems
         GameObject Prim(Material m,Vector3 size,GameObject parent=null)
         {
             var g=GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Object.Destroy(g.GetComponent<Collider>());   // 防点击拾取干扰
-            g.transform.SetParent(parent!=null?parent.transform:_root,false);   // V9.5.4 部件挂单位节点而非世界根：修复"部件钉原点、空壳移动"
+            Object.Destroy(g.GetComponent<Collider>());
+            g.transform.SetParent(parent!=null?parent.transform:_root,false);
             g.transform.localScale=size;
             var r=g.GetComponent<Renderer>(); r.material=m; r.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
             return g;
@@ -713,7 +742,6 @@ namespace PixelToCivilization.Systems
             var r=Prim(_matTrack,new Vector3(0.4f,0.35f,1.4f),anchor); r.transform.localPosition=new Vector3(1.1f,-0.5f,0);
         }
 
-        /// <summary>V9.5.7 地面部队点击桥（对齐 ShipClick/CartClick，依赖根节点 Collider；UI/建造面板/放置模式不弹）</summary>
         public class GroundClick : MonoBehaviour
         {
             public GroundUnit Unit;
@@ -726,14 +754,14 @@ namespace PixelToCivilization.Systems
             }
         }
 
-        /// <summary>V9.4.6 Web 探针</summary>
+        // ===== Web 探针 =====
         public string Probe()
         {
             int f=0; var seen=new HashSet<string>();
             foreach(var e in Enemies) if(seen.Add(e.FactionId)) f++;
             return "groundActive="+(Active?"1":"0")+" ours="+Ours.Count+" enemy="+Enemies.Count+" factions="+f+" max="+MaxGround;
         }
-        /// <summary>V9.6.3 浏览器回归：输出我方每单位 等级/坐标/钳制速度（ClampedGroundSpeed）与首单位 10 秒位移测速基线</summary>
+        /// <summary>V9.7.2 回归：前 4 单位 等级/坐标/【实际生效速度】（EffectiveSpeed，与面板一致）。</summary>
         public string Probe963()
         {
             var sb=new System.Text.StringBuilder();
@@ -741,7 +769,7 @@ namespace PixelToCivilization.Systems
             int n=0;
             foreach(var u in Ours){ if(n++>=4) break;
                 sb.Append(u.TypeId).Append(":Lv").Append(u.Level).Append("(").Append(u.X.ToString("F1")).Append(",")
-                  .Append(u.Z.ToString("F1")).Append(")spd").Append(ClampedGroundSpeed(u).ToString("F3")).Append(";"); }
+                  .Append(u.Z.ToString("F1")).Append(")spd").Append(EffectiveSpeed(u).ToString("F2")).Append(";"); }
             sb.Append("]");
             return sb.ToString();
         }
