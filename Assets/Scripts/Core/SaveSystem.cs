@@ -5,6 +5,7 @@ using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
 using PixelToCivilization.World;
+using PixelToCivilization.Platform;
 
 namespace PixelToCivilization.Core
 {
@@ -155,7 +156,7 @@ namespace PixelToCivilization.Core
             sb.Append("slot:");
             for (int i = 0; i <= ManualSlots; i++) sb.Append(HasSlot(i) ? "1" : "0");
             sb.Append("|roll:");
-            for (int i = 0; i < RollbackSlots; i++) sb.Append(PlayerPrefs.HasKey(RollKey(i)) ? "1" : "0");
+            for (int i = 0; i < RollbackSlots; i++) sb.Append(PxcStorage.BodyHasKey(RollKey(i)) ? "1" : "0");
             sb.Append("|schema:");
             int anySchema = 0;
             for (int i = 0; i <= ManualSlots; i++)
@@ -163,11 +164,11 @@ namespace PixelToCivilization.Core
             sb.Append(anySchema);
             sb.Append("|tmp:");
             bool hasTmp = false;
-            for (int i = 0; i <= ManualSlots; i++) if (PlayerPrefs.HasKey("PxC_Tmp_" + i)) hasTmp = true;
+            for (int i = 0; i <= ManualSlots; i++) if (PxcStorage.BodyHasKey("PxC_Tmp_" + i)) hasTmp = true;
             sb.Append(hasTmp ? "1" : "0");
             sb.Append("|bak:");
             int baks = 0;
-            for (int i = 1; i <= ManualSlots; i++) if (PlayerPrefs.HasKey("PxC_Bak_" + i)) baks++;
+            for (int i = 1; i <= ManualSlots; i++) if (PxcStorage.BodyHasKey("PxC_Bak_" + i)) baks++;
             sb.Append(baks);
             return sb.ToString();
         }
@@ -177,7 +178,7 @@ namespace PixelToCivilization.Core
             if (!HasSlot(slot)) return 0;
             try
             {
-                var d = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(Key(slot)));
+                var d = JsonUtility.FromJson<SaveData>(PxcStorage.BodyGetString(Key(slot)));
                 return d != null ? d.SaveSchema : 0;
             }
             catch { return 0; }
@@ -187,7 +188,8 @@ namespace PixelToCivilization.Core
         public void CleanupTempKeys()
         {
             for (int i = 0; i <= ManualSlots; i++)
-                if (PlayerPrefs.HasKey("PxC_Tmp_" + i)) PlayerPrefs.DeleteKey("PxC_Tmp_" + i);
+                if (PxcStorage.BodyHasKey("PxC_Tmp_" + i)) PxcStorage.BodyDeleteKey("PxC_Tmp_" + i);
+            PxcStorage.BodyFlush();
             PlayerPrefs.Save();
         }
 
@@ -204,9 +206,10 @@ namespace PixelToCivilization.Core
         {
             if (slot == 0) return;
             string k = Key(slot);
-            if (!PlayerPrefs.HasKey(k)) return;
-            PlayerPrefs.SetString("PxC_Bak_" + slot, PlayerPrefs.GetString(k));
+            if (PxcStorage.BodyHasKey(k))
+                PxcStorage.BodySetString("PxC_Bak_" + slot, PxcStorage.BodyGetString(k));
             if (PlayerPrefs.HasKey(SumKey(slot))) PlayerPrefs.SetString("PxC_BakSum_" + slot, PlayerPrefs.GetString(SumKey(slot)));
+            PxcStorage.BodyFlush();
             PlayerPrefs.Save();
         }
 
@@ -215,9 +218,10 @@ namespace PixelToCivilization.Core
         {
             if (slot == 0) return false;
             string bk = "PxC_Bak_" + slot;
-            if (!PlayerPrefs.HasKey(bk)) { _gm?.AddEvent("bad", "存档位 " + slot + " 无写前备份"); return false; }
-            PlayerPrefs.SetString(Key(slot), PlayerPrefs.GetString(bk));
+            if (!PxcStorage.BodyHasKey(bk)) { _gm?.AddEvent("bad", "存档位 " + slot + " 无写前备份"); return false; }
+            PxcStorage.BodySetString(Key(slot), PxcStorage.BodyGetString(bk));
             if (PlayerPrefs.HasKey("PxC_BakSum_" + slot)) PlayerPrefs.SetString(SumKey(slot), PlayerPrefs.GetString("PxC_BakSum_" + slot));
+            PxcStorage.BodyFlush();
             PlayerPrefs.Save();
             _gm?.AddEvent("good", "↩ 已从写前备份恢复存档位 " + slot);
             return true;
@@ -228,18 +232,19 @@ namespace PixelToCivilization.Core
         private bool AtomicWrite(int slot, string finalJson, string sumJson)
         {
             string tmp = "PxC_Tmp_" + slot;
-            PlayerPrefs.SetString(tmp, finalJson);
-            PlayerPrefs.Save();                                   // 阶段1：写临时（校验前）
+            PxcStorage.BodySetString(tmp, finalJson);
+            PxcStorage.BodyFlush();                               // 阶段1：临时档先落盘（校验前）
             if (SaveEnvelope.Verify(finalJson) == null)           // 校验（新档校验和精确匹配 / 旧档结构放行）
             {
-                PlayerPrefs.DeleteKey(tmp);
-                PlayerPrefs.Save();
+                PxcStorage.BodyDeleteKey(tmp);
+                PxcStorage.BodyFlush();
                 return false;                                     // 校验失败：丢弃，正式档不变
             }
-            PlayerPrefs.SetString(Key(slot), finalJson);
+            PxcStorage.BodySetString(Key(slot), finalJson);
+            PxcStorage.BodyDeleteKey(tmp);
             if (!string.IsNullOrEmpty(sumJson)) PlayerPrefs.SetString(SumKey(slot), sumJson);
-            PlayerPrefs.DeleteKey(tmp);
-            PlayerPrefs.Save();                                   // 阶段2：提交正式档
+            PxcStorage.BodyFlush();                               // 阶段2：提交正文档
+            PlayerPrefs.Save();                                   // 摘要档（PlayerPrefs）
             return true;
         }
 
@@ -341,19 +346,21 @@ namespace PixelToCivilization.Core
         public void AutoSaveNow()
         {
             // 1) 先把当前自动档滚动进回滚链：rollback2 <- rollback1 <- rollback0 <- 旧 auto
-            string cur = PlayerPrefs.GetString(Key(0), "");
+            string cur = PxcStorage.BodyGetString(Key(0), "");
             if (!string.IsNullOrEmpty(cur))
             {
                 for (int i = RollbackSlots - 1; i >= 1; i--)
                 {
-                    if (PlayerPrefs.HasKey(RollKey(i - 1)))
-                        PlayerPrefs.SetString(RollKey(i), PlayerPrefs.GetString(RollKey(i - 1)));
-                    else if (PlayerPrefs.HasKey(RollKey(i)))
-                        PlayerPrefs.DeleteKey(RollKey(i));
+                    if (PxcStorage.BodyHasKey(RollKey(i - 1)))
+                        PxcStorage.BodySetString(RollKey(i), PxcStorage.BodyGetString(RollKey(i - 1)));
+                    else if (PxcStorage.BodyHasKey(RollKey(i)))
+                        PxcStorage.BodyDeleteKey(RollKey(i));
                 }
-                PlayerPrefs.SetString(RollKey(0), cur);
+                PxcStorage.BodySetString(RollKey(0), cur);
                 if (PlayerPrefs.HasKey(SumKey(0)))
                     PlayerPrefs.SetString(RollSumKey(0), PlayerPrefs.GetString(SumKey(0)));
+                PxcStorage.BodyFlush();
+                PlayerPrefs.Save();
             }
             // 2) 写新自动档（异步原子写）
             SaveAsync(0, ok =>
@@ -387,11 +394,11 @@ namespace PixelToCivilization.Core
         {
             if (slot >= 0 && slot <= ManualSlots && !HasSlot(slot)) return false;
             bool isRoll = slot >= RollSlot(0) && slot < RollSlot(0) + RollbackSlots;
-            if (isRoll && !PlayerPrefs.HasKey(RollKey(slot - RollSlot(0)))) return false;
+            if (isRoll && !PxcStorage.BodyHasKey(RollKey(slot - RollSlot(0)))) return false;
             try
             {
-                string json = isRoll ? PlayerPrefs.GetString(RollKey(slot - RollSlot(0)))
-                                     : PlayerPrefs.GetString(Key(slot));
+                string json = isRoll ? PxcStorage.BodyGetString(RollKey(slot - RollSlot(0)))
+                                     : PxcStorage.BodyGetString(Key(slot));
                 // V9.6.6 信封校验：新档校验和精确匹配，旧档结构放行；篡改/损坏拒绝
                 var d = SaveEnvelope.Verify(json);
                 if (d == null) return false;                             // 校验失败 → 损坏
@@ -406,8 +413,9 @@ namespace PixelToCivilization.Core
         /// <summary>V9.6.5 模拟：损坏自动存档（供 WebCrashSimulate mode=2 崩溃恢复测试）。</summary>
         public void WebCrashCorruptAuto()
         {
-            PlayerPrefs.SetString(Key(0), "{\"Version\":\"CORRUPTED\",\"");   // 非法 JSON
+            PxcStorage.BodySetString(Key(0), "{\"Version\":\"CORRUPTED\",\"");   // 非法 JSON
             PlayerPrefs.DeleteKey(SumKey(0));
+            PxcStorage.BodyFlush();
             PlayerPrefs.Save();
             Debug.LogWarning("[CrashSim] 已故意损坏自动槽（模拟崩溃时写坏档）");
         }
@@ -438,7 +446,7 @@ namespace PixelToCivilization.Core
             try
             {
                 // V9.6.6 全量回退走信封校验（损坏档不参与摘要/最近槽）
-                var full=SaveEnvelope.Verify(PlayerPrefs.GetString(Key(slot)));
+                var full=SaveEnvelope.Verify(PxcStorage.BodyGetString(Key(slot)));
                 if (full==null) return null;
                 return new SlotSummaryData{ Slot=slot, Year=full.Year, DynastyName=full.DynastyName,
                     BuildingCount=full.BuildingCount, SaveTime=full.SaveTime,
@@ -611,7 +619,7 @@ namespace PixelToCivilization.Core
         }
 
         // ---------- 槽位读写 ----------
-        public bool HasSlot(int slot)=>PlayerPrefs.HasKey(Key(slot));
+        public bool HasSlot(int slot) => PxcStorage.BodyHasKey(Key(slot));
 
         /// <summary>返回 0(自动)..5(手动) 中存档时间最新的非空槽位，损坏槽跳过；没有任何有效存档返回 -1。
         /// V9.6.4 改为读槽位摘要（无摘要旧档自动回退全量解析），不再每槽全量反序列化。</summary>
@@ -631,8 +639,9 @@ namespace PixelToCivilization.Core
             if(slot==0) return;                 // 自动槽不允许删除
             // V9.6.6 删除前备份（防误删，可 RestoreBackup 找回）
             BackupBeforeWrite(slot);
-            PlayerPrefs.DeleteKey(Key(slot));
-            PlayerPrefs.DeleteKey(SumKey(slot)); // V9.6.4 摘要随档同删
+            PxcStorage.BodyDeleteKey(Key(slot));
+            PlayerPrefs.DeleteKey(SumKey(slot)); // 摘要随档同删
+            PxcStorage.BodyFlush();
             PlayerPrefs.Save();
             _gm.AddEvent("info","已删除存档位 "+slot);
         }
@@ -642,7 +651,7 @@ namespace PixelToCivilization.Core
             try
             {
                 // V9.6.6 信封校验 + 版本迁移（新档校验和精确匹配；篡改/损坏拒绝）
-                var d = SaveEnvelope.Verify(PlayerPrefs.GetString(Key(slot)));
+                var d = SaveEnvelope.Verify(PxcStorage.BodyGetString(Key(slot)));
                 if (d == null) { _gm.AddEvent("bad", "存档位 " + slot + " 校验失败（损坏/篡改），已拒绝加载"); return false; }
                 if (!SaveVersionMigrator.Migrate(d)) { _gm.AddEvent("bad", "存档位 " + slot + " 版本迁移失败，已拒绝加载"); return false; }
                 Apply(d);
@@ -947,7 +956,14 @@ namespace PixelToCivilization.Core
             _autoTimer+=Time.unscaledDeltaTime;   // 现实时间计时，不受倍速影响
             // V9.6.5 安全模式下自动保存降频至 20s（崩溃恢复更快锚点）
             float interval = CrashGuardSystem.SafeMode ? 20f : AutoSaveInterval;
-            if(_autoTimer>=interval){_autoTimer=0;AutoSaveNow();}
+            if(_autoTimer>=interval)
+            {
+                _autoTimer=0;
+                // V9.7.0 脏标记节流：无数据变更时跳过本轮自动档（同时间隔重置，避免忙轮询）
+                if (SaveDirtySystem.ShouldSkipAutoSave()) return;
+                AutoSaveNow();
+                SaveDirtySystem.MarkClean();
+            }
         }
     }
 }
