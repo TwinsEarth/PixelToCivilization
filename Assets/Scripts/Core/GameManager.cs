@@ -1415,10 +1415,10 @@ namespace PixelToCivilization.Core
         {
             if (Ground==null || Ground.Ours==null || Ground.Ours.Count==0){ Debug.Log("[WEB] GroundUpgrade no-ground"); return; }
             var u=Ground.Ours[0];
-            float before=GroundWarfareSystem.ClampedGroundSpeed(u);
+            float before=Ground.EffectiveSpeed(u);
             int br=u.BaseRange, lv=u.Level;
             Ground.LevelUp(u,true);
-            Debug.Log("[WEB] GroundUpgrade lv="+lv+"->"+u.Level+" range="+br+"->"+u.Range+" hp="+u.Hp+"/"+u.MaxHp+" spd="+before.ToString("F3")+"->"+GroundWarfareSystem.ClampedGroundSpeed(u).ToString("F3"));
+            Debug.Log("[WEB] GroundUpgrade lv="+lv+"->"+u.Level+" range="+br+"->"+u.Range+" hp="+u.Hp+"/"+u.MaxHp+" spd="+before.ToString("F3")+"->"+Ground.EffectiveSpeed(u).ToString("F3"));
         }
         /// <summary>V9.6.3f2 浏览器回归：海军攻击半径（减半后 clamp ≤50 格，Lv1/Lv10 对比）+ 造 3 艘我方军舰</summary>
         [UnityEngine.Scripting.Preserve]
