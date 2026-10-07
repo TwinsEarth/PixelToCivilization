@@ -41,7 +41,7 @@ namespace PixelToCivilization.Systems
             return cam != null && Vector3.Distance(cam.transform.position, p) < VISIBLE_RANGE;
         }
 
-        /// <summary>炮口/枪口闪光：自发光 Quad + 点光源，0.12s 消失（回收）。</summary>
+        /// <summary>炮口/枪口闪光：自发光 Quad + 点光源，0.22s 消失（回收）。</summary>
         public static void Muzzle(Vector3 p, float scale = 1.3f)
         {
             if (!Visible(p)) return;
@@ -49,12 +49,12 @@ namespace PixelToCivilization.Systems
             go.transform.position = p;
             var lf = go.GetComponent<FxLifetime>();
             if (lf == null) lf = go.AddComponent<FxLifetime>();
-            lf.Begin("wfx_muzzle", 0.12f);
+            lf.Begin("wfx_muzzle", 0.22f);
             var light = go.transform.Find("light");
             if (light != null)
             {
                 var l = light.GetComponent<Light>();
-                if (l != null) { l.intensity = 7f; l.range = 14f; }
+                if (l != null) { l.intensity = 8f; l.range = 15f; }
             }
             var flash = go.transform.Find("flash");
             if (flash != null)
@@ -103,6 +103,43 @@ namespace PixelToCivilization.Systems
             var lf = go.GetComponent<FxLifetime>();
             if (lf == null) lf = go.AddComponent<FxLifetime>();
             lf.Begin("wfx_tracer", 0.25f);
+        }
+
+        /// <summary>V9.6.4 火龙喷射（火塔开火）：沿 dir 排布 3 团递增火焰 + 根部强闪光，0.4s 消失（一烧一片的喷射感）。</summary>
+        public static void FlameJet(Vector3 p, Vector3 dir, float scale = 1f)
+        {
+            if (!Visible(p)) return;
+            var go = GameObjectPool.Rent("wfx_flamejet", Root, CreateFlameJet);
+            go.transform.position = p;
+            go.transform.rotation = Quaternion.LookRotation(new Vector3(dir.x, 0f, dir.z));
+            go.transform.localScale = Vector3.one * scale;
+            var lf = go.GetComponent<FxLifetime>();
+            if (lf == null) lf = go.AddComponent<FxLifetime>();
+            lf.Begin("wfx_flamejet", 0.4f);
+        }
+
+        /// <summary>V9.6.4 地面持续燃烧（火塔命中后 1s）：中心火球 + 3 团环绕火焰 + 浓烟上升，1s 消失。</summary>
+        public static void Burn(Vector3 p, float scale = 1f)
+        {
+            if (!Visible(p)) return;
+            var go = GameObjectPool.Rent("wfx_burn", Root, CreateBurn);
+            go.transform.position = p;
+            go.transform.localScale = Vector3.one * scale;
+            var lf = go.GetComponent<FxLifetime>();
+            if (lf == null) lf = go.AddComponent<FxLifetime>();
+            lf.Begin("wfx_burn", 1f);
+        }
+
+        /// <summary>V9.6.4 烽火烟柱（烽火台常驻传警）：竖直烟柱 + 顶部火团，2.5s 消失后循环重放。</summary>
+        public static void Smoke(Vector3 p, float scale = 1f)
+        {
+            if (!Visible(p)) return;
+            var go = GameObjectPool.Rent("wfx_smoke", Root, CreateSmoke);
+            go.transform.position = p;
+            go.transform.localScale = Vector3.one * scale;
+            var lf = go.GetComponent<FxLifetime>();
+            if (lf == null) lf = go.AddComponent<FxLifetime>();
+            lf.Begin("wfx_smoke", 2.5f);
         }
 
         /// <summary>即时音效：走 AudioManager（手势解锁/静音/资源缺失自动安全跳过）。</summary>
@@ -183,6 +220,51 @@ namespace PixelToCivilization.Systems
             return go;
         }
 
+        /// <summary>V9.6.4 火龙喷射组：根部强火球 + 沿 +Z 依次放大 3 团火焰（go 朝向=LookRotation 朝向 dir）</summary>
+        static GameObject CreateFlameJet()
+        {
+            var go = new GameObject("flamejetFx");
+            AddFlameChild(go, "root",  new Vector3(0f,   0.3f, 0f),   0.5f);   // 根部火球
+            AddFlameChild(go, "jet1",  new Vector3(0f,   0.35f, 0.8f), 0.72f);  // 火龙前端1
+            AddFlameChild(go, "jet2",  new Vector3(0f,   0.4f,  1.7f), 0.95f);  // 火龙前端2（更大）
+            AddFlameChild(go, "jet3",  new Vector3(0f,   0.45f, 2.6f), 1.2f);   // 火龙前端3（最大，一烧一片）
+            return go;
+        }
+
+        /// <summary>V9.6.4 地面持续燃烧组：中心大火球 + 环绕三团小火 + 顶部烟</summary>
+        static GameObject CreateBurn()
+        {
+            var go = new GameObject("burnFx");
+            AddFlameChild(go, "core",  new Vector3(0f,      0.45f, 0f),   1.0f);  // 中心火球
+            AddFlameChild(go, "f0",    new Vector3(0.55f,   0.25f, 0.15f), 0.55f);
+            AddFlameChild(go, "f1",    new Vector3(-0.4f,   0.2f,  0.5f),  0.5f);
+            AddFlameChild(go, "f2",    new Vector3(0.1f,    0.2f,  -0.6f), 0.45f);
+            AddSmokeChild(go, "smoke", new Vector3(0f,      0.7f,  0f),     0.9f);  // 浓烟上升
+            return go;
+        }
+
+        /// <summary>V9.6.4 烽火烟柱组：顶部火团 + 竖直烟柱</summary>
+        static GameObject CreateSmoke()
+        {
+            var go = new GameObject("smokeFx");
+            AddFlameChild(go, "beacon", new Vector3(0f, 0.2f, 0f), 0.7f);      // 顶部火团
+            AddSmokeChild(go, "pillar", new Vector3(0f, 0.8f, 0f), 0.55f, 2.2f); // 竖直烟柱
+            return go;
+        }
+
+        /// <summary>V9.6.4 火焰团子物体（自发光火色球，随整体生命周期隐藏，无独立动画）</summary>
+        static void AddFlameChild(GameObject parent, string name, Vector3 localPos, float size)
+        {
+            var f = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Object.Destroy(f.GetComponent<Collider>());
+            f.name = name;
+            f.transform.SetParent(parent.transform, false);
+            f.transform.localPosition = localPos;
+            f.transform.localScale = Vector3.one * size;
+            f.GetComponent<MeshRenderer>().sharedMaterial =
+                ShaderHelper.Emissive(new Color(1f, 0.45f, 0.08f), new Color(3.5f, 1.6f, 0.3f));
+        }
+
         /// <summary>V9.6.3f 支持非均匀 Y 缩放（sy=1 为球团；0.35=扁蘑菇盖；2.4=竖直烟柱）</summary>
         static void AddSmokeChild(GameObject parent, string name, Vector3 localPos, float size, float sy = 1f)
         {
@@ -239,18 +321,21 @@ namespace PixelToCivilization.Systems
         Material _mat;
         float _age, _life;
         bool _active;
+        Vector3 _initLocalPos;   // V9.7.1 初始局部位置：池化复用时恢复，防上升位移逐次漂移
 
         void Awake()
         {
             _mat = new Material(ShaderHelper.Trans(new Color(0.28f, 0.28f, 0.28f, 0.6f), 0.6f));
             var r = GetComponent<Renderer>();
             if (r != null) r.sharedMaterial = _mat;
+            _initLocalPos = transform.localPosition;   // AddSmokeChild 在 AddComponent 前已设置 localPosition
         }
 
         public void ResetFade()
         {
             _age = 0f; _life = Random.Range(0.9f, 1.4f); _active = true; Expired = false;
             gameObject.SetActive(true);
+            transform.localPosition = _initLocalPos;   // V9.7.1 复位上升漂移（旧实现只重置 scale，烟雾位置逐次漂移）
             transform.localScale = new Vector3(Size, Size * ScaleY, Size);
             if (_mat != null) { var c = _mat.color; c.a = 0.6f; _mat.color = c; }
             var r = GetComponent<Renderer>();
