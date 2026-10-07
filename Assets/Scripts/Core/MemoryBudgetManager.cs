@@ -31,6 +31,28 @@ namespace PixelToCivilization.Core
         /// <summary>临界水位下自动生成入口统一闸门；null（未挂载）时放行保证兼容。</summary>
         public static bool GlobalSpawnGate => Instance == null || Instance.Level < MemLevel.Critical;
 
+        // ---- V9.7.1 实体上限门控（裁决：实体逼近上限即暂停生成）----
+        public enum EntityKind { Ship, Bird, Fish, Ground, Cart, Train, Plane, Building }
+        static readonly Dictionary<EntityKind, int> EntityCaps = new Dictionary<EntityKind, int>
+        {
+            { EntityKind.Ship, 200 }, { EntityKind.Bird, 500 }, { EntityKind.Fish, 300 },
+            { EntityKind.Ground, 60 }, { EntityKind.Cart, 120 }, { EntityKind.Train, 40 },
+            { EntityKind.Plane, 80 }, { EntityKind.Building, 800 }
+        };
+        /// <summary>逼近上限 90% 即暂停该类生成（硬上限前留 10% 余量给手动操作/视图重建）。</summary>
+        public const float NearCapRatio = 0.9f;
+
+        /// <summary>实体生成统一闸门：内存 Critical 或该类实体逼近上限（90%）即关闭。未登记类别放行。</summary>
+        public static bool EntitySpawnGate(EntityKind kind, int currentCount)
+        {
+            if (!GlobalSpawnGate) return false;
+            if (!EntityCaps.TryGetValue(kind, out int cap)) return true;
+            return currentCount < cap * NearCapRatio;
+        }
+
+        /// <summary>实体上限（探针用，0 表示无登记）。</summary>
+        public static int CapOf(EntityKind kind) => EntityCaps.TryGetValue(kind, out int c) ? c : 0;
+
         // ---- 采样结果（只读，供探针/UI/性能神）----
         public long ManagedBytes { get; private set; }        // 托管堆字节
         public long NativeAllocatedBytes { get; private set; }// 原生已分配字节
