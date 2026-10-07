@@ -372,7 +372,7 @@ namespace PixelToCivilization.World
                 if(nowYear-f.BirthYear>=f.LifeYears) RemoveFish(f,i);
             }
             // 缓慢维持种群
-            if(_all.Count<MaxFish*0.7f && Random.value<dt*0.2f && Core.MemoryBudgetManager.GlobalSpawnGate)   // V9.6.4 临界水位钳制补群
+            if(_all.Count<MaxFish*0.7f && Random.value<dt*0.2f && Core.MemoryBudgetManager.EntitySpawnGate(Core.MemoryBudgetManager.EntityKind.Fish,_all.Count))   // V9.7.1 实体上限门控
             {
                 if(_schools.Count<58) SpawnSchool(); else SpawnLone();
             }
