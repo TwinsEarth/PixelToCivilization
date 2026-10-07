@@ -823,10 +823,18 @@ public void ShowBuilding(BuildingEntity b)
             string era=u.TypeId is "cavalry" or "phalanx" or "chariot" ? "古典（1949前）":"现代（1949起）";
             UITheme.Label("name",body.transform,$"{icon} {u.Name} · Lv{u.Level}",19,TextAnchor.MiddleCenter,UITheme.Gold);
             var sb=new StringBuilder();
-            sb.Append("编制：").Append(u.Side=="ours"?"我方":"敌方").Append("　").Append(era).Append('\n');
-            sb.Append("耐久：").Append(Mathf.Max(0,Mathf.RoundToInt(u.Hp))).Append("/").Append(Mathf.RoundToInt(u.MaxHp)).Append('\n');
-            sb.Append("攻击：").Append(u.BaseAttack).Append("　射程：").Append(u.Range).Append("格\n");
-            sb.Append("速度：").Append(u.Speed.ToString("0.00")).Append("　战绩：").Append(u.Kills).Append(" 杀\n");
+            // V9.7.2 十维参数：速度/雷达/射速显示【实际生效值】（EffectiveSpeed 等），与实际移动/开火口径唯一
+            float effSpd=gw.EffectiveSpeed(u), effRadar=gw.EffectiveRadar(u), effFire=gw.EffectiveFireInterval(u);
+            sb.Append("编制：").Append(u.Side=="ours"?"我方":"敌方").Append("　").Append(era);
+            sb.Append("　").Append(u.Rank).Append("　智能Lv").Append(u.Intel).Append('\n');
+            sb.Append("耐久：").Append(Mathf.Max(0,Mathf.RoundToInt(u.Hp))).Append("/").Append(Mathf.RoundToInt(u.MaxHp));
+            sb.Append("　防御：").Append(Mathf.RoundToInt(u.Defense)).Append('\n');
+            sb.Append("攻击：").Append(u.BaseAttack).Append("　射程：").Append(u.Range).Append("格");
+            sb.Append("　射速：").Append(effFire.ToString("0.00")).Append("秒/发\n");
+            sb.Append("速度：").Append(effSpd.ToString("0.00")).Append("（世界单位/秒）");
+            sb.Append("　雷达：").Append(effRadar.ToString("0.0")).Append("格\n");
+            sb.Append("载人：").Append(u.Capacity).Append("　体积：").Append(u.Footprint.ToString("0.0"));
+            sb.Append("　战绩：").Append(u.Kills).Append(" 杀\n");
             if(u.FactionId.Length>0) sb.Append("<color=#ff7a45>⚑ 敌对阵营：").Append(u.FactionId).Append("</color>\n");
             if(hasDef && !string.IsNullOrEmpty(d.Desc)) sb.Append(d.Desc);
             UITheme.Label("meta",body.transform,sb.ToString(),13,TextAnchor.UpperLeft);
