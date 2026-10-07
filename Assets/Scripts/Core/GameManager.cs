@@ -381,6 +381,30 @@ namespace PixelToCivilization.Core
           try{
             HandleHotkeys();
             TickCryo(UnityEngine.Time.unscaledDeltaTime); // V6.1.9 冷冻冷却按现实秒走，暂停也计时
+            // V9.7.0 架构喂数（节流 0.5s）：SoA 人口聚合 + 存档脏标记 + 崩溃上下文
+            if (UnityEngine.Time.unscaledTime - _v970ArchTimer > 0.5f)
+            {
+                _v970ArchTimer = UnityEngine.Time.unscaledTime;
+                try
+                {
+                    int fCount = 1 + (State != null && State.EnemyFactions != null ? State.EnemyFactions.Count : 0);
+                    SoAPopulationStore.Reset();
+                    if (State != null && State.Pop > 0 && fCount > 0)
+                    {
+                        // 同源聚合：Total 恒等于 State.Pop；势力/年龄段/职业分布为统计假设（探针明示，不改模拟路径）
+                        int per = State.Pop / fCount, rem = State.Pop % fCount;
+                        for (int f = 0; f < fCount; f++) SoAPopulationStore.FeedOne(f, 1, 0, per + (f < rem ? 1 : 0));
+                    }
+                    SaveDirtySystem.UpdateCheck(State);
+                    LocalCrashReporter.SetContext("dynasty", "dyn" + (State != null ? State.DynastyIdx.ToString() : "?"));
+                    LocalCrashReporter.SetContext("year", State != null ? State.Year.ToString() : "?");
+                    LocalCrashReporter.SetContext("pop", State != null ? State.Pop.ToString() : "?");
+                    LocalCrashReporter.SetContext("factions", fCount.ToString());
+                    LocalCrashReporter.SetContext("era", State != null ? State.Era.ToString() : "?");
+                    LocalCrashReporter.SetContext("speed", State != null ? State.Speed.ToString("F1") : "?");
+                }
+                catch (System.Exception e) { Debug.LogError("[V970-ARCH] " + e.GetType().Name + ": " + e.Message); }
+            }
             if (StateType != GameStateType.Playing || State.Paused) return;
             float scaled = UnityEngine.Time.deltaTime * EffectiveSpeed; // 冷冻期实际倍速封顶10
             try { Time.Tick(scaled); } // 年份推进（内部按游戏年份换算朝代/时代/公历）
@@ -402,6 +426,7 @@ namespace PixelToCivilization.Core
         /// <summary>冷冻冷却中实际生效的倍速（封顶 CryoMaxSpeed=10），非冷冻期等于设定倍速</summary>
         public float EffectiveSpeed => State.CryoActive ? Mathf.Min(State.Speed, GameConstants.CryoMaxSpeed) : State.Speed;
         private bool _cryoEntered;
+        private float _v970ArchTimer;   // V9.7.0 架构喂数节流（0.5s 一次）
         /// <summary>冷冻冷却按现实秒倒计时（不受暂停/倍速影响）；归零即自动解冻并重置累计年数</summary>
         private void TickCryo(float realDt)
         {
@@ -646,6 +671,9 @@ namespace PixelToCivilization.Core
         // ===== V9.1.0 真实地球模式 WebGL 无参探针（SendMessage 无法绑定 int 形参） =====
         public void WebNewEarth(){ NextEarthMode=true; StartNewRandomGame(); Debug.Log("[Web] NewEarth EarthMode="+State.EarthMode); }
         public void WebNewClassic(){ NextEarthMode=false; StartNewRandomGame(); Debug.Log("[Web] NewClassic EarthMode="+State.EarthMode); }
+
+        /// <summary>V9.7.1 jslib 回调：IndexedDB 正文库预载完成（GameBootstrap 协程继续推进）。</summary>
+        public void OnStorageReady(string _) => PixelToCivilization.Platform.PxcStorage.MarkReady();
         public void WebV910Diagnose()
         {
             var t=UnityEngine.Object.FindObjectOfType<World.WorldGenerator>();
@@ -1160,13 +1188,14 @@ namespace PixelToCivilization.Core
             WriteProbe("res:gold=" + v.ToString("F6") + " expect1000001.000000");
         }
 
-        /// <summary>V9.6.8 时间帧预算探针：输出年份/倍速/帧年结预算/剩余 Day（切后台大 dt 时剩余 Day 结转下帧，单帧年结≤60）。</summary>
+        /// <summary>V9.7.1 自适应分段探针：输出年份/倍速/上帧年结数/单年结均耗/硬上限/剩余 Day（工作量预算动态决定年结数）。</summary>
         [UnityEngine.Scripting.Preserve]
         public void WebTimeProbe()
         {
             if (State == null || Time == null) { WriteProbe("time:null"); return; }
             WriteProbe("time:y=" + State.Year + " spd=" + State.Speed.ToString("F1") + " day=" + State.Day.ToString("F1")
-                + " budget=" + Core.GameTime.MaxYearsPerFrame + " cryo=" + (State.CryoActive ? "on" : "off"));
+                + " ticks=" + Time.LastFrameTicks + " avgMs=" + Time.AvgYearTickMs.ToString("F3")
+                + " hard=" + Core.GameTime.HardCapTicks + " cryo=" + (State.CryoActive ? "on" : "off"));
         }
 
         /// <summary>V9.6.8 帧年结计数（编辑器/浏览器统一验证单帧补算上限；GameTime.Tick 每帧推进后由本方法读 Year 增量）。
@@ -1277,6 +1306,9 @@ namespace PixelToCivilization.Core
         }
         public void WebNextDynasty(){ bool ok=Time!=null && Time.DebugNextDynasty(); Debug.Log("[Web] NextDynasty "+(ok?"OK":"FAIL")); }
         public void WebProbeBridges(){ Bridge?.DebugProbe(); }
+        /// <summary>V9.7.1 浏览器回归：高架桥生命周期实证（建柱连片→老化→桥面格/柱清理）</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebViaductTest(){ Bridge?.WebViaductLifecycleTest(); }
         public void WebForceBridge(){ bool ok=Bridge!=null&&Bridge.ForceNearest(); Debug.Log("[Web] ForceBridge "+(ok?"OK":"FAIL")); }
         [UnityEngine.Scripting.Preserve]
         public void WebV923Naval(){ int m=Naval!=null?Naval.DebugSpawnOwnWarships(5):0; Debug.Log("[Web] Warships5 made="+m); Naval?.DebugNavalShowcase(); }   // V9.4.5 浏览器回归：外海批量造 5 艘我方军舰+演示舰
@@ -1732,5 +1764,38 @@ namespace PixelToCivilization.Core
 
         public BuildingDefinition Def(string id) => Buildings.TryGetValue(id, out var d) ? d : null;
         public EraDefinition Era => Eras != null && State.Era < Eras.Count ? Eras[State.Era] : null;
+
+        // ===== V9.7.0 架构探针（浏览器回归：对象池/SoA/脏标记/崩溃上下文） =====
+
+        /// <summary>对象池状态探针：桶数 + 空闲/租出快照 + 适配层未释放计数。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebPoolProbe()
+        {
+            WriteProbe("pool:buckets=" + GameObjectPool.BucketCount() +
+                       "|addrlive=" + AddressablesManager.LiveCount +
+                       "|" + AddressablesManager.Stats());
+        }
+
+        /// <summary>SoA 人口聚合探针：Total 恒等于 State.Pop（同源），展示连续数组聚合结果。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebSoAProbe()
+        {
+            if (State == null) { WriteProbe("soa:null"); return; }
+            WriteProbe(SoAPopulationStore.Probe() + "|statepop=" + State.Pop);
+        }
+
+        /// <summary>存档脏标记探针：启用/脏/跳过/保存计数。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebDirtyProbe()
+        {
+            WriteProbe(SaveDirtySystem.Probe());
+        }
+
+        /// <summary>崩溃上下文探针：朝代/年份/人口/势力/时代/倍速 + 落盘标记。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebCrashCtxProbe()
+        {
+            WriteProbe(LocalCrashReporter.Probe());
+        }
     }
 }
