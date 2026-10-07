@@ -26,30 +26,49 @@ namespace PixelToCivilization.Core
         }
 
         /// <summary>每帧推进（dt已乘速度）</summary>
-        /// <remarks>V9.6.8 帧年结预算：单帧最多补算 MaxYearsPerFrame 个游戏年，剩余 Day 结转下帧。
-        /// 现象：1000 倍速 + 浏览器切后台/大掉帧（dt 数秒~数十秒）时，Day 一次增量可达数百至上千天，
-        /// 旧实现 while(guard&lt;2000) 单帧补算至多 2000 年 → 数百次年结（人口/经济/地图/历史/灾害全量遍历）
-        /// 在同帧爆发 → 浏览器冻结/卡死、加速推进"又不动了"。
-        /// 修复：年结分散到多帧（预算 60 年/帧，正常 1000 倍速 60fps 每帧仅 0.28 年，远低于预算），帧时间预算稳定。</remarks>
+        /// <remarks>V9.7.1 自适应分段（裁决）：每帧按"真实模拟工作量预算"动态决定年结数，而非固定年数。
+        /// 年结后检查已用现实时间，超过 SimFrameBudgetSec 即停（剩余 Day 结转下帧）：
+        /// 小世界单年结~0.1ms 可连续做 60+ 个；大世界（人口/建筑庞大）单年结 1-2ms 只做 3-6 个 → 帧率恒定。
+        /// HardCapTicks 兜底防测量精度问题；EWMA 记录单年结平均耗时（AvgYearTickMs，探针/性能神用）。</remarks>
         public void Tick(float dt)
         {
             if (State == null || !State.Running || State.Paused) return;
 
             State.Day += dt * GameConstants.DaySeconds;
-            // 高倍速/掉帧下可能一次跨年多次；V9.6.8 帧预算防单帧爆算
-            int guard = 0;
-            while (State.Day >= GameConstants.YearDays && guard++ < MaxYearsPerFrame)
+            float frameStart = Time.realtimeSinceStartup;
+            int did = 0;
+            // 高倍速/掉帧下一次跨年多次；自适应工作量预算
+            while (State.Day >= GameConstants.YearDays && did < HardCapTicks)
             {
                 State.Day -= GameConstants.YearDays;
                 State.Year++;
                 AccumulateCryo();   // V6.1.9 加速累计年数，满100年触发冷冻
                 AdvanceYear();
+                did++;
+                if (Time.realtimeSinceStartup - frameStart >= SimFrameBudgetSec) break;
+            }
+            if (did > 0)
+            {
+                float oneMs = (Time.realtimeSinceStartup - frameStart) * 1000f / did;
+                AvgYearTickMs = AvgYearTickMs <= 0f ? oneMs : AvgYearTickMs * 0.85f + oneMs * 0.15f;
+                LastFrameTicks = did;
             }
             RecomputeDynastyEra();
         }
 
-        /// <summary>V9.6.8 单帧年结预算（年）：切后台/掉帧时分散到多帧，防单帧数百次年结卡死。</summary>
-        public const int MaxYearsPerFrame = 60;
+        /// <summary>V9.7.1 单帧模拟工作量预算（现实秒）：WebGL 保守 6ms（16ms 帧留 10ms 给渲染/输入/UI），桌面 10ms。</summary>
+        public float SimFrameBudgetSec =
+#if UNITY_WEBGL && !UNITY_EDITOR
+            0.006f;
+#else
+            0.010f;
+#endif
+        /// <summary>单帧年结硬上限兜底（防测量精度问题爆跑）：正常 1000× 60fps 每帧需 16 个、30fps 需 32，120 覆盖极端掉帧。</summary>
+        public const int HardCapTicks = 120;
+        /// <summary>单年结平均耗时（EWMA，毫秒）。</summary>
+        public float AvgYearTickMs { get; private set; }
+        /// <summary>上一帧实际执行年结数（探针用）。</summary>
+        public int LastFrameTicks { get; private set; }
 
         /// <summary>V6.1.9 仅在玩家加速(倍速>1)正常推进时累计游戏年；满阈值进入冷冻冷却。
         /// Debug 跳年 JumpToYear 不经过本方法，故压测/跳朝代不会误触冷冻。冷冻期间不再累计，解冻时由外部清零。</summary>
