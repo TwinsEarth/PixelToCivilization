@@ -418,7 +418,7 @@ namespace PixelToCivilization.World
                 if(nowYear-b.BirthYear>=b.LifeYears){RemoveBird(b,i);}
             }
             // 维持种群：低于 80 上限则缓慢补群
-            if(_all.Count<MaxBirds*0.7f && Random.value<dt*0.25f && Core.MemoryBudgetManager.GlobalSpawnGate)   // V9.6.4 临界水位钳制补群
+            if(_all.Count<MaxBirds*0.7f && Random.value<dt*0.25f && Core.MemoryBudgetManager.EntitySpawnGate(Core.MemoryBudgetManager.EntityKind.Bird,_all.Count))   // V9.7.1 实体上限门控
             {
                 if(_flocks.Count<48)SpawnFlock(); else SpawnLone();
             }
