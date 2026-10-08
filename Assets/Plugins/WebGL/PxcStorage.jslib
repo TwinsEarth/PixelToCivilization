@@ -57,11 +57,15 @@ mergeInto(LibraryManager.library, {
         var store = tx.objectStore('body');
         var keysReq = store.getAllKeys();
         var valsReq = store.getAll();
-        keysReq.onsuccess = function () {
+        // V9.7.3 修复：getAllKeys 与 getAll 是两个独立异步请求，旧代码在 keysReq.onsuccess 中
+        // 直接读 valsReq.result（此时 vals 常未完成），抛 InvalidStateError 导致整个预载循环中断、
+        // 启动缓存为空、所有旧存档读不到。这里改为分别等两个 onsuccess，都完成后再合并。
+        var gotKeys = false, gotVals = false, keyData = [], valData = [];
+        function preloadFinish() {
+          if (!(gotKeys && gotVals)) return;
           try {
-            var keys = keysReq.result || [];
-            var vals = valsReq.result || [];
-            for (var i = 0; i < keys.length; i++) window.__pxcCache[String(keys[i])] = (vals[i] === undefined ? '' : String(vals[i]));
+            for (var i = 0; i < keyData.length; i++)
+              window.__pxcCache[String(keyData[i])] = (valData[i] === undefined ? '' : String(valData[i]));
           } catch (err) { console.warn('[PxcStorage] preload error', err); }
           // 页面隐藏时尽力落库，降低强杀/崩溃丢档概率
           document.addEventListener('visibilitychange', function () {
@@ -71,8 +75,11 @@ mergeInto(LibraryManager.library, {
             window.__pxcFlushBody && window.__pxcFlushBody();
           });
           finishReady();
-        };
-        keysReq.onerror = function () { console.warn('[PxcStorage] preload failed, memory-only'); finishReady(); };
+        }
+        keysReq.onsuccess = function () { gotKeys = true; keyData = keysReq.result || []; preloadFinish(); };
+        valsReq.onsuccess = function () { gotVals = true; valData = valsReq.result || []; preloadFinish(); };
+        keysReq.onerror = function () { gotKeys = true; console.warn('[PxcStorage] preload keys failed'); preloadFinish(); };
+        valsReq.onerror = function () { gotVals = true; console.warn('[PxcStorage] preload vals failed'); preloadFinish(); };
       };
       req.onerror = function () { console.warn('[PxcStorage] IndexedDB open error, memory-only'); finishReady(); };
       // 极端环境 4 秒未回调 = 降级，不卡死启动
