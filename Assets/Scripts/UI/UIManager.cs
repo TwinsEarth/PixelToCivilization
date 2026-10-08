@@ -175,7 +175,7 @@ namespace PixelToCivilization.UI
             _splash.GetComponent<Image>().raycastTarget=false;
             var title=UITheme.Label("Title",_splash.transform,"从 像 素 到 文 明",64,TextAnchor.MiddleCenter,UITheme.HexA(0xffffff,1));
             Place(title.rectTransform,new Vector2(0.5f,0.68f),new Vector2(0.5f,0.68f),new Vector2(-400,-40),new Vector2(400,40));
-            var sub=UITheme.Label("Sub",_splash.transform,"V9.7.2 · 地面部队十维参数（速度/耐久/攻击/防御/射程/射速/载人/体积/军衔/智能）· 列装驻留宽限不被拉走 · 全移动实体速度参数总表 · 混合存档",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
+            var sub=UITheme.Label("Sub",_splash.transform,"V9.7.3 · 历史 Bug 全量回归复测 · 修复 IndexedDB 存档预加载竞态（getAllKeys/getAll 未同步导致 InvalidStateError、旧档读不到）· 沿用地面部队十维与混合存档",24,TextAnchor.MiddleCenter,UITheme.HexA(0xf2f8ff,1));
             Place(sub.rectTransform,new Vector2(0.5f,0.56f),new Vector2(0.5f,0.56f),new Vector2(-400,-18),new Vector2(400,18));
             // 主按钮：开始新游戏（带 10 秒无操作自动开局倒计时）
             var start=UITheme.Btn("Start",_splash.transform,"",26,UITheme.BtnGold); // V7.0.2 橙色主按钮
@@ -195,7 +195,7 @@ namespace PixelToCivilization.UI
             _mapModeBtn.onClick.AddListener(OnClickMapMode);
             // 自动开局倒计时武装
             ArmAutoStart();
-            var ver=UITheme.Label("Ver",_splash.transform,"v9.7.2 · Unity / Tuanjie 2022.3.62t12 · URP 高清 · 地面部队速度口径统一/十维参数",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
+            var ver=UITheme.Label("Ver",_splash.transform,"v9.7.3 · Unity / Tuanjie 2022.3.62t12 · URP 高清 · 存档预加载竞态修复",16,TextAnchor.LowerCenter,UITheme.HexA(0xdceeff,1));
             Place(ver.rectTransform,new Vector2(0.5f,0.22f),new Vector2(0.5f,0.22f),new Vector2(-300,-15),new Vector2(300,15));
             var hint=UITheme.Label("FullHint",_splash.transform,"提示：界面太小时，按 F11 或点底部「全屏」按钮 · 10 秒无操作将自动开新局",14,TextAnchor.MiddleCenter,UITheme.HexA(0xd0e6ff,1));
             Place(hint.rectTransform,new Vector2(0.5f,0.28f),new Vector2(0.5f,0.28f),new Vector2(-360,-12),new Vector2(360,12));
@@ -544,7 +544,7 @@ namespace PixelToCivilization.UI
         {
             _saveModal=CreateModal("存档管理");
             _saveModal.transform.SetAsLastSibling();   // V9.5.3 置顶：防被其他浮窗/属性栏遮挡导致"按钮无效"
-            _saveModal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(888,780);   // V9.4.5 加高至780：6行存档槽全显（V9.4.2 888 宽保留）
+            _saveModal.transform.Find("Box").GetComponent<RectTransform>().sizeDelta=new Vector2(888,806);   // V9.4.5 加高至780：6行存档槽全显（V9.4.2 888 宽保留）；V9.7.3 780→806 容纳槽区332
             var body=ModalBody(_saveModal);Clear(body);
             var root=body.AddComponent<VerticalLayoutGroup>();root.spacing=8;root.padding=new RectOffset(4,4,4,4);
             // V9.5.6 根因修复：childControlHeight 必须为 true——槽位 ScrollRect 是拉伸锚点（VerticalScroll 内强制
@@ -575,7 +575,7 @@ namespace PixelToCivilization.UI
             // V9.5.5 根因修复：FitModal 给 Box 加了 ContentSizeFitter(PreferredSize)，ScrollRect 只有 flexibleHeight
             // 不贡献 preferredHeight，槽位区域被压成 0（表现为"没有空存档列表"）。给明确 preferredHeight/minHeight。
             var slotLe=slotSr.gameObject.AddComponent<LayoutElement>();
-            slotLe.preferredHeight=310; slotLe.minHeight=210; slotLe.flexibleHeight=1;
+            slotLe.preferredHeight=332; slotLe.minHeight=210; slotLe.flexibleHeight=1;   // V9.7.3 310→332：6 行槽（308）一屏全显，槽5 不再被裁剪
             _saveSlotBox.GetComponent<VerticalLayoutGroup>().childControlHeight=true;
 
             var imp=UITheme.Surface("Import",body.transform,new Color(0.05f,0.12f,0.16f,0.08f));imp.AddComponent<LayoutElement>().preferredHeight=96;
@@ -598,7 +598,7 @@ namespace PixelToCivilization.UI
                 if(S.DebugLevel>=2) OpenSaveModal();   // 解锁后回存档面板
             });
             RenderSaveSlots();
-            FitModal(_saveModal, 380, 700);   // V9.5.3 700 高：容纳 6 行槽 + Debug 解锁行全显
+            FitModal(_saveModal, 380, 726);   // V9.5.3 700 高：容纳 6 行槽 + Debug 解锁行全显；V9.7.3 726
         }
         private void RenderSaveSlots()
         {
@@ -611,9 +611,9 @@ namespace PixelToCivilization.UI
         private void SaveSlotRow(Transform parent,SlotSummary sum)
         {
             var row=UITheme.Surface("Slot"+sum.Slot,parent,UITheme.HexA(0xffffff,0.06f));
-            var rle=row.AddComponent<LayoutElement>();rle.preferredHeight=46;rle.layoutPriority=1;   // V9.4.5 行高58→46：6 行槽（自动+5 手动）一屏全显
-            var h=row.AddComponent<HorizontalLayoutGroup>();h.padding=new RectOffset(10,8,6,6);h.spacing=8;h.childControlWidth=true;h.childControlHeight=true;h.childForceExpandWidth=true;h.childForceExpandHeight=true;
-            var info=UITheme.Panel("info",row.transform,new Color(0,0,0,0));var ile=info.AddComponent<LayoutElement>();ile.flexibleWidth=1;ile.minHeight=46;
+            var rle=row.AddComponent<LayoutElement>();rle.preferredHeight=50;rle.layoutPriority=1;   // V9.4.5 行高58→46；V9.7.3 46→50：row 真实最小高=子元素 minHeight+padding，preferred 必须 ≥ min 才不被父布局按 min 撑高
+            var h=row.AddComponent<HorizontalLayoutGroup>();h.padding=new RectOffset(10,8,4,4);h.spacing=8;h.childControlWidth=true;h.childControlHeight=true;h.childForceExpandWidth=true;h.childForceExpandHeight=true;
+            var info=UITheme.Panel("info",row.transform,new Color(0,0,0,0));var ile=info.AddComponent<LayoutElement>();ile.flexibleWidth=1;ile.minHeight=38;   // V9.7.3 46→38：配合 row 行高50/padding8，row 真实最小高=38+8=46<50，6行可被 preferred 正确驱动
             var iv=info.AddComponent<VerticalLayoutGroup>();iv.spacing=2;iv.childControlWidth=true;iv.childForceExpandWidth=true;iv.childControlHeight=true;iv.childForceExpandHeight=false;iv.childAlignment=TextAnchor.MiddleLeft;
             // V9.5.5 对齐参考图：简洁的"自动存档/存档N/空存档槽N"，空槽不显示副信息
             string head;
@@ -636,7 +636,7 @@ namespace PixelToCivilization.UI
             else detail="";
             var detL=UITheme.Label("detail",info.transform,detail,11,TextAnchor.MiddleLeft,UITheme.Sub);
             detL.gameObject.AddComponent<LayoutElement>().preferredHeight=18;
-            var btns=UITheme.Panel("btns",row.transform,new Color(0,0,0,0));var ble=btns.AddComponent<LayoutElement>();ble.preferredWidth=sum.Slot==0?96:258;ble.minHeight=46;
+                        var btns=UITheme.Panel("btns",row.transform,new Color(0,0,0,0));var ble=btns.AddComponent<LayoutElement>();ble.preferredWidth=sum.Slot==0?96:258;ble.minHeight=38;   // V9.7.3 46→38：与 info 对齐，保证 row 真实最小高46 < 行高50
             btns.GetComponent<RectTransform>().localScale=Vector3.one;
             var bh=btns.AddComponent<HorizontalLayoutGroup>();bh.spacing=6;bh.childControlWidth=true;bh.childForceExpandWidth=true;
             if(sum.Damaged)
