@@ -4,14 +4,14 @@
 
 - **引擎**：团结引擎 Tuanjie 2022.3.62t12（基于 Unity 2022.3 LTS）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.7.2「地面部队十维参数 · 速度链路根治」——① 古典地面部队（骑兵 / 3 人一组列方阵兵 / 马拉战车）与现代部队（坦克 / 装甲车 / 导弹车）统一 **十维参数**（速度 / 耐久 / 攻击 / 防御 / 射程 / 射速 / 载人量 / 体积 / 军衔 / 智能等级）；② 新增 `EffectiveSpeed / EffectiveRadar / EffectiveFireInterval`，**移动与属性面板口径唯一**，根治“属性显示速度不对、Lv1 六型速度雷同”；③ 新增 `GraceT=20s` 列装驻留宽限，生成在原地、不被巡航拉走（修复“被拉到某坐标”）；④ 巡航半径由 40–100 收窄到 20–45、方阵 3 人并排、防御减伤；⑤ 新建 `EntitySpeedProfiles` 全移动实体（船 / 人 / 车 / 机 / 地面 / 鸟 / 鱼）参数总表。探针实证：驻留原地（坐标 11s 不变）、自主追击（6s 移动 14–29 格）、战斗中升级（Lv2 速度 3.50→3.78）、速度差异化（导弹车 2.50 / 坦克 3.50）；BUILD_SUCCESS、密钥 CLEAN、Release v9.7.2；未验证项（原生平台构建 / 长时挂机 / Profiler 定量）已诚实标注
+- **当前版本**：V9.7.3「历史 Bug 全量回归复测」——把项目历史上出现过的 Bug 汇总为 **45 项 / 9 类回归矩阵**，真实构建 + 浏览器探针逐项实测（**PASS 43 / 未验证 2**）。唯一回归集中在**存档系统**，经五项修复全部闭环：① `Assets/link.xml` 新增 **Assembly-CSharp preserve="all"**，根治 IL2CPP High stripping 裁剪仅经 SendMessage 反射调用的 `Web*` 方法（QuickSave 静默失败 / SaveAsync MissingMethod）；② 存档版本号硬编码（RuntimeVersion="9.7.3"、Snapshot 设 Version，不再回退 7.0.2）；③ IndexedDB 预加载**双 gate**（keys/vals 都回来才填缓存 + 4s 超时降级）；④ checksum **canonicalization 固定点**（双精度经 ToJson/FromJson 在 WebGL 往返不稳定，迭代至固定串再算 FNV，写入与校验口径一致）；⑤ 存档 UI 槽 5 裁剪修复（LayoutElement preferredHeight 与 row minHeight 矛盾，6 行槽全显）。浏览器实锤：QuickSave 写入（slot:010000）、IDB 直查 ver=9.7.3、reload 预加载、QuickLoad OK、六行槽按钮全显；其余 8 类相对 V9.7.2 无回归；BUILD_SUCCESS、密钥 CLEAN、Release v9.7.3；未验证项（1000× Debug 档 / 长跨度比例 / 原生平台 / 长时挂机 / Profiler）已诚实标注
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
 ## ▶ 立即试玩（无需安装）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.7.2_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.7.3_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
 
 - **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
 - **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
@@ -188,16 +188,19 @@ export PXC_ARK_API_KEY="你的 Key"
 | V9.7.0 | 内存·崩溃·存档三大架构端到端升级：对象池+内存预算+Addressables 适配层（无包降级）+SoA 人口聚合；全局异常捕获+崩溃上下文快照+安全模式+回滚恢复；DTO/校验/版本迁移/原子写/备份/回滚链/多槽位+脏标记自动存档节流；契约测试（⑩⑪）+run_tests.ps1+CI 模板；版本点 13 处统一；BUILD_SUCCESS+四新探针全回归+zip 密钥 CLEAN+Release v9.7.0 |
 | V9.7.1 | 混合存档（IndexedDB 正文 PxC_SaveBody + PlayerPrefs 摘要，自动迁移旧档）；高倍速自适应分段（帧预算 6ms/10ms、硬上限 120）；实体生成门控（八类上限，逼近 90% 暂停）；高架桥地图错乱根治（老化同步清桥面格+SyncPiers 清废弃柱，生命周期实测 PASS）；建造「基建」分类；地面部队古典/现代六型分代；武器粒子池化漂移修复；浏览器实证全通过、密钥 CLEAN、Release v9.7.1 |
 | V9.7.2 | 地面部队十维参数与速度链路根治：重写 GroundWarfareSystem（速度/耐久/攻击/防御/射程/射速/载人/体积/军衔/智能十维，6 型差异化）；EffectiveSpeed 移动与面板口径唯一；GraceT 20s 列装驻留原地（修复生成位置被拉走）；巡航半径收窄、方阵 3 人并排、防御减伤；新建 EntitySpeedProfiles 全移动实体参数总表；探针实证驻留/追击/战斗升级/速度差异化，BUILD_SUCCESS、密钥 CLEAN、Release v9.7.2 |
+| V9.7.3 | 历史 Bug 全量回归复测：45 项/9 类矩阵实测 PASS 43/未验证 2；存档系统五项修复（link.xml Assembly-CSharp 防裁剪、版本号 9.7.3、jslib 双 gate 预加载、checksum canonicalization 固定点、槽5 UI 裁剪），QuickSave/IDB直查/reload预加载/QuickLoad/六行槽全显浏览器实锤；其余 8 类无回归，BUILD_SUCCESS、密钥 CLEAN、Release v9.7.3 |
 
-## 📋 项目审计摘要（V9.7.2）
+## 📋 项目审计摘要（V9.7.3）
 
 | 模块 | 现状 | 风险 | 处置 |
 |---|---|---|---|
-| 地面部队速度 | 移动速度与面板显示两套口径、Lv1 六型雷同 | P1 | 统一 EffectiveSpeed，移动与面板口径唯一 |
-| 生成位置 | 生成后巡航立即拉离放置点 | P0 | GraceT 20s 驻留宽限 + 巡航半径收窄 |
-| 参数维度 | 缺防御/射速/载人/体积/军衔/智能 | P1 | GroundDef 扩十维，6 型差异化 |
-| 全移动实体参数 | 船/人/车/机/鸟/鱼参数散落 | P2 | 新建 EntitySpeedProfiles 只读总表 |
-| 战斗平衡 | Lv1 可能被镜像围攻快速全灭 | P2 | 记录为已知限制，后续版本调平衡 |
+| 存档反射方法被裁剪 | IL2CPP High stripping 裁掉仅 SendMessage 反射的 Web* 方法 | P0 | link.xml Assembly-CSharp preserve="all" |
+| 存档版本号 | 默认值硬编码 "7.0.2"、Snapshot 不设 Version | P0 | RuntimeVersion 常量 + Snapshot 设值 |
+| IndexedDB 预加载 | keys/vals 两请求回调竞态 | P1 | 双 gate，均回来才填缓存 + 超时降级 |
+| checksum 往返 | 双精度 ToJson/FromJson 在 WebGL 不稳定 | P0 | canonicalization 固定点串，写入/校验同口径 |
+| 存档 UI 槽 5 | preferredHeight 与 row minHeight 矛盾裁剪 | P1 | 4 处布局修正，6 行槽全显 |
+| 其余 8 类系统 | 时间/地图/资源/地面/海军/集结/塔防/道路/天气 | — | 回归无 PASS，无回归 |
+| 1000× Debug / 长跨度比例 | 深度/长时项 | P2 | 普通档 100× 与初始比例已验证，深度项未验证 |
 | 原生平台 | 仅 WebGL 实测 | P2 | C# 同套可构建，原生构建标注未验证 |
 
 ## 🤝 贡献
