@@ -13,7 +13,7 @@ namespace PixelToCivilization.Core
     [Serializable]
     public class SaveData
     {
-        public string Version="7.0.2";
+        public string Version="9.7.3";
         public string SlotName="手动存档";
         public string DynastyName="";
         public int Year; public float Day; public int Era, DynastyIdx;
@@ -129,6 +129,8 @@ namespace PixelToCivilization.Core
         private GameManager _gm;
         private float _autoTimer;
         public const float AutoSaveInterval = 300f;   // v5.9.9：现实 5 分钟
+        /// <summary>V9.7.3 运行时应用版本：写入存档 Version 字段，供版本追踪/迁移与崩溃报告定位。</summary>
+        public const string RuntimeVersion = "9.7.3";
         public const int ManualSlots = 5;
         // V9.6.5 崩溃架构：回滚槽（自动档滚动保存，崩溃后依次回退）
         public const int RollbackSlots = 3;           // rollback0/1/2
@@ -191,6 +193,72 @@ namespace PixelToCivilization.Core
                 if (PxcStorage.BodyHasKey("PxC_Tmp_" + i)) PxcStorage.BodyDeleteKey("PxC_Tmp_" + i);
             PxcStorage.BodyFlush();
             PlayerPrefs.Save();
+        }
+
+        /// <summary>V9.7.3 存档逐步诊断：定位 SaveToSlot 静默失败的具体步骤（存储写链路 / 快照 / 信封 / 校验）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebSaveDiag()
+        {
+            Debug.Log("[SAVE_DIAG] step0 ready=" + PxcStorage.Ready + " hybrid=" + PxcStorage.HybridMode
+                      + " gm=" + (_gm != null) + " state=" + (_gm != null && _gm.State != null));
+            // 1) 存储写链路（独立诊断键，验证 BodySet/Has/Get 三者闭环）
+            try
+            {
+                PxcStorage.BodySetString("PxC_Diag", "diagbody");
+                PxcStorage.BodyFlush();
+                bool has = PxcStorage.BodyHasKey("PxC_Diag");
+                string back = PxcStorage.BodyGetString("PxC_Diag", "");
+                Debug.Log("[SAVE_DIAG] step1 storage has=" + has + " back=" + back);
+                PxcStorage.BodyDeleteKey("PxC_Diag");
+                PxcStorage.BodyFlush();
+            }
+            catch (Exception e) { Debug.LogError("[SAVE_DIAG] step1 EX " + e); }
+            // 2) 快照
+            SaveData data = null;
+            try
+            {
+                data = Snapshot();
+                Debug.Log("[SAVE_DIAG] step2 snapshot ok year=" + data.Year + " b=" + data.BuildingCount + " agents=" + data.AgentCount);
+            }
+            catch (Exception e) { Debug.LogError("[SAVE_DIAG] step2 EX " + e); return; }
+            // 3) 信封 + 4) 校验往返
+            try
+            {
+                string final = SaveEnvelope.AttachChecksum(data);
+                Debug.Log("[SAVE_DIAG] step3 envelope null=" + (final == null) + " len=" + (final != null ? final.Length : 0));
+                if (final != null)
+                {
+                    var verified = SaveEnvelope.Verify(final);
+                    Debug.Log("[SAVE_DIAG] step4 verify null=" + (verified == null)
+                              + (verified != null ? " year=" + verified.Year : ""));
+                    if (verified == null)
+                    {
+                        // 详细对比：定位 checksum 不匹配的首处差异
+                        var d2 = JsonUtility.FromJson<SaveData>(final);
+                        string saved = d2.ChecksumHex ?? "";
+                        d2.ChecksumHex = "";
+                        string plain2 = JsonUtility.ToJson(d2);
+                        // 原快照（空checksum）
+                        data.ChecksumHex = "";
+                        string plain1 = JsonUtility.ToJson(data);
+                        string recompute = SaveChecksum.Fnv1a64Hex(plain2);
+                        Debug.Log("[SAVE_DIAG] step5 saved=" + saved + " recompute=" + recompute
+                                  + " len1=" + plain1.Length + " len2=" + plain2.Length);
+                        int n = Math.Min(plain1.Length, plain2.Length), first = -1;
+                        for (int i = 0; i < n; i++) if (plain1[i] != plain2[i]) { first = i; break; }
+                        if (first < 0 && plain1.Length != plain2.Length) first = n;
+                        if (first >= 0)
+                        {
+                            int a = Math.Max(0, first - 40), b = Math.Min(n, first + 40);
+                            Debug.Log("[SAVE_DIAG] step6 firstdiff=" + first
+                                + " P1=[" + plain1.Substring(a, b - a) + "]"
+                                + " P2=[" + plain2.Substring(a, b - a) + "]");
+                        }
+                        else Debug.Log("[SAVE_DIAG] step6 strings identical but checksum mismatch");
+                    }
+                }
+            }
+            catch (Exception e) { Debug.LogError("[SAVE_DIAG] step3/4 EX " + e); }
         }
 
         /// <summary>V9.6.6 槽位列表（0..5 摘要，损坏也标出）。</summary>
@@ -464,6 +532,7 @@ namespace PixelToCivilization.Core
             float[] grownArr=_grown.ToArray();
             var d=new SaveData
             {
+                Version=RuntimeVersion,
                 Year=s.Year,Day=s.Day,Era=s.Era,DynastyIdx=s.DynastyIdx,
                 DynastyName=_gm.Time!=null?_gm.Time.DynastyName:"",
                 Pop=s.Pop,MaxPop=s.MaxPop,Happiness=s.Happiness,
