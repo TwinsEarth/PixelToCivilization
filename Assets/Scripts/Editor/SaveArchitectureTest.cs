@@ -43,7 +43,7 @@ namespace PixelToCivilization.EditorTools
         static SaveData MakeData()
         {
             var d = new SaveData();
-            d.Version = "9.8.0";
+            d.Version = "9.8.1";
             d.Year = 2026; d.DynastyName = "测试王朝";
             d.Pop = 500; d.BuildingCount = 3;
             d.PowerRatio = 0.9f; d.IndustryChainMult = 1.2f;

@@ -228,7 +228,12 @@ namespace PixelToCivilization.Systems
                 u.View=BuildView(u,d);
                 Ours.Add(u); AssignGroup(u); made++;
             }
-            if(made>0) GM.AddEvent("good","🛡 Debug 我方地面部队 "+made+" 辆就位（出生地附近）");
+            if(made>0)
+            {
+                // V9.8.1 出生广播带坐标：让玩家能定位部队（自动编组+雷达索敌+组阵巡航已自动生效）
+                var first=Ours[Ours.Count-made];
+                GM.AddEvent("good","🛡 Debug 我方地面部队 "+made+" 支列装（出生地附近 "+Mathf.RoundToInt(first.X)+","+Mathf.RoundToInt(first.Z)+"，已自动编组·雷达索敌·组阵巡航）");
+            }
             return made;
         }
 

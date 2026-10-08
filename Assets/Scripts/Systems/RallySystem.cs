@@ -1,5 +1,6 @@
 using UnityEngine;
 using PixelToCivilization.Core;
+using PixelToCivilization.Data;
 using PixelToCivilization.World;
 
 namespace PixelToCivilization.Systems
@@ -51,9 +52,53 @@ namespace PixelToCivilization.Systems
             BuildFlag(kind, x, z);
             string nm = kind == "navy" ? "蓝旗·海军集结" : kind == "ground" ? "绿旗·地面部队集结" : "红旗·军人集结";
             GM.AddEvent("good", "🚩 紧急集结令：" + nm + "（" + RallyRange + " 格内单位向军旗列阵）");
+            // V9.8.1 集结响应统计：插旗后立刻广播范围内响应单位数，让玩家直观看到集结令已生效
+            int[] resp = CountResponders(kind, x, z);
+            string respTxt = resp[0] > 0 ? resp[0] + " 地面部队" : "";
+            if (resp[1] > 0) respTxt += (respTxt.Length > 0 ? "，" : "") + resp[1] + " 艘军舰";
+            if (resp[2] > 0) respTxt += (respTxt.Length > 0 ? "，" : "") + resp[2] + " 名军人";
+            if (respTxt.Length > 0) GM.AddEvent("good", "📣 " + RallyRange + " 格内响应：" + respTxt + " 听令向军旗列阵");
             // V9.6.1 战时广播：传令兵传达集结指令（语音+横幅+编年史）
             if (GM.War != null)
                 GM.War.Command("传令——" + nm + "！" + RallyRange + " 格内各军听令，火速向军旗列阵；超出 " + RallyRange + " 格者，由运输机、直升机远程投送！");
+        }
+
+        /// <summary>
+        /// V9.8.1 统计 RallyRange 格内响应集结的单位数（0=地面部队 / 1=军舰 / 2=军人）。
+        /// 地面部队读 Ground.Ours（世界坐标），军舰读 State.Ships，军人读 State.FriendlyUnits。
+        /// </summary>
+        int[] CountResponders(string kind, float x, float z)
+        {
+            int ground = 0, navy = 0, inf = 0;
+            float range = RallyRange * GameConstants.Tile;   // 格→世界单位（每格 4 单位）
+            if (kind == "ground" && GM.Ground != null)
+            {
+                foreach (var u in GM.Ground.Ours)
+                {
+                    if (u == null || u.View == null) continue;
+                    float dx = u.X - x, dz = u.Z - z;
+                    if (dx * dx + dz * dz <= range * range) ground++;
+                }
+            }
+            else if (kind == "navy" && GM.State != null)
+            {
+                foreach (var sh in GM.State.Ships)
+                {
+                    if (sh == null || sh.View == null) continue;
+                    float dx = sh.X - x, dz = sh.Z - z;
+                    if (dx * dx + dz * dz <= range * range) navy++;
+                }
+            }
+            else if (kind == "inf" && GM.State != null)
+            {
+                foreach (var fu in GM.State.FriendlyUnits)
+                {
+                    if (fu == null || fu.View == null) continue;
+                    float dx = fu.X - x, dz = fu.Z - z;
+                    if (dx * dx + dz * dz <= range * range) inf++;
+                }
+            }
+            return new[] { ground, navy, inf };
         }
 
         /// <summary>撤销集结令（清旗）</summary>

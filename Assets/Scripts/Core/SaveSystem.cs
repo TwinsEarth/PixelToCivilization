@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -13,7 +13,7 @@ namespace PixelToCivilization.Core
     [Serializable]
     public class SaveData
     {
-        public string Version="9.8.0";
+        public string Version="9.8.1";
         public string SlotName="手动存档";
         public string DynastyName="";
         public int Year; public float Day; public int Era, DynastyIdx;
@@ -130,7 +130,7 @@ namespace PixelToCivilization.Core
         private float _autoTimer;
         public const float AutoSaveInterval = 300f;   // v5.9.9：现实 5 分钟
         /// <summary>V9.7.3 运行时应用版本：写入存档 Version 字段，供版本追踪/迁移与崩溃报告定位。</summary>
-        public const string RuntimeVersion = "9.8.0";
+        public const string RuntimeVersion = "9.8.1";
         public const int ManualSlots = 5;
         // V9.6.5 崩溃架构：回滚槽（自动档滚动保存，崩溃后依次回退）
         public const int RollbackSlots = 3;           // rollback0/1/2

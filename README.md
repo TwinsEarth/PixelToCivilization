@@ -4,14 +4,14 @@
 
 - **引擎**：团结引擎 Tuanjie 2022.3.62t12（基于 Unity 2022.3 LTS）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.8.0「智能体驱动 · 万物协作」——给每个物体 / 事件 / 系统一层非侵入的“身份”（**118 个身份**，按原型共享、实例只持 AgentId），万物按自身简介自主决策、协调协同协作；**三种模式**：离线 / 在线大模型 / 混合，混合模式下每次大模型决策沉淀为本地“离线行为动作库”（越用越聪明）。新增 6 个文件（`Assets/Scripts/AI/Agents/`）：AgentIdentity（9 类）、AgentMessageBus（环形缓冲 120、Help/Reply/Broadcast）、AgentRegistry（4 字典 O(1) 查表）、AgentBehaviorLibrary（每智能体 20 条、Record/Recall/Reinforce/Export）、AgentCatalog（118 身份）、AgentDirector（0.8s 节流自主调度、LLM 协程、行为库持久化）。身份层异常全捕获、失败静默降级离线，**不重写玩法、不换架构、不加依赖**，SafetyNet/CrashGuard 不灭绝红线不变。浏览器实测 12 个核心用例全 PASS：面板布局（Head=24/top=32/filt=28/sr 本地约 513）、拖拽滚动、过滤（Ship 8 条/全部 118 条）、模式切换、求助回复（驱逐舰求助→战斗仲裁 Reply）、保存行为库、建筑属性面板身份区块；wasm 约 33.6 MB、密钥 CLEAN、Release v9.8.0；未验证项（在线 LLM 联网链路/云盘上传通道/1000× 压测/原生平台）已诚实标注
+- **当前版本**：V9.8.1「三 BUG 加固」——基于 9.8.0 智能体驱动架构的加固版：① **集结令**：旗模型只创建一次（修复 9.7.3 旧包"连插 10 次必崩"，浏览器实测连插 20 次不崩），插旗后新增响应统计广播「📣 100 格内响应：X 地面部队，Y 艘军舰，Z 名军人听令向军旗列阵」；② **古典地面部队**（骑兵/阵兵/战车）：生成时出生坐标广播（"出生地附近 X,Z，已自动编组·雷达索敌·组阵巡航"），实测自主移动/索敌/战斗/阵亡全链正常；③ **塔防造型**：箭塔/火塔/炮塔/碉堡/烽火台再压矮（wallH 0.95），实测 arrow_tower h/w=1.24 矮墩塔（含弩机零件），不是方楼。密钥 CLEAN、Release v9.8.1
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
 ## ▶ 立即试玩（无需安装）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.8.0_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.8.1_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
 
 - **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
 - **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
@@ -198,6 +198,7 @@ export PXC_ARK_API_KEY="你的 Key"
 | V9.7.2 | 地面部队十维参数与速度链路根治：重写 GroundWarfareSystem（速度/耐久/攻击/防御/射程/射速/载人/体积/军衔/智能十维，6 型差异化）；EffectiveSpeed 移动与面板口径唯一；GraceT 20s 列装驻留原地（修复生成位置被拉走）；巡航半径收窄、方阵 3 人并排、防御减伤；新建 EntitySpeedProfiles 全移动实体参数总表；探针实证驻留/追击/战斗升级/速度差异化，BUILD_SUCCESS、密钥 CLEAN、Release v9.7.2 |
 | V9.7.3 | 历史 Bug 全量回归复测：45 项/9 类矩阵实测 PASS 43/未验证 2；存档系统五项修复（link.xml Assembly-CSharp 防裁剪、版本号 9.7.3、jslib 双 gate 预加载、checksum canonicalization 固定点、槽5 UI 裁剪），QuickSave/IDB直查/reload预加载/QuickLoad/六行槽全显浏览器实锤；其余 8 类无回归，BUILD_SUCCESS、密钥 CLEAN、Release v9.7.3 |
 | V9.8.0 | 智能体驱动·万物协作：非侵入身份层（118 身份按原型共享）、消息总线 Help/Reply/Broadcast、三种模式（离线/在线/混合）、离线行为动作库随决策沉淀；6 新文件（AI/Agents），异常全隔离、不重写玩法；面板布局修复（Head/top/filt/sr）、12 核心用例全 PASS、wasm 33.6MB、密钥 CLEAN、Release v9.8.0 |
+| V9.8.1 | 三 BUG 加固（基于 9.8.0）：①集结令崩溃根治（旗模型只创建一次，连插 20 次不崩 ok=20/children=4/nanRejected）+新增 CountResponders 响应统计广播「📣 100 格内响应：X 地面部队，Y 艘军舰，Z 名军人听令向军旗列阵」；②古典地面部队（骑兵/阵兵/战车）出生坐标广播（自动编组·雷达索敌·组阵巡航），实测自主移动 phalanx(8.8,-103.7)→(19.4,-95.8)、真实参战阵亡；③塔防再压矮（wallH 0.95），arrow_tower h/w=1.46→1.24 矮墩塔含弩机零件；9 文件改动+6 文档、BUILD_SUCCESS、密钥 CLEAN、Release v9.8.1 |
 
 ## 📋 项目审计摘要（V9.7.3）
 

@@ -70,7 +70,7 @@ namespace PixelToCivilization.Buildings
                 case "great_wall": case "wall": w*=4f;d*=0.5f;wallH*=1.4f; break;
                 case "pagoda": case "water_clock": w*=0.7f;d*=0.7f;wallH*=3.2f; break;  // 佛塔/水运仪象台：细高密檐
                 case "arrow_tower": case "fire_tower": case "cannon_tower":
-                case "watchtower": case "bunker": w*=0.95f;d*=0.95f;wallH*=1.12f; break;   // V9.6.4 塔=低矮墩台（非楼）：收分矮塔，顶部置武器平台（用户红线：塔不是楼，严禁高塔）
+                case "watchtower": case "bunker": w*=1.0f;d*=1.0f;wallH*=0.95f; break;   // V9.8.1 塔=低矮墩台（非楼）：再压矮（高宽比≈1.2 墩塔），顶部才是武器平台（用户红线：塔不是楼，严禁高塔）
                 case "skyscraper": w*=0.6f;d*=0.6f;wallH*=7f; break;                   // 高层 10+ 层
                 case "space_elevator": w*=0.4f;d*=0.4f;wallH*=12f; break;              // 超高层（>100m 级）
                 case "hut": w*=0.7f;d*=0.7f;wallH*=0.55f; break;                       // 低层 1-2 层
