@@ -52,44 +52,75 @@ namespace PixelToCivilization.Core
     /// 旧档（无校验和，V9.6.5 及以前）放行，交给版本迁移 + 结构校验（空快照拒绝）双保险。</summary>
     public static class SaveEnvelope
     {
-        /// <summary>写入路径：snapshot → 附加校验和 → 返回最终存储 JSON；序列化失败或含 NaN/Infinity 返回 null（脏档防护）。
-        /// 说明：Unity JsonUtility 对 NaN/Infinity 不抛异常，而是序列化为非法 JSON 字面量 "NaN"/"Infinity"，
-        /// 读回时 FromJson 必失败 → 一旦写入即成永久坏档。因此写入前做哨兵检测，含脏值直接拒绝。</summary>
-        public static string AttachChecksum(SaveData d)
+        /// <summary>
+        /// V9.7.3 存档序列化往返归一化（写入与读取共用同一口径，保证 checksum 可复现）。
+        /// 背景：IL2CPP / WebGL 下 JsonUtility 对 double 的 ToJson/FromJson 往返可能落到相邻 double
+        /// （实测 214.16164753772319 读回后重写为 214.1616475377232），直接对首次快照算 checksum，
+        /// 读回重算必然不匹配 → 所有存档被误判损坏。归一化迭代 JSON 往返直到字符串稳定（固定点），
+        /// checksum 只对该稳定点计算。返回稳定点（对象 + 规范 JSON）；含 NaN/Infinity 或不收敛返回 null。
+        /// </summary>
+        private sealed class Canonical
         {
-            try
+            public SaveData Data;
+            public string Json;
+        }
+
+        private static Canonical Canonicalize(SaveData src)
+        {
+            SaveData cur = src;
+            for (int k = 0; k < 6; k++)
             {
-                d.ChecksumHex = "";
-                string plain = JsonUtility.ToJson(d);
-                // 哨兵检测：合法 JSON 数字不可能含 "NaN"/"Infinity" 子串（字段名为 ASCII 标识符，亦不可能）
-                if (plain.IndexOf("NaN", StringComparison.Ordinal) >= 0 ||
-                    plain.IndexOf("Infinity", StringComparison.Ordinal) >= 0)
+                cur.ChecksumHex = "";
+                string s = JsonUtility.ToJson(cur);
+                // 哨兵：合法 JSON 数字不可能含 NaN/Infinity（字段名为 ASCII 标识符）
+                if (s.IndexOf("NaN", StringComparison.Ordinal) >= 0 ||
+                    s.IndexOf("Infinity", StringComparison.Ordinal) >= 0)
                 {
                     Debug.LogWarning("[SaveEnv] 快照含 NaN/Infinity，拒绝写入（脏档防护）");
                     return null;
                 }
-                string hex = SaveChecksum.Fnv1a64Hex(plain);
-                d.ChecksumHex = hex;
-                return JsonUtility.ToJson(d);
+                SaveData rt = JsonUtility.FromJson<SaveData>(s);
+                if (rt == null) { Debug.LogWarning("[SaveEnv] 归一化反序列化失败"); return null; }
+                rt.ChecksumHex = "";
+                string s2 = JsonUtility.ToJson(rt);
+                if (s2 == s) return new Canonical { Data = rt, Json = s };  // 到达固定点
+                cur = rt;
+            }
+            Debug.LogWarning("[SaveEnv] 序列化归一化未收敛（double 往返振荡）");
+            return null;
+        }
+
+        /// <summary>写入路径：snapshot → 往返归一化 → 对稳定点附加校验和 → 返回最终存储 JSON；
+        /// 序列化失败、含 NaN/Infinity 或归一化不收敛返回 null（脏档防护）。</summary>
+        public static string AttachChecksum(SaveData d)
+        {
+            try
+            {
+                Canonical c = Canonicalize(d);
+                if (c == null) return null;
+                string hex = SaveChecksum.Fnv1a64Hex(c.Json);
+                c.Data.ChecksumHex = hex;
+                return JsonUtility.ToJson(c.Data);
             }
             catch (Exception e) { Debug.LogWarning("[SaveEnv] attach fail: " + e.Message); return null; }
         }
 
-        /// <summary>读取路径：存储 JSON → 验证 → 通过返回 SaveData；校验失败（新档篡改/损坏）返回 null。
+        /// <summary>读取路径：存储 JSON → 往返归一化 → 验证校验和 → 通过返回 SaveData；校验失败（篡改/损坏）返回 null。
         /// 旧档（ChecksumHex 空）返回对象本身（放行，由结构校验 + 迁移处理）。</summary>
         public static SaveData Verify(string json)
         {
             if (string.IsNullOrEmpty(json)) return null;
             try
             {
-                var d = JsonUtility.FromJson<SaveData>(json);
-                if (d == null) return null;
-                string saved = d.ChecksumHex ?? "";
-                d.ChecksumHex = "";
-                string recompute = SaveChecksum.Fnv1a64Hex(JsonUtility.ToJson(d));
-                if (saved.Length == 0) { d.ChecksumHex = saved; return d; }   // 旧档（无校验字段）→ 放行
-                if (saved == recompute) { d.ChecksumHex = saved; return d; }  // 校验匹配 → 放行
-                return null;                                                  // 校验不匹配 → 损坏/篡改
+                SaveData d0 = JsonUtility.FromJson<SaveData>(json);
+                if (d0 == null) return null;
+                string saved = d0.ChecksumHex ?? "";
+                Canonical c = Canonicalize(d0);
+                if (c == null) return null;
+                if (saved.Length == 0) { c.Data.ChecksumHex = saved; return c.Data; }  // 旧档（无校验字段）→ 放行
+                string recompute = SaveChecksum.Fnv1a64Hex(c.Json);
+                if (saved == recompute) { c.Data.ChecksumHex = saved; return c.Data; }   // 校验匹配 → 放行
+                return null;                                                           // 校验不匹配 → 损坏/篡改
             }
             catch { return null; }
         }
