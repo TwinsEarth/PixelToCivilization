@@ -8,4 +8,15 @@
     保留整个 PhysicsModule 可彻底避免任意 PrimitiveType 的隐式碰撞体被裁剪。
   -->
   <assembly fullname="UnityEngine.PhysicsModule" preserve="all" />
+
+  <!--
+    V9.7.3 WebGL/IL2CPP 裁剪保护：
+    大量 Web* 测试探针（WebQuickSave / WebSaveAsync / WebSaveProbe / WebGroundProbe 等）
+    仅由 unityInstance.SendMessage 按方法名字符串反射调用，无任何静态引用，
+    High stripping（WebGL 默认）会把它们裁掉，SendMessage 抛
+    MissingMethodException 且静默失败，表现为"存档/造兵/探针无反应"。
+    本项目无 asmdef，全部脚本编译进 Assembly-CSharp；保留整个程序集可
+    一次性保证所有 SendMessage 反射目标与 JSON 序列化数据类型不被裁剪。
+  -->
+  <assembly fullname="Assembly-CSharp" preserve="all" />
 </linker>
