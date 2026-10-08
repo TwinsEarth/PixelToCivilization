@@ -24,7 +24,7 @@ namespace PixelToCivilization.EditorTools
     /// </summary>
     public static class BuildPipelineCLI
     {
-        public const string BuildVer = "9.6.7";
+        public const string BuildVer = "9.8.0";
         const string ScenePath = "Assets/Scenes/MainScene.unity";
         const string CompanyName = "ToFuture";
         const string ProductName = "从像素到文明";

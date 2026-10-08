@@ -38,6 +38,31 @@ namespace PixelToCivilization.World
         readonly Dictionary<int,VegSet> _sets3=new();   // V6.3.1 近景 LV3 精合并
         // V9.3.8 树木属性面板：TreeRecord 运行时态（不进存档），点击拾取 + 培育升级（纯数据）
         public readonly List<TreeRecord> Trees = new();
+        // V9.4.6 树生成间距哈希网格（防大树/巨木重叠；格 12 世界单位，查 3×3 邻格）
+        readonly Dictionary<long,List<int>> _treeGrid=new();
+        const float TreeCell=12f;
+        bool TreeOverlap(float x,float z,float rad)
+        {
+            int cx=Mathf.FloorToInt(x/TreeCell),cz=Mathf.FloorToInt(z/TreeCell);
+            for(int gx=cx-1;gx<=cx+1;gx++)for(int gz=cz-1;gz<=cz+1;gz++)
+            {
+                long key=((long)(uint)gx<<32)|(uint)gz;
+                if(_treeGrid.TryGetValue(key,out var ids))
+                    for(int k=0;k<ids.Count;k++)
+                    { var tr=Trees[ids[k]]; float r=tr.BaseH>=2.0f?tr.BaseH*1.7f:2.4f;
+                      float rr=r+rad, dx=x-tr.X,dz=z-tr.Z;
+                      if(dx*dx+dz*dz<rr*rr) return true; }
+            }
+            return false;
+        }
+        void TreeGridAdd(int idx)
+        {
+            var tr=Trees[idx];
+            int cx=Mathf.FloorToInt(tr.X/TreeCell),cz=Mathf.FloorToInt(tr.Z/TreeCell);
+            long key=((long)(uint)cx<<32)|(uint)cz;
+            if(!_treeGrid.TryGetValue(key,out var ids)){ ids=new(); _treeGrid[key]=ids; }
+            ids.Add(idx);
+        }
         public int TreeAge(TreeRecord r){ var gm=GameManager.Instance; float y=gm!=null&&gm.State!=null?gm.State.Year:1f; return Mathf.Max(0,Mathf.FloorToInt(y-r.BirthYear)); }
         public float TreeHeightM(TreeRecord r)
         {
@@ -73,6 +98,7 @@ namespace PixelToCivilization.World
         {
             _sets.Clear(); _sets3.Clear();
             Trees.Clear();
+            _treeGrid.Clear();   // V9.4.6r26 根因修复：Regrow/重开局时清空上一局树格索引，否则 TreeOverlap 读旧 idx → Trees[旧idx] 越界 → 每次开局必抛
             LODManager.ClearCull();
             var curYear=GameManager.Instance!=null&&GameManager.Instance.State!=null?GameManager.Instance.State.Year:1f;
             _lastYear=curYear;
@@ -132,9 +158,13 @@ namespace PixelToCivilization.World
                 if (trees<TreeTarget && h<7.2f && dens>gate && rnd<Mathf.Clamp01(dens+ring))
                 {
                     float tr=(float)rng.NextDouble(); bool con=h>3.6f || (float)rng.NextDouble()<0.45f; // V6.3.6 平地也有45%三角锥形树，高海拔全锥形
+                    float baseH=(0.8f+tr*0.7f)*1.4f;
+                    float rad=Mathf.Min(3.6f,1.2f*baseH+1.0f);   // V9.4.6 树冠半径：大树/巨木自动更大
+                    if(TreeOverlap(x,z,rad)) continue;           // V9.4.6 树木不允许重叠（含已种树近邻检查）
                     AddTree(vs.bark,vs.la,vs.lb,x,y,z,tr,con);
                     AddTree3(vs3.bark,vs3.la,vs3.lb,x,y,z,tr,con);
-                    Trees.Add(new TreeRecord{X=x,Z=z,BaseH=(0.8f+tr*0.7f)*1.4f,Kind=con?1:0,BirthYear=curYear});   // V9.3.8 树木属性面板登记
+                    Trees.Add(new TreeRecord{X=x,Z=z,BaseH=baseH,Kind=con?1:0,BirthYear=curYear});   // V9.3.8 树木属性面板登记
+                    TreeGridAdd(Trees.Count-1);   // V9.4.6 登记哈希网格
                     trees++;
                 }
                 // ② 灌木层（中，无主干团状）
@@ -328,8 +358,9 @@ namespace PixelToCivilization.World
         public void Regrow(WorldGenerator terrain, int seed)
         {
             var old=transform.Find("Vegetation");
-            if (old!=null) Destroy(old.gameObject);
-            Populate(terrain,seed);
+            if (old!=null) DestroyImmediate(old.gameObject);   // V9.4.6r23：开局多次 Regrow 时立即销毁旧植被，防延迟销毁累积
+            try { Populate(terrain,seed); }
+            catch(System.Exception e){ Debug.LogError("[VEGREG] "+e.GetType().Name+": "+e.Message+" | "+e.StackTrace); throw; }
         }
 
         static Mesh BuildCylinder()

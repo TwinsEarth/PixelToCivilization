@@ -535,6 +535,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             UITheme.BtnIcon("tech",actions.transform,"research","科技",12).onClick.AddListener(OpenTechModal);
             UITheme.BtnIcon("policy",actions.transform,"culture","政策",12).onClick.AddListener(OpenPolicyModal);
             UITheme.BtnIcon("gods",actions.transform,"god","九神",12).onClick.AddListener(OpenGodsModal);
+            UITheme.BtnIcon("agents",actions.transform,"god","智能体",12).onClick.AddListener(ShowAgent);
             UITheme.BtnIcon("city",actions.transform,"market","城市",12).onClick.AddListener(OpenCityModal);
             UITheme.BtnIcon("philosophy",actions.transform,"culture","百家",12).onClick.AddListener(OpenPhilosophyModal);
             UITheme.BtnIcon("army",actions.transform,"military","征兵",12).onClick.AddListener(()=>GM.Military.TrainSoldiers());
@@ -732,7 +733,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
         /// <summary>V9.3.13 浏览器回归：关闭全部面板，保证逐面板截图不被 UGUI sibling 层级叠加干扰</summary>
         public void WebCloseAllModal()
         {
-            GameObject[] ms = { _techModal,_policyModal,_godsModal,_oceanModal,_spaceModal,_campaignModal,_colonyModal,_cityModal,_philosophyModal };
+            GameObject[] ms = { _techModal,_policyModal,_godsModal,_oceanModal,_spaceModal,_campaignModal,_colonyModal,_cityModal,_philosophyModal,_agentModal };
             foreach(var m in ms) if(m!=null) m.SetActive(false);
         }
         /// <summary>V9.3.13 浏览器回归统一入口：按名称打开各面板（SendMessage 可传 string）</summary>
@@ -743,6 +744,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
                 case "tech": OpenTechModal(); break;
                 case "policy": OpenPolicyModal(); break;
                 case "gods": OpenGodsModal(); break;
+                case "agent": ShowAgent(); break;
                 case "city": OpenCityModal(); break;
                 case "philosophy": OpenPhilosophyModal(); break;
                 case "colony": OpenColonyModal(); break;

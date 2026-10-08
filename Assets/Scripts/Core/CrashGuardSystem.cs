@@ -112,8 +112,10 @@ namespace PixelToCivilization.Core
                 Record("E", msg + " | " + stack);
                 if (type == LogType.Exception)
                 {
+                    // V9.7.0 崩溃摘要附带游戏状态上下文（朝代/年份/人口/势力/时代/倍速），方便定位崩溃时刻
                     LastCrashSummary = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + "|" +
-                        (msg.Length > 160 ? msg.Substring(0, 160) : msg);
+                        (msg.Length > 160 ? msg.Substring(0, 160) : msg) +
+                        "|" + LocalCrashReporter.ContextText();
                     PlayerPrefs.SetString(KeyState, "crashed");
                     PlayerPrefs.SetString(KeyLast, LastCrashSummary);
                     PlayerPrefs.Save();

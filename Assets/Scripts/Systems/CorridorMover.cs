@@ -10,6 +10,7 @@ namespace PixelToCivilization.Systems
         public Vector3 A, B;
         public float L = 10f;
         public float Speed = 6f;
+        public float SpeedMul = 1f;   // V9.4.4 随机变速系数（0.6~1.4，由城际网络每 60s 真实时间重随机）
         public bool AxisX;
         float _t;
         int _dir = 1;
@@ -19,7 +20,7 @@ namespace PixelToCivilization.Systems
         {
             if (L <= 0.01f) L = Vector3.Distance(A, B);
             float span = Mathf.Max(1f, L);
-            _t += _dir * Speed * dt / span;
+            _t += _dir * Speed * SpeedMul * dt / span;
             if (_t >= 1f) { _t = 1f; _dir = -1; }
             else if (_t <= 0f) { _t = 0f; _dir = 1; }
 

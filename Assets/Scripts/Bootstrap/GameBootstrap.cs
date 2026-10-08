@@ -28,7 +28,7 @@ namespace PixelToCivilization.Bootstrap
         {
             if (GameManager.Instance != null) return;
             if (FindObjectOfType<GameBootstrap>() != null) return; // 场景已手动挂载则交给其Start
-            var go = new GameObject("=== 从像素到文明 V9.7.2 地面部队十维 (Auto) ===");
+            var go = new GameObject("=== 从像素到文明 V9.8.0 智能体驱动 (Auto) ===");
             var bs = go.AddComponent<GameBootstrap>();
             bs.StartCoroutine(bs.BootCoroutine());
         }

@@ -47,6 +47,7 @@ namespace PixelToCivilization.Systems
         readonly Queue<LiftRequest> _infQueue = new();      // 待投送军人
         bool _cargoBuilt, _heliBuilt;
         int _recoveredStuck;                                 // V9.6.2 投送兜底复位计数（探针证据：任何异常不再永久卡死）
+        float _hintCd;                                       // V9.6.3f 未解锁投送提示节流（真实时间 10s 一次，防每 tick 刷事件卡死）
 
         public override void Init(GameManager gm) { base.Init(gm); _terrain = Object.FindObjectOfType<WorldGenerator>(); }
         WorldGenerator _terrain;   // V9.6.2 空投落地贴地（地形高度）
@@ -314,13 +315,21 @@ namespace PixelToCivilization.Systems
         }
 
         // ================= V9.6.2 投送端强化 =================
+        /// <summary>V9.6.3f 未解锁投送提示节流：真实时间 10s 仅提示一次，防全场超距单位每 tick 刷事件 → 编年史/滚动条每帧重建卡死</summary>
+        bool HintGate()
+        {
+            if (Time.unscaledTime < _hintCd) return false;
+            _hintCd = Time.unscaledTime + 10f;
+            return true;
+        }
         /// <summary>地面部队集结（超100格）：投送不可用（机种未解锁）时广播提示并返回 false，由调用方落巡航</summary>
         public bool RequestLiftAuto(GroundWarfareSystem.GroundUnit u, float fx, float fz)
         {
             if (u == null) return false;
             if (!UnlockedCargo() && !UnlockedHeli())
             {
-                GM.AddEvent("bad", "✈ 运输机需公元1900/直升机公元1949解锁，当前无法远程投送，" + u.Name + "改为就近巡航");
+                if (HintGate())
+                    GM.AddEvent("bad", "✈ 运输机需公元1900/直升机公元1949解锁，当前无法远程投送，" + u.Name + "改为就近巡航");
                 return false;
             }
             return RequestLift(u, fx, fz, 1f);
@@ -331,7 +340,8 @@ namespace PixelToCivilization.Systems
             if (u == null) return false;
             if (!UnlockedCargo() && !UnlockedHeli())
             {
-                GM.AddEvent("bad", "✈ 运输机需公元1900/直升机公元1949解锁，当前无法远程投送，军人回城待命");
+                if (HintGate())
+                    GM.AddEvent("bad", "✈ 运输机需公元1900/直升机公元1949解锁，当前无法远程投送，军人回城待命");
                 return false;
             }
             return RequestLift(u, fx, fz, 0f);
@@ -491,7 +501,7 @@ namespace PixelToCivilization.Systems
             }
             _planes.Clear();
             _groundQueue.Clear(); _infQueue.Clear();
-            _cargoBuilt = false; _heliBuilt = false; _recoveredStuck = 0;
+            _cargoBuilt = false; _heliBuilt = false; _recoveredStuck = 0; _hintCd = 0f;   // V9.6.3f 提示节流一并重置
         }
     }
 }

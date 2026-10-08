@@ -108,9 +108,10 @@ namespace PixelToCivilization.Core
         public Vector3 Pos, Vel;
         public float Damage;
         public float Life;
-        public string Kind = "arrow";  // arrow/cannonball/fire
+        public string Kind = "arrow";  // arrow/cannonball/fire/mg
         public GameObject View;
         public object Target;
+        public float HomeX, HomeZ;   // V9.6.4 无目标(碉堡四向)时固定命中点
     }
 
     /// <summary>太空/海洋资源点</summary>

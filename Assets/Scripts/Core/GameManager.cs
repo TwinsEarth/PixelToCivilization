@@ -65,6 +65,8 @@ namespace PixelToCivilization.Core
         public MemoryBudgetManager MemBudget;
         /// <summary>V9.6.5 崩溃架构中枢（异常捕获/崩溃标记/环形日志/安全模式/恢复引导）</summary>
         public CrashGuardSystem Guard;
+        /// <summary>V9.8.0 智能体驱动层：万物身份/自主调度/消息协作/三模式/离线行为库</summary>
+        public AI.Agents.AgentDirector Agents;
         // 策划书扩展系统
         public PhilosophySystem Philosophy;
         public DisasterSystem Disaster;
@@ -182,6 +184,9 @@ namespace PixelToCivilization.Core
             // V9.6.6 存档架构：ISaveable 注册（崩溃环形日志随档携带）+ 启动清理原子写残留临时键
             SaveSystem.Register(Guard);
             SaveSystem.CleanupTempKeys();
+            // V9.8.0 智能体驱动层：在所有系统装配完成后注册全量身份（非侵入，自带异常降级）
+            Agents = gameObject.GetComponent<AI.Agents.AgentDirector>() ?? gameObject.AddComponent<AI.Agents.AgentDirector>();
+            Agents.Bootstrap(this);
             Debug.Log("[GameManager] 子系统装配完成，数量=" + _systems.Count);
         }
 
@@ -507,6 +512,65 @@ namespace PixelToCivilization.Core
 
         // ===== WebGL / SendMessage 友好入口（无参，供浏览器深链、外部页面与自动化回归调用；UI 按钮逻辑不受影响）=====
         public void WebQuickSave(){ SaveSystem?.SaveToSlot(1); }
+
+        // ================= V9.8.0 智能体驱动层 Web 探针 =================
+        [UnityEngine.Scripting.Preserve]
+        public void WebAgentList()
+        {
+            if (Agents==null){ Debug.Log("[AGENT] director null"); return; }
+            var R=Agents.Registry;
+            var sb=new System.Text.StringBuilder();
+            sb.AppendLine("[AGENT] 总智能体数="+R.Count+" 模式="+Agents.Mode+
+                " 决策数="+Agents.TotalDecisions+" LLM调用="+Agents.LlmCalls+" 行为库="+Agents.Library.Entries.Count);
+            foreach(AI.Agents.AgentKind k in System.Enum.GetValues(typeof(AI.Agents.AgentKind)))
+            {
+                var list=R.OfKind(k);
+                if(list.Count>0) sb.AppendLine("  - "+k+" ("+list.Count+"): "+
+                    string.Join(",", System.Array.ConvertAll(list.ToArray(), a=>a.Id)));
+            }
+            Debug.Log(sb.ToString());
+        }
+        [UnityEngine.Scripting.Preserve]
+        public void WebAgentIntro(string id)
+        {
+            if (Agents==null){ Debug.Log("[AGENT] director null"); return; }
+            var a=Agents.Registry.Get(id);
+            Debug.Log(a!=null ? "[AGENT] "+a.FullIntro : "[AGENT] 未找到身份: "+id);
+        }
+        // 模拟一次求助 → 回应（验证消息总线协作链路）
+        [UnityEngine.Scripting.Preserve]
+        public void WebAgentHelp()
+        {
+            if (Agents==null){ Debug.Log("[AGENT] director null"); return; }
+            int year=State!=null?State.Year:0;
+            Agents.Bus.Help("ship_destroyer","combat","我方驱逐舰在战斗中被围攻，请求附近支援！",year,UnityEngine.Time.realtimeSinceStartup);
+            // 让 Director 立即处理一次（其 Update 节流，这里手动触发其公开协作入口）
+            Agents.ResolvePendingProbe();
+            foreach(var m in Agents.Bus.Messages)
+                Debug.Log("[AGENT-MSG] "+m.Type+" "+m.From+"->"+m.To+" ("+m.Topic+") "+m.Content);
+        }
+        [UnityEngine.Scripting.Preserve]
+        public void WebAgentMode(){ Agents?.CycleMode(); Debug.Log("[AGENT] 模式="+ (Agents!=null?Agents.Mode.ToString():"null")); }
+        [UnityEngine.Scripting.Preserve]
+        public void WebAgentLib()
+        {
+            if (Agents==null){ Debug.Log("[AGENT] director null"); return; }
+            Debug.Log("[AGENT] 行为库条目="+Agents.Library.Entries.Count+"\n"+Agents.Library.Export());
+        }
+        [UnityEngine.Scripting.Preserve]
+        public void WebAgentSaveLib(){ Agents?.SaveLibrary(); Debug.Log("[AGENT] 行为库已保存"); }
+
+        // V9.7.3 存档逐步诊断（转发到 SaveSystem，定位静默失败步骤）
+        [UnityEngine.Scripting.Preserve]
+        public void WebSaveDiag(){ SaveSystem?.WebSaveDiag(); }
+        // V9.7.3 古典地面部队（不跳年，当前年份<4949 时 DebugBuildOwn 自动选骑兵/阵兵/战车）
+        [UnityEngine.Scripting.Preserve]
+        public void WebBuildClassicGround()
+        {
+            if (Ground==null){ Debug.Log("[Web] ClassicGround null"); return; }
+            int m=Ground.DebugBuildOwn(3);
+            Debug.Log("[Web] ClassicGround made="+m+" year="+State.Year+" "+Ground.Probe());
+        }
         // V9.6.1 Web 探针：战时广播战损统计 + 顶部滚动条状态 + 空运投送状态
         public void WebV961Probe()
         {

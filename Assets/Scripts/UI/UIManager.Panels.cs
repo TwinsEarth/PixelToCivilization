@@ -1,7 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using PixelToCivilization.Core;
 using PixelToCivilization.Data;
 using PixelToCivilization.AI;
@@ -17,6 +20,7 @@ namespace PixelToCivilization.UI
         private GameObject _campaignModal,_colonyModal;   // V6.1.4 群雄讨伐 / V6.1.5 殖民地
         private GameObject _cityModal;                    // V9.0.7 城市治理（等级/财政/税率/地价）
         private GameObject _philosophyModal;              // V9.3.13 百家面板预建（原 CreateModal 每次新建：open 累积多层且点 X 易失焦，永久遮挡后续面板）
+        private GameObject _agentModal;                   // V9.8.0 智能体驱动面板（身份浏览/自我介绍/协作消息/模式切换）
         private GameObject _treeModal;                    // V9.3.8 树木属性面板
         private GameObject _groundModal;                  // V9.5.7 地面部队属性面板（坦克/装甲车/导弹车·骑兵/方阵/战车）
         private ShipEntity _selectedShip;
@@ -63,6 +67,9 @@ namespace PixelToCivilization.UI
             _cityModal=MakeModal("CityModal"," 城市治理 · 财政预算",out var cib);
             cib.parent.GetComponent<RectTransform>().sizeDelta=new Vector2(936,660);   // V9.4.2 720×1.3=936
             _philosophyModal=MakeModal("PhilosophyModal"," 诸子百家 · 择国之道",out _);   // V9.3.13 预建百家面板（关闭可复用）
+            // V9.8.0 智能体驱动面板
+            _agentModal=MakeModal("AgentModal"," 智能体驱动 · 万物协作",out var agb);
+            agb.parent.GetComponent<RectTransform>().sizeDelta=new Vector2(960,660);
         }
 
         private GameObject MakeModal(string name,string title,out RectTransform body,bool destroyOnClose=false)
@@ -73,6 +80,7 @@ namespace PixelToCivilization.UI
             rt.anchorMin=rt.anchorMax=new Vector2(0.5f,0.5f);rt.sizeDelta=new Vector2(910,580);   // V9.4.2 八系统弹窗左右扩大30%：700×1.3=910
             var vl=box.AddComponent<VerticalLayoutGroup>();vl.spacing=2;vl.padding=new RectOffset(5,5,4,4);   // V9.3.10 8→5 / (18,18,16,16)→(12,12,10,10) 减少留白
             vl.childControlWidth=true;vl.childForceExpandWidth=true;
+            vl.childControlHeight=true;vl.childForceExpandHeight=false;   // V9.8.0 fix：必须控制高度，否则 head 不被限制为 24（膨胀到 277）、body 与 sr 被挤塌
             var head=UITheme.Panel("Head",box.transform,new Color(0,0,0,0));
             head.AddComponent<LayoutElement>().preferredHeight=24;   // V9.3.12 26→24
             UITheme.Label("title",head.transform,title,22,TextAnchor.MiddleLeft,UITheme.Gold)
@@ -699,6 +707,7 @@ public void ShowBuilding(BuildingEntity b)
             if(btex!=null) UITheme.Portrait(body.transform,btex,176);
             else { var ph=UITheme.Panel("ph",body.transform,UITheme.HexA(0x1b2440,0.9f));ph.AddComponent<LayoutElement>().preferredHeight=150;UITheme.SetOutline(ph,UITheme.Gold,1);var pe=UITheme.Label("e",ph.transform,b.Def.Icon,56,TextAnchor.MiddleCenter);pe.rectTransform.anchorMin=Vector2.zero;pe.rectTransform.anchorMax=Vector2.one;pe.rectTransform.offsetMin=pe.rectTransform.offsetMax=Vector2.zero; }
             int designLife=50+b.Level*30;
+            AgentIntroBlock(AI.Agents.AgentDirector.BuildingTypeToAgent(b.Type), body.transform);
             float house=b.Def.GetFunc("housing");
             var sb=new StringBuilder();
             sb.Append("分类：").Append(b.Def.Cat).Append("　时代：").Append(GM.Eras[b.Def.Era].Name).Append('\n');
@@ -727,6 +736,15 @@ public void ShowBuilding(BuildingEntity b)
         {
             _selectedShip=s; FillShip(s); _shipModal.SetActive(true);
         }
+        // V9.8.0 智能体身份区块：在属性面板显示该对象的自我介绍
+        private void AgentIntroBlock(string agentId, Transform parent)
+        {
+            var director = GM.Agents;
+            if (director==null) return;
+            var a = director.Registry.Get(agentId);
+            if (a==null) return;
+            UITheme.Label("agent",parent,"💬 "+a.Intro,12,TextAnchor.UpperLeft,new Color(0.80f,0.92f,1f));
+        }
         public void CloseShipCard()
         {
             _selectedShip=null;
@@ -741,7 +759,7 @@ public void ShowBuilding(BuildingEntity b)
             bool hasDef=naval.Defs.TryGetValue(s.ShipTypeId,out var d);
             string icon=hasDef?d.Icon:"🚢";
             UITheme.Label("name",body.transform,$"{icon} {s.Name} · {naval.LevelName(s)}",19,TextAnchor.MiddleCenter,UITheme.Gold);
-            // V6.1.3 船只实拍图（随普通/精良/传奇切换）
+            AgentIntroBlock(AI.Agents.AgentDirector.ShipTypeToAgent(s.ShipTypeId), body.transform);
             var stex=PortraitLoader.Load("ship",s.ShipTypeId,s.Level);
             if(stex!=null) UITheme.Portrait(body.transform,stex);
             var sb=new StringBuilder();
@@ -784,6 +802,7 @@ public void ShowBuilding(BuildingEntity b)
             bool hasDef=cart.Defs.TryGetValue(c.CartTypeId,out var cd);
             string icon=hasDef?cd.Icon:"🛒";
             UITheme.Label("name",body.transform,$"{icon} {c.Name} · {cart.CartLevelName(c)}",19,TextAnchor.MiddleCenter,UITheme.Gold);
+            AgentIntroBlock(AI.Agents.AgentDirector.CartTypeToAgent(c.CartTypeId), body.transform);
             var ctex=PortraitLoader.Load("cart",c.CartTypeId,c.Level);
             if(ctex!=null) UITheme.Portrait(body.transform,ctex);
             var sb=new StringBuilder();
@@ -822,6 +841,7 @@ public void ShowBuilding(BuildingEntity b)
             string icon=hasDef?d.Icon:"🛡️";
             string era=u.TypeId is "cavalry" or "phalanx" or "chariot" ? "古典（1949前）":"现代（1949起）";
             UITheme.Label("name",body.transform,$"{icon} {u.Name} · Lv{u.Level}",19,TextAnchor.MiddleCenter,UITheme.Gold);
+            AgentIntroBlock(AI.Agents.AgentDirector.GroundTypeToAgent(u.TypeId), body.transform);
             var sb=new StringBuilder();
             // V9.7.2 十维参数：速度/雷达/射速显示【实际生效值】（EffectiveSpeed 等），与实际移动/开火口径唯一
             float effSpd=gw.EffectiveSpeed(u), effRadar=gw.EffectiveRadar(u), effFire=gw.EffectiveFireInterval(u);
@@ -856,6 +876,141 @@ public void ShowBuilding(BuildingEntity b)
             }
         }
 
+        // ===== V9.8.0 智能体驱动面板（身份浏览/自我介绍/协作消息/模式切换）=====
+        public void ShowAgent(){ FillAgent(); _agentModal.SetActive(true); }
+        public void CloseAgent(){ if(_agentModal!=null) _agentModal.SetActive(false); }
+
+        private int _agentFilter = -1;   // -1 全部；否则 AgentKind
+
+        private void FillAgent()
+        {
+            var body=ModalBody(_agentModal); Clear(body);
+            var vl=body.AddComponent<VerticalLayoutGroup>();
+            vl.spacing=4; vl.padding=new RectOffset(8,8,6,6);
+            vl.childControlWidth=true; vl.childForceExpandWidth=true;
+            vl.childControlHeight=true; vl.childForceExpandHeight=false;   // V9.8.0 fix：必须控制高度，否则滚动区不拉伸（参照 Debug 面板）
+            var dir=GM.Agents;
+            if(dir==null){ UITheme.Label("x",body.transform,"智能体层未就绪",13); return; }
+
+            // 状态行
+            UITheme.Label("stat",body.transform,
+                $"模式：{dir.Mode}｜智能体 {dir.Registry.Count}｜自主决策 {dir.TotalDecisions}｜LLM {dir.LlmCalls}｜行为库 {dir.Library.Entries.Count}",
+                13,TextAnchor.MiddleLeft,new Color(0.35f,0.5f,0.6f));
+
+            // 操作按钮行
+            var top=UITheme.Panel("top",body.transform,new Color(0,0,0,0));
+            var tle=top.AddComponent<LayoutElement>(); tle.preferredHeight=32; tle.layoutPriority=2;
+            var th=top.AddComponent<HorizontalLayoutGroup>();
+            th.spacing=6; th.padding=new RectOffset(4,4,2,2);
+            th.childControlWidth=true; th.childForceExpandWidth=true;
+            th.childControlHeight=true; th.childForceExpandHeight=false;
+            UITheme.Btn("mode",top.transform," 切换模式",12).onClick.AddListener(()=>{dir.CycleMode();FillAgent();});
+            UITheme.Btn("help",top.transform," 模拟求助",12).onClick.AddListener(()=>{
+                dir.CallForHelp("ship_destroyer","combat","我方驱逐舰在战斗中被围攻，请求附近支援！");
+                dir.ResolvePendingProbe(); FillAgent();
+            });
+            UITheme.Btn("save",top.transform," 保存行为库",12).onClick.AddListener(()=>{dir.SaveLibrary();});
+            UITheme.Btn("close",top.transform," 关闭",12).onClick.AddListener(CloseAgent);
+
+            // 类别过滤行
+            var filt=UITheme.Panel("filt",body.transform,new Color(0,0,0,0));
+            var fle=filt.AddComponent<LayoutElement>(); fle.preferredHeight=28; fle.layoutPriority=2;
+            var fh=filt.AddComponent<HorizontalLayoutGroup>();
+            fh.spacing=4; fh.padding=new RectOffset(2,2,2,2);
+            fh.childControlWidth=true; fh.childForceExpandWidth=true;
+            fh.childControlHeight=true; fh.childForceExpandHeight=false;
+            AddFilterBtn(filt.transform,"全部",-1);
+            foreach(AI.Agents.AgentKind k in Enum.GetValues(typeof(AI.Agents.AgentKind)))
+                AddFilterBtn(filt.transform,k.ToString(),(int)k);
+
+            // 滚动列表（直接挂 body，参照 Debug 面板；多套一层裸 Panel 会塌缩）
+            var sr=UITheme.VerticalScroll("sr",body.transform,out var content,3);
+            sr.gameObject.AddComponent<LayoutElement>().flexibleHeight=1;
+            sr.movementType=ScrollRect.MovementType.Clamped; sr.scrollSensitivity=30f;
+            var cvlg=content.GetComponent<VerticalLayoutGroup>();
+            cvlg.childControlHeight=true; cvlg.childForceExpandHeight=false;
+
+            var all=new List<AI.Agents.AgentIdentity>();
+            if(_agentFilter<0) all.AddRange(dir.Registry.All);
+            else all.AddRange(dir.Registry.OfKind((AI.Agents.AgentKind)_agentFilter));
+            all.Sort((a,b)=>a.Id.CompareTo(b.Id));
+            foreach(var a in all)
+            {
+                var row=UITheme.Panel("arow",content,new Color(0.15f,0.25f,0.3f,0.10f));
+                var rle=row.AddComponent<LayoutElement>(); rle.preferredHeight=42;   // V9.8.0 fix：固定行高（参照 Debug 面板），content 高度确定可滚动
+                var rvl=row.AddComponent<VerticalLayoutGroup>();
+                rvl.spacing=1; rvl.padding=new RectOffset(6,6,3,3);
+                rvl.childControlWidth=true; rvl.childForceExpandWidth=true;
+                rvl.childControlHeight=true; rvl.childForceExpandHeight=false;
+                UITheme.Label("n",row.transform,$"[{a.Kind}] {a.Name}（{a.Domain}）",12,TextAnchor.UpperLeft,UITheme.Gold);
+                UITheme.Label("i",row.transform,a.Intro,11,TextAnchor.UpperLeft,new Color(0.2f,0.25f,0.3f));
+            }
+        }
+
+        private void AddFilterBtn(Transform parent,string label,int v)
+        {
+            var b=UITheme.Btn("f",parent,label,11);
+            b.onClick.AddListener(()=>{ _agentFilter=v; FillAgent(); });
+        }
+
+        // V9.8.0 诊断探针：读取面板 viewport / content 真实尺寸，定位滚动问题
+        [UnityEngine.Scripting.Preserve]
+        public void WebAgentPanel()
+        {
+            if (_agentModal==null){ Debug.Log("[PANEL] modal null"); return; }
+            Debug.Log($"[PANEL] Screen={Screen.width}x{Screen.height}");
+            var box=_agentModal.transform.Find("Box") as RectTransform;
+            Debug.Log("[PANEL] Box  "+RectScreen(box));
+            var head=_agentModal.transform.Find("Box/Head") as RectTransform;
+            Debug.Log("[PANEL] Head "+RectScreen(head)+" localSize="+head.sizeDelta+" comps="+string.Join(",",head.GetComponents<Component>().Select(c=>c.GetType().Name)));
+            var body=_agentModal.transform.Find("Box/Body") as RectTransform;
+            Debug.Log("[PANEL] Body "+RectScreen(body));
+            var top=body.Find("top") as RectTransform;
+            var filt=body.Find("filt") as RectTransform;
+            Debug.Log("[PANEL] top localSize="+top.sizeDelta+" comps="+string.Join(",",top.GetComponents<Component>().Select(c=>c.GetType().Name)));
+            Debug.Log("[PANEL] filt localSize="+filt.sizeDelta+" comps="+string.Join(",",filt.GetComponents<Component>().Select(c=>c.GetType().Name)));
+            var srT=_agentModal.transform.Find("Box/Body/sr") as RectTransform;
+            if (srT==null){ Debug.Log("[PANEL] sr not found"); return; }
+            var sr=srT.GetComponent<ScrollRect>();
+            Debug.Log("[PANEL] sr   "+RectScreen(srT));
+            var content=sr.content;
+            Debug.Log($"[PANEL] Content h={content.rect.height:0} childCount={content.childCount} scrollable={content.rect.height>srT.rect.height} normPos={sr.verticalNormalizedPosition:0.00}");
+        }
+
+        private static string RectScreen(RectTransform rt)
+        {
+            if(rt==null) return "null";
+            var corners=new Vector3[4]; rt.GetWorldCorners(corners);
+            var bl=RectTransformUtility.WorldToScreenPoint(null,corners[0]);
+            var tr=RectTransformUtility.WorldToScreenPoint(null,corners[2]);
+            // 转成从顶部算（y_top = H - y）
+            return $"top=({bl.x:0},{Screen.height-tr.y:0}) size=({tr.x-bl.x:0}x{tr.y-bl.y:0})";
+        }
+
+        // V9.8.0 诊断探针：列出某屏幕坐标处 GraphicRaycaster 命中的对象（含层级深度）
+        [UnityEngine.Scripting.Preserve]
+        public void WebAgentRaycast(string xy)
+        {
+            var p=xy.Split(',');
+            var pos=new Vector2(float.Parse(p[0]),float.Parse(p[1]));
+            var gr=_hud!=null?_hud.GetComponentInParent<GraphicRaycaster>():null;
+            if(gr==null){ Debug.Log("[HIT] 未找到 GraphicRaycaster"); return; }
+            var ped=new PointerEventData(EventSystem.current){ position=pos };
+            var results=new List<RaycastResult>();
+            gr.Raycast(ped,results);
+            var sb=new System.Text.StringBuilder();
+            sb.AppendLine($"[HIT] at ({pos.x},{pos.y}) count={results.Count}");
+            foreach(var r in results) sb.AppendLine("  - "+r.gameObject.name+" depth="+r.depth);
+            Debug.Log(sb.ToString());
+        }
+
+        // V9.8.0 诊断：Unity 实际读取到的鼠标输入状态
+        [UnityEngine.Scripting.Preserve]
+        public void WebInputCheck()
+        {
+            Debug.Log($"[INPUT] mousePos={Input.mousePosition.x:0},{Input.mousePosition.y:0} btn0={Input.GetMouseButton(0)} btn0Down={Input.GetMouseButtonDown(0)} screen={Screen.width}x{Screen.height} es={(EventSystem.current==null?"null":EventSystem.current.name)}");
+        }
+
         // ===== V9.3.8 树木属性面板（查看树龄/高度/健康/培育等级；培育升级：金10+粮5 → 等级+1、+2×等级文化）=====
         public void ShowTree(TreeRecord r)
         {
@@ -876,6 +1031,7 @@ public void ShowBuilding(BuildingEntity b)
             string name=VegetationSystem.TreeName(r);
             string lv=veg!=null?veg.TreeLevelName(r):(r.Level>=3?"巨木":(r.Level==2?"壮株":"幼株"));
             UITheme.Label("name",body.transform,$"{icon} {name} · {lv}",19,TextAnchor.MiddleCenter,UITheme.Gold);
+            AgentIntroBlock(r.Kind==2?"nat_banyan":(r.Kind==1?"nat_pine":"nat_tree"), body.transform);
             var sb=new StringBuilder();
             sb.Append("分类：乔木（").Append(r.Kind==2?"村落榕树":(r.Kind==1?"针叶":"阔叶")).Append("）\n");
             int age=veg!=null?veg.TreeAge(r):0;

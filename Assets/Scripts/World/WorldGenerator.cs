@@ -513,8 +513,8 @@ namespace PixelToCivilization.World
         /// <summary>重新生成（先销毁旧地形/水面），返回新村址</summary>
         public Vector3 Regenerate(int seed)
         {
-            var oldT = transform.Find("Terrain"); if (oldT!=null) Destroy(oldT.gameObject);
-            var oldW = transform.Find("Water"); if (oldW!=null) Destroy(oldW.gameObject);
+            var oldT = transform.Find("Terrain"); if (oldT!=null) DestroyImmediate(oldT.gameObject);
+            var oldW = transform.Find("Water"); if (oldW!=null) DestroyImmediate(oldW.gameObject);
             GenerateBalanced(seed);
             return SettlementCenter;
         }
@@ -714,7 +714,7 @@ namespace PixelToCivilization.World
         private void BuildTerrainMesh(int n)
         {
             var old = transform.Find("Terrain");
-            if (old!=null) Destroy(old.gameObject);
+            if (old!=null) DestroyImmediate(old.gameObject);   // V9.4.6r22 OOM修复：重试循环内必须立即销毁旧地形，延迟 Destroy 会让 6 次重试的网格同帧累积(~1GB)致 WebGL 内存越界
             var go = new GameObject("Terrain"); go.transform.SetParent(transform);
             var mf = go.AddComponent<MeshFilter>();
             var mr = go.AddComponent<MeshRenderer>();
@@ -1090,7 +1090,7 @@ namespace PixelToCivilization.World
 
         private void BuildWater(int n)
         {
-            if (WaterPlane!=null) Destroy(WaterPlane);
+            if (WaterPlane!=null) DestroyImmediate(WaterPlane);   // V9.4.6r22 OOM修复：重试循环内立即销毁旧水面
             WaterPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
             WaterPlane.name="Water"; WaterPlane.transform.SetParent(transform);
             float sxW=GameConstants.WorldMaxX*2.6f/10f, szW=GameConstants.WorldMaxZ*2.6f/10f;
@@ -1108,7 +1108,7 @@ namespace PixelToCivilization.World
             else if (mat.HasProperty("_Color")) mat.SetColor("_Color",new Color(0.07f,0.45f,0.85f,0.6f));
             var wr = WaterPlane.GetComponent<Renderer>();
             wr.material=mat; wr.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
-            Destroy(WaterPlane.GetComponent<Collider>());
+            var _wc=WaterPlane.GetComponent<Collider>(); if(_wc!=null) DestroyImmediate(_wc);
         }
 
         // ===== 查询 =====

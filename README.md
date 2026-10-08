@@ -4,14 +4,14 @@
 
 - **引擎**：团结引擎 Tuanjie 2022.3.62t12（基于 Unity 2022.3 LTS）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.7.3「历史 Bug 全量回归复测」——把项目历史上出现过的 Bug 汇总为 **45 项 / 9 类回归矩阵**，真实构建 + 浏览器探针逐项实测（**PASS 43 / 未验证 2**）。唯一回归集中在**存档系统**，经五项修复全部闭环：① `Assets/link.xml` 新增 **Assembly-CSharp preserve="all"**，根治 IL2CPP High stripping 裁剪仅经 SendMessage 反射调用的 `Web*` 方法（QuickSave 静默失败 / SaveAsync MissingMethod）；② 存档版本号硬编码（RuntimeVersion="9.7.3"、Snapshot 设 Version，不再回退 7.0.2）；③ IndexedDB 预加载**双 gate**（keys/vals 都回来才填缓存 + 4s 超时降级）；④ checksum **canonicalization 固定点**（双精度经 ToJson/FromJson 在 WebGL 往返不稳定，迭代至固定串再算 FNV，写入与校验口径一致）；⑤ 存档 UI 槽 5 裁剪修复（LayoutElement preferredHeight 与 row minHeight 矛盾，6 行槽全显）。浏览器实锤：QuickSave 写入（slot:010000）、IDB 直查 ver=9.7.3、reload 预加载、QuickLoad OK、六行槽按钮全显；其余 8 类相对 V9.7.2 无回归；BUILD_SUCCESS、密钥 CLEAN、Release v9.7.3；未验证项（1000× Debug 档 / 长跨度比例 / 原生平台 / 长时挂机 / Profiler）已诚实标注
+- **当前版本**：V9.8.0「智能体驱动 · 万物协作」——给每个物体 / 事件 / 系统一层非侵入的“身份”（**118 个身份**，按原型共享、实例只持 AgentId），万物按自身简介自主决策、协调协同协作；**三种模式**：离线 / 在线大模型 / 混合，混合模式下每次大模型决策沉淀为本地“离线行为动作库”（越用越聪明）。新增 6 个文件（`Assets/Scripts/AI/Agents/`）：AgentIdentity（9 类）、AgentMessageBus（环形缓冲 120、Help/Reply/Broadcast）、AgentRegistry（4 字典 O(1) 查表）、AgentBehaviorLibrary（每智能体 20 条、Record/Recall/Reinforce/Export）、AgentCatalog（118 身份）、AgentDirector（0.8s 节流自主调度、LLM 协程、行为库持久化）。身份层异常全捕获、失败静默降级离线，**不重写玩法、不换架构、不加依赖**，SafetyNet/CrashGuard 不灭绝红线不变。浏览器实测 12 个核心用例全 PASS：面板布局（Head=24/top=32/filt=28/sr 本地约 513）、拖拽滚动、过滤（Ship 8 条/全部 118 条）、模式切换、求助回复（驱逐舰求助→战斗仲裁 Reply）、保存行为库、建筑属性面板身份区块；wasm 约 33.6 MB、密钥 CLEAN、Release v9.8.0；未验证项（在线 LLM 联网链路/云盘上传通道/1000× 压测/原生平台）已诚实标注
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
 ## ▶ 立即试玩（无需安装）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.7.3_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.8.0_HTML5.zip`（约 55 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
 
 - **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
 - **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
@@ -77,6 +77,13 @@
 - 铁路**只连接不同国家**（一线一列车），国内只修 4 车道公路且公路不跨国；五代机车随年代解锁：蒸汽 1800 / 内燃 1900 / 电力 1950 / 高铁 1990 / 磁悬浮 2010，载客 20→100。
 - 月球是「太空岛」：须进入太空时代并建成太空电梯（100%）才能建月球前哨，月球基地满后才能前往火星；任何铁路公路不可达。
 
+**智能体驱动 · 万物协作（V9.8.0）**
+- 一层非侵入的“身份”：每个物体 / 事件 / 系统都有简介与能力域，按自身设定自主决策、协调协同协作；**118 个身份**（系统 41 / 管理 4 / 建筑 23 / 船 8 / 车 9 / 地面 6 / 职业 12 / 自然 13 / 指挥官 2）。
+- 身份按原型共享（同种建筑共享一个身份，实例只持 AgentId），“自主行动”委托给现有系统已有方法，不重写玩法。
+- **消息总线**：Subscribe / Post / Broadcast / Help / Reply，环形缓冲 120 条；例：驱逐舰发 Help(combat) → 战斗仲裁系统 Reply“我来支援”。
+- **三种模式**：离线（本地规则 + 离线行为库）/ 在线大模型 / 混合（大模型决策 + 每次决策沉淀为本地离线行为动作库，越用越聪明）；无 Key 自动降级离线。
+- 自主调度 0.8s 现实秒节流，单帧一个身份 + 一批 pending；调度 / 消息回调 / LLM 协程全 try/catch，异常静默隔离不阻断主循环。
+
 **生命与画面**
 - Q 版大头敦实小人，人人持工具；随年龄（幼/壮/老）、时代、职业、阶层、个体颜色差异化成长与换装。
 - 飞鸟群（上限 500）与鱼群（上限 300）：混色/体型随机、寿命、自动合群、I/V/S/W 等队形、转圈/对角/随机洄游。
@@ -135,6 +142,7 @@ Assets/Scripts/
 ├─ Data/        常量、朝代/时代/建筑数值
 ├─ UI/          极简 UI、小地图、浮窗、Debug/存档/帮助面板
 ├─ AI/          九神共治（在线 LLM + 离线规则兜底）
+│  └─ Agents/   V9.8.0 智能体驱动：AgentIdentity/MessageBus/Registry/BehaviorLibrary/Catalog(118)/Director
 ├─ Rendering/   材质/LOD/天空等渲染
 └─ Editor/      WebGLBuilder、PlayMode 冒烟、LOD 诊断等命令行入口
 Assets/Resources/Models3D/   Quaternius / Kenney 的 CC0 可选写实模型
@@ -189,6 +197,7 @@ export PXC_ARK_API_KEY="你的 Key"
 | V9.7.1 | 混合存档（IndexedDB 正文 PxC_SaveBody + PlayerPrefs 摘要，自动迁移旧档）；高倍速自适应分段（帧预算 6ms/10ms、硬上限 120）；实体生成门控（八类上限，逼近 90% 暂停）；高架桥地图错乱根治（老化同步清桥面格+SyncPiers 清废弃柱，生命周期实测 PASS）；建造「基建」分类；地面部队古典/现代六型分代；武器粒子池化漂移修复；浏览器实证全通过、密钥 CLEAN、Release v9.7.1 |
 | V9.7.2 | 地面部队十维参数与速度链路根治：重写 GroundWarfareSystem（速度/耐久/攻击/防御/射程/射速/载人/体积/军衔/智能十维，6 型差异化）；EffectiveSpeed 移动与面板口径唯一；GraceT 20s 列装驻留原地（修复生成位置被拉走）；巡航半径收窄、方阵 3 人并排、防御减伤；新建 EntitySpeedProfiles 全移动实体参数总表；探针实证驻留/追击/战斗升级/速度差异化，BUILD_SUCCESS、密钥 CLEAN、Release v9.7.2 |
 | V9.7.3 | 历史 Bug 全量回归复测：45 项/9 类矩阵实测 PASS 43/未验证 2；存档系统五项修复（link.xml Assembly-CSharp 防裁剪、版本号 9.7.3、jslib 双 gate 预加载、checksum canonicalization 固定点、槽5 UI 裁剪），QuickSave/IDB直查/reload预加载/QuickLoad/六行槽全显浏览器实锤；其余 8 类无回归，BUILD_SUCCESS、密钥 CLEAN、Release v9.7.3 |
+| V9.8.0 | 智能体驱动·万物协作：非侵入身份层（118 身份按原型共享）、消息总线 Help/Reply/Broadcast、三种模式（离线/在线/混合）、离线行为动作库随决策沉淀；6 新文件（AI/Agents），异常全隔离、不重写玩法；面板布局修复（Head/top/filt/sr）、12 核心用例全 PASS、wasm 33.6MB、密钥 CLEAN、Release v9.8.0 |
 
 ## 📋 项目审计摘要（V9.7.3）
 
