@@ -182,6 +182,12 @@ namespace PixelToCivilization.Systems
             if(!Defs.TryGetValue(typeId,out var d)){ Debug.Log("[Ground] BuildGround reject: unknown type "+typeId); return false; }
             if(_terrain==null) _terrain=Object.FindObjectOfType<WorldGenerator>();
             if(_terrain!=null && !_terrain.IsStaticLand(x,z)){ GM.AddEvent("bad","陆地载具不能列装在水面"); Debug.Log("[Ground] BuildGround reject: water"); return false; }
+            // V9.8.3 生成点贴水校正：四方向 3 单位全是水（湖边贴水点/湖心小地块）→ 迁移最近陆地，防生成后被困湖里
+            if(_terrain!=null && !_terrain.IsStaticLand(x+3f,z)&&!_terrain.IsStaticLand(x-3f,z)&&!_terrain.IsStaticLand(x,z+3f)&&!_terrain.IsStaticLand(x,z-3f))
+            {
+                var near=NearestLand(x,z);
+                if(near.HasValue){ x=near.Value.x; z=near.Value.y; }
+            }
             if(!EraMatch(typeId))
             {
                 bool modern=ModernTypes.Contains(typeId);
@@ -221,7 +227,16 @@ namespace PixelToCivilization.Systems
                 {
                     float ang=Random.value*Mathf.PI*2f, dist=20f+Random.value*40f;
                     x=ox+Mathf.Cos(ang)*dist; z=oz+Mathf.Sin(ang)*dist;
-                    if(_terrain.IsStaticLand(x,z)) land=true;
+                    if(_terrain.IsStaticLand(x,z))
+                    {
+                        // V9.8.3 贴水校正：四方向 3 单位全是水（湖边贴水/湖心小块）→ 迁移最近陆地
+                        if(!_terrain.IsStaticLand(x+3f,z)&&!_terrain.IsStaticLand(x-3f,z)&&!_terrain.IsStaticLand(x,z+3f)&&!_terrain.IsStaticLand(x,z-3f))
+                        {
+                            var near=NearestLand(x,z);
+                            if(near.HasValue){ x=near.Value.x; z=near.Value.y; }
+                        }
+                        land=true;
+                    }
                 }
                 if(!land) continue;
                 var u=MakeUnit(d,"ours",x,z);
@@ -275,7 +290,16 @@ namespace PixelToCivilization.Systems
             for(int k=0;k<32&&!land;k++)
             { float a=Random.value*Mathf.PI*2, rr=60f+Random.value*80f;
               x=ox+Mathf.Cos(a)*rr; z=oz+Mathf.Sin(a)*rr;
-              if(_terrain==null||_terrain.IsStaticLand(x,z)) land=true; }
+              if(_terrain==null||_terrain.IsStaticLand(x,z))
+              {
+                  // V9.8.3 贴水校正：四方向 3 单位全是水 → 迁移最近陆地
+                  if(_terrain!=null && !_terrain.IsStaticLand(x+3f,z)&&!_terrain.IsStaticLand(x-3f,z)&&!_terrain.IsStaticLand(x,z+3f)&&!_terrain.IsStaticLand(x,z-3f))
+                  {
+                      var near=NearestLand(x,z);
+                      if(near.HasValue){ x=near.Value.x; z=near.Value.y; }
+                  }
+                  land=true;
+              } }
             var u=MakeUnit(d,"enemy",x,z,fac.name,fac.color);
             u.View=BuildView(u,d,fac.color);
             Enemies.Add(u); AssignGroup(u);
@@ -325,6 +349,12 @@ namespace PixelToCivilization.Systems
             {
                 var u=Ours[i]; if(u.View==null) continue;
                 if (u.Lifted) continue;
+                // V9.8.3 水域脱困兜底：单位当前位置在水里（湖心/涨潮洼地/生成误入）→ 强制向最近陆地移动
+                if(_terrain!=null && !_terrain.IsStaticLand(u.X,u.Z))
+                {
+                    var land=NearestLand(u.X,u.Z);
+                    if(land.HasValue){ MoveToward(u,land.Value.x,land.Value.y,dt,1.0f); continue; }
+                }
                 if (u.GraceT>0f) u.GraceT-=dt;   // 驻留宽限倒计时
                 u.AttackCd-=dt;
                 float radar=EffectiveRadar(u)*GameConstants.Tile;
@@ -365,6 +395,12 @@ namespace PixelToCivilization.Systems
             {
                 var e=Enemies[i]; if(e.View==null) continue;
                 if (e.Lifted) continue;
+                // V9.8.3 敌方水域脱困兜底：困在水里 → 强制向最近陆地移动
+                if(_terrain!=null && !_terrain.IsStaticLand(e.X,e.Z))
+                {
+                    var land=NearestLand(e.X,e.Z);
+                    if(land.HasValue){ MoveToward(e,land.Value.x,land.Value.y,dt,1.0f); continue; }
+                }
                 if (e.GraceT>0f) e.GraceT-=dt;
                 e.AttackCd-=dt;
                 float radar=EffectiveRadar(e)*GameConstants.Tile;
@@ -459,6 +495,27 @@ namespace PixelToCivilization.Systems
             return Mathf.Max(MinFireInterval, u.BaseFire*(1f-LvFire*(u.Level-1)));
         }
 
+        /// <summary>
+        /// V9.8.3 找最近陆地坐标（水域脱困兜底）：以 (x,z) 为中心，半径 2→48 逐环扫描（角度步进 8/16 方向），
+        /// 返回最近 IsStaticLand 点；找不到返回 null。用于水域脱困 / 贴岸寻路失败兜底 / 生成点贴水校正。
+        /// </summary>
+        Vector2? NearestLand(float x, float z)
+        {
+            if (_terrain == null) return null;
+            if (_terrain.IsStaticLand(x, z)) return new Vector2(x, z);
+            for (float r = 2f; r <= 48f; r += 2f)
+            {
+                int steps = r <= 10f ? 8 : 16;
+                for (int i = 0; i < steps; i++)
+                {
+                    float a = (i * 360f / steps) * Mathf.Deg2Rad;
+                    float sx = x + Mathf.Cos(a) * r, sz = z + Mathf.Sin(a) * r;
+                    if (_terrain.IsStaticLand(sx, sz)) return new Vector2(sx, sz);
+                }
+            }
+            return null;
+        }
+
         void MoveToward(GroundUnit u,float tx,float tz,float dt,float mul)
         {
             if(_terrain==null) return;
@@ -467,7 +524,7 @@ namespace PixelToCivilization.Systems
             // V9.7.2 速度直接为世界单位/秒（类型差异 × 等级成长）；不再用旧 ClampedGroundSpeed×Tile
             float sp=EffectiveSpeed(u)*mul;
             float nx=u.X+dx/dist*sp*dt, nz=u.Z+dz/dist*sp*dt;
-            // 陆地约束：不得下水；前方是水则贴岸转向
+            // 陆地约束：不得下水；前方是水则贴岸转向；转向全部失败则强制向最近陆地移动（V9.8.3 防困水域原地卡死）
             if(!_terrain.IsStaticLand(nx,nz))
             {
                 bool slid=false;
@@ -481,7 +538,19 @@ namespace PixelToCivilization.Systems
                         if(_terrain.IsStaticLand(sx,sz)){ nx=sx; nz=sz; slid=true; }
                     }
                 }
-                if(!slid){ u.HasRoute=false; return; }
+                if(!slid)
+                {
+                    // V9.8.3 贴岸 5 档转向全失败（困在湖心/水洼）：找最近陆地走过去，找不到才放弃本步
+                    var near=NearestLand(u.X,u.Z);
+                    if(near.HasValue)
+                    {
+                        float ndx=near.Value.x-u.X, ndz=near.Value.y-u.Z;
+                        float nd=Mathf.Sqrt(ndx*ndx+ndz*ndz);
+                        if(nd>0.5f){ nx=u.X+ndx/nd*sp*dt; nz=u.Z+ndz/nd*sp*dt; }
+                        else return;
+                    }
+                    else { u.HasRoute=false; return; }
+                }
             }
             u.X=nx; u.Z=nz;
             if(u.View!=null)

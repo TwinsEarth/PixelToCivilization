@@ -18,6 +18,14 @@ namespace PixelToCivilization.Systems
         /// <summary>会话累计：我方损失数</summary>
         public int SelfLosses;
 
+        /// <summary>
+        /// V9.8.3 全局语音开关：WebGL 默认静音。speechSynthesis 的 cancel/speak 是 Chrome 已知渲染进程崩溃源
+        /// （用户「集结令连续插旗 5 次必弹窗卡死」根因），因此 WebGL 构建默认不调用浏览器 TTS；
+        /// 需要语音的玩家可在设置面板开启（未来接入 UI 开关），开启后仍受 2.5s 节流+140 字截断+JS try/catch 保护。
+        /// Editor/非 WebGL 平台不受影响（仅 Debug.Log）。
+        /// </summary>
+        public static bool VoiceEnabled = false;
+
         float _reportCd, _lossCd, _situationCd;
         const float ReportGap = 6f;
         const float LossGap = 8f;
@@ -39,6 +47,17 @@ namespace PixelToCivilization.Systems
             if (string.IsNullOrEmpty(text)) return;
             GM.AddEvent("info", "📢 " + text);
             Speak(text);
+        }
+
+        /// <summary>
+        /// V9.8.3 静默指令广播：只写编年史/横幅，不触发语音。
+        /// 集结令插旗链路（可高频连点）是 speechSynthesis 崩溃源，一律走静默通道；
+        /// 战报/战损仍走 Command/Report（受 VoiceEnabled 全局开关保护）。
+        /// </summary>
+        public void SilentCommand(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            GM.AddEvent("info", "📢 " + text);
         }
 
         /// <summary>战报（交战/战况/攻防）：节流 6s</summary>
@@ -71,6 +90,9 @@ namespace PixelToCivilization.Systems
             _speakCd = Time.unscaledTime + SpeakGap;
             if (text.Length > 140) text = text.Substring(0, 140);
 #if UNITY_WEBGL && !UNITY_EDITOR
+            // V9.8.3 根治：WebGL 默认静音（speechSynthesis 是 Chrome 已知渲染进程崩溃源，玩家实测连插旗必崩）。
+            // VoiceEnabled 默认 false：默认不调用浏览器 TTS，杜绝崩溃；未来设置面板开启后仍受节流+截断+JS try/catch 保护。
+            if (!VoiceEnabled) return;
             try
             {
                 // decodeURIComponent 方案：中文/单引号/换行全部转 ASCII 安全传输

@@ -70,9 +70,10 @@ namespace PixelToCivilization.Systems
                 if (resp[2] > 0) respTxt += (respTxt.Length > 0 ? "，" : "") + resp[2] + " 名军人";
                 if (respTxt.Length > 0) GM.AddEvent("good", "📣 " + RallyRange + " 格内响应：" + respTxt + " 听令向军旗列阵");
             }
-            // V9.6.1 战时广播：传令兵传达集结指令（语音+横幅+编年史）
+            // V9.6.1 战时广播：传令兵传达集结指令（横幅+编年史）
+            // V9.8.3 根治：插旗链路改静默通道（不触发 speechSynthesis 语音）——高频插旗是 Chrome 崩溃源
             if (GM.War != null)
-                GM.War.Command("传令——" + nm + "！" + RallyRange + " 格内各军听令，火速向军旗列阵；超出 " + RallyRange + " 格者，由运输机、直升机远程投送！");
+                GM.War.SilentCommand("传令——" + nm + "！" + RallyRange + " 格内各军听令，火速向军旗列阵；超出 " + RallyRange + " 格者，由运输机、直升机远程投送！");
         }
 
         /// <summary>
@@ -118,8 +119,8 @@ namespace PixelToCivilization.Systems
         {
             GM.State.RallyKind = ""; GM.State.RallyX = -9999f; GM.State.RallyZ = -9999f;
             if (_flagRoot != null) { Object.Destroy(_flagRoot); _flagRoot = null; _cloth = null; _clothB = null; }
-            // V9.6.1 战时广播：撤销指令
-            if (GM.War != null) GM.War.Command("传令——紧急集结令撤销，各军回防待命！");
+            // V9.6.1 战时广播：撤销指令（V9.8.3 改静默通道，不触发语音）
+            if (GM.War != null) GM.War.SilentCommand("传令——紧急集结令撤销，各军回防待命！");
         }
 
         /// <summary>读档恢复：若存档带旗则重建旗帜模型</summary>
