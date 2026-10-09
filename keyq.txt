@@ -1,0 +1,12 @@
+﻿3: [Licensing::Client] Error: Code 10 while verifying Licensing Client signature (process Id: 2116, path: "D:/TJ2022/2022.3.62t14/Editor/Data/Resources/Licensing/Client/Tuanjie.Licensing.Client.exe")
+4: [Licensing::Module] Error: LicensingClient has failed validation; ignoring
+15: [Licensing::Module] Error: Access token is unavailable; failed to update
+213: 			LogAssemblyErrors (0ms)
+1791: Assets\Scripts\UI\UIManager.cs(732,22): error CS1061: 'Button' does not contain a definition for 'AddComponent' and no accessible extension method 'AddComponent' accepting a first argument of type 'Bu
+1821: Assets\Scripts\UI\UIManager.Overhaul.cs(835,22): error CS1061: 'Button' does not contain a definition for 'AddComponent' and no accessible extension method 'AddComponent' accepting a first argument of
+1823: Assets\Scripts\UI\UIManager.Panels.cs(193,46): error CS1061: 'RectTransform' does not contain a definition for 'AddComponent' and no accessible extension method 'AddComponent' accepting a first argume
+1825: Assets\Scripts\UI\UIManager.Panels.cs(446,18): error CS1061: 'Button' does not contain a definition for 'AddComponent' and no accessible extension method 'AddComponent' accepting a first argument of t
+1830: *** Tundra build failed (73.36 seconds - 0:01:13), 426 items updated, 434 evaluated
+1831: ## Script Compilation Error for: Csc Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp.dll (+2 others)
+1838: Assets\Scripts\UI\UIManager.cs(732,22): error CS1061: 'Button' does not contain a definition for 'AddComponent' and no accessible extension method 'AddComponent' accepting a first argument of type 'Bu
+1853: Assets\Scripts\UI\UIManager.Overhaul.cs(835,22): error CS1061: 'Button' does not contain a definition for 'AddComponent' and no accessible extension method 'AddComponent' accepting a first argument of

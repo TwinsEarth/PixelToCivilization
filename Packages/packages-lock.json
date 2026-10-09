@@ -35,34 +35,34 @@
       "url": "https://packages.tuanjie.cn"
     },
     "com.unity.render-pipelines.core": {
-      "version": "14.2.0-t1",
+      "version": "file:com.unity.render-pipelines.core",
       "depth": 0,
-      "source": "builtin",
+      "source": "embedded",
       "dependencies": {
         "com.unity.ugui": "1.0.0",
         "com.unity.modules.physics": "1.0.0",
-        "com.unity.modules.terrain": "1.0.0"
+        "com.unity.modules.terrain": "1.0.0",
+        "com.unity.modules.jsonserialize": "1.0.0"
       }
     },
     "com.unity.render-pipelines.universal": {
-      "version": "14.2.0-t1",
+      "version": "file:com.unity.render-pipelines.universal",
       "depth": 0,
-      "source": "builtin",
+      "source": "embedded",
       "dependencies": {
         "com.unity.mathematics": "1.2.1",
         "com.unity.burst": "1.8.9",
-        "com.unity.modules.tuanjiegi": "1.0.0",
-        "com.unity.render-pipelines.core": "14.2.0-t1",
-        "com.unity.shadergraph": "14.2.0-t1",
-        "com.unity.render-pipelines.universal-config": "14.2.0-t1"
+        "com.unity.render-pipelines.core": "14.1.0",
+        "com.unity.shadergraph": "14.1.0",
+        "com.unity.render-pipelines.universal-config": "14.0.9"
       }
     },
     "com.unity.render-pipelines.universal-config": {
-      "version": "14.2.0-t1",
+      "version": "14.0.10",
       "depth": 1,
       "source": "builtin",
       "dependencies": {
-        "com.unity.render-pipelines.core": "14.2.0-t1"
+        "com.unity.render-pipelines.core": "14.0.10"
       }
     },
     "com.unity.searcher": {
@@ -73,11 +73,11 @@
       "url": "https://packages.tuanjie.cn"
     },
     "com.unity.shadergraph": {
-      "version": "14.2.0-t1",
+      "version": "file:com.unity.shadergraph",
       "depth": 0,
-      "source": "builtin",
+      "source": "embedded",
       "dependencies": {
-        "com.unity.render-pipelines.core": "14.2.0-t1",
+        "com.unity.render-pipelines.core": "14.1.0",
         "com.unity.searcher": "4.9.2"
       }
     },
@@ -117,12 +117,12 @@
       }
     },
     "com.unity.visualeffectgraph": {
-      "version": "14.2.0-t1",
+      "version": "file:com.unity.visualeffectgraph",
       "depth": 0,
-      "source": "builtin",
+      "source": "embedded",
       "dependencies": {
-        "com.unity.shadergraph": "14.2.0-t1",
-        "com.unity.render-pipelines.core": "14.2.0-t1"
+        "com.unity.shadergraph": "14.1.0",
+        "com.unity.render-pipelines.core": "14.1.0"
       }
     },
     "com.unity.modules.ai": {
@@ -195,12 +195,6 @@
         "com.unity.modules.physics": "1.0.0",
         "com.unity.modules.terrain": "1.0.0"
       }
-    },
-    "com.unity.modules.tuanjiegi": {
-      "version": "1.0.0",
-      "depth": 1,
-      "source": "builtin",
-      "dependencies": {}
     },
     "com.unity.modules.ui": {
       "version": "1.0.0",

@@ -1125,6 +1125,16 @@ namespace PixelToCivilization.World
             if (WaterMap[gz,gx]>0.5f) return true;
             return HeightMap[gz,gx] < EffectiveWaterLevel(x,z);   // V6.1.9(i) 月度潮汐动态水位
         }
+        /// <summary>V9.8.2 静态陆地判定：以基准水位为准，与月度潮汐动态水位无关。
+        /// 用途：地面部队/人员等陆地单位的出生、寻路、巡逻、组阵判定一律走这里，
+        /// 避免涨潮时主大陆低洼地被动态水位判"水"导致部队困在原地/被拖走（旧 IsWater 的潮汐污染问题）。</summary>
+        public bool IsStaticLand(float x,float z)
+        {
+            int gx=Mathf.FloorToInt(x/Tile+G/2f), gz=Mathf.FloorToInt(z/TZ+G/2f);
+            if (gx<0||gx>=G||gz<0||gz>=G) return false;
+            if (WaterMap[gz,gx]>0.5f) return false;
+            return HeightMap[gz,gx] >= GameConstants.WaterLevel;
+        }
         /// <summary>V6.3.6 船只可航行水域：海洋/河流/人工运河均可，但排除被陆地包围的淡水湖(FreshWater)，
         /// 从根上杜绝任何船只（无论大小、无论洋流潮汐如何推动）驶入陆地内湖。</summary>
         public bool IsNavigable(float x,float z)

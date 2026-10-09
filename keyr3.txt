@@ -1,0 +1,24 @@
+﻿27: BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1, IsPro: 0
+77: Player connection [4464]  Target information:
+79: Player connection [4464]  * "[IP] 192.168.0.37 [Port] 55504 [Flags] 2 [Guid] 1816917873 [EditorId] 1816917873 [Version] 1048832 [Id] WindowsEditor(7,ToFuture) [Debug] 1 [PackageNam
+81: Player connection [4464] Host joined multi-casting on [225.0.0.222:54997]...
+82: Player connection [4464] Host joined alternative multi-casting on [225.0.0.222:34997]...
+1597: Start importing Packages/com.unity.ugui/Tests/Runtime/Canvas/CanvasScalerWithChildTextObjectDoesNotCrash.cs using Guid(13d161b14bb3ab74e8a9634e26fb7a5e) Importer(Primary)  -> (arti
+1605: Start importing Assets/Scripts/Core/CrashGuardSystem.cs using Guid(1379e53055b0961439df6a589f9f37e2) Importer(Primary)  -> (artifact id: '15db0ca2abb9d4eb9c652fbab5626c26') in 0.01
+1742: Start importing Assets/Scripts/Core/CrashReporter.cs using Guid(e35c7c0945df28749af03667346052f0) Importer(Primary)  -> (artifact id: '3d66efad2deb125c2ba36d8a5e7525a2') in 0.01540
+3199: Start importing Packages/com.unity.ugui/Tests/Editor/Canvas/UISystemProfilerAddMarkerWithNullObjectDoesNotCrash.cs using Guid(0ca81982e37e893498abf804c12a22c7) Importer(Primary)  -
+3230: Start importing Packages/com.unity.mathematics/Unity.Mathematics/Il2CppEagerStaticClassConstructionAttribute.cs using Guid(3c7ef86a2cddb4254810c84d4f6e6618) Importer(Primary)  -> (
+3277: Start importing Packages/com.unity.ugui/Tests/Runtime/Canvas/NoActiveCameraInSceneDoesNotCrashEditor.cs using Guid(9c21cfda3336137438c3001d40564be0) Importer(Primary)  -> (artifact
+3402: Start importing Assets/Scripts/Editor/BuildPipelineCLI.cs using Guid(3ddff62c35a79014680e2ec300f63482) Importer(Primary)  -> (artifact id: '85216a5a850362245844f4a152c2f8dc') in 0.
+3915: Start importing Library/BuildPlayer.prefs using Guid(00000000000000005000000000000000) Importer(Primary)  -> (artifact id: '4251b7fde90c5e6925256c51d7df3f1a') in 0.044410 seconds
+5720: [Performance] WinEditorMain.ConfigureCrashHandler                                                                             :        1 samples, Peak.  43.7 us (1.0x), Avg.  43.7 
+5725: [Performance] WinEditorMain.InitializeCrashHandler                                                                            :        1 samples, Peak.   125 ms (1.0x), Avg.   125 
+5780: [Performance] InitializeOnLoad CrashService                                                                                   :        2 samples, Peak.   174 us (1.0x), Avg.   171 
+5846: [Performance] InitializeOnLoad SysrootPackage.IssueWarningIfLinuxIL2CPPNotPresent                                             :        1 samples, Peak.   264 us (1.0x), Avg.   264 
+5909: [Performance] EditorSceneManager.sceneClosing: UnityEditor.SceneVisibilityManager.EditorSceneManagerOnSceneClosing            :        1 samples, Peak.   369 us (1.0x), Avg.   369 
+5910: [Performance] GUIView.RepaintAll.PlayerLoopController                                                                         :        1 samples, Peak.  1.10 us (1.0x), Avg.  1.10 
+5911: [Performance] EditorSceneManager.newSceneCreated: UnityEditor.SceneTemplate.SceneTemplateService.OnNewSceneCreated            :        1 samples, Peak.   364 us (1.0x), Avg.   364 
+5912: [Performance] EditorSceneManager.newSceneCreated: UnityEditor.SceneVisibilityManager.EditorSceneManagerOnNewSceneCreated      :        1 samples, Peak.   275 us (1.0x), Avg.   275 
+5913: [Performance] EditorSceneManager.newSceneCreated: UnityEditor.SceneManagement.StageNavigationManager.OnNewSceneCreated        :        1 samples, Peak.  98.6 us (1.0x), Avg.  98.6 
+5918: [Performance] Application.Shutdown.SaveSceneManagerSetup                                                                      :        1 samples, Peak.   855 us (1.0x), Avg.   855 
+6285: ##utp:{"type":"MemoryLeaks","version":2,"phase":"Immediate","time":1791563178914,"processId":10144,"allocatedMemory":42786126,"memoryLabels":[{"Default":20695},{"Permanent":15775},

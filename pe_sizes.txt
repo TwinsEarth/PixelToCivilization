@@ -1,0 +1,6 @@
+﻿iOSSupport=3.11GB
+MacStandaloneSupport=3.5GB
+OpenHarmonyPlayer=2.98GB
+WebGLSupport=2.71GB
+WeixinMiniGameSupport=7.24GB
+windowsstandalonesupport=3.17GB

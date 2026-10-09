@@ -1,0 +1,41 @@
+/* Node Category Colors */
+MaterialNodeView.Artistic #title {
+    background-color:#402311;
+}
+
+MaterialNodeView.Channel #title {
+    background-color:#2E4013;
+}
+
+MaterialNodeView.Input #title {
+    background-color:#400F0B;
+}
+
+MaterialNodeView.Math #title {
+    background-color:#142640;
+}
+
+MaterialNodeView.Procedural #title {
+    background-color:#271440;
+}
+
+MaterialNodeView.Utility #title {
+    background-color:#404040;
+}
+
+MaterialNodeView.UV #title {
+    background-color:#024029;
+}
+
+/* Precision Colors */
+MaterialNodeView.Single #title {
+    border-color:#4B92F3;
+}
+
+MaterialNodeView.Half #title {
+    border-color:#CB3022;
+}
+
+MaterialNodeView.Graph #title {
+    border-color:#30CB22;
+}

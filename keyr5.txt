@@ -1,0 +1,20 @@
+﻿6: [Licensing::Client] Successfully receive message: {"protocolVersion":"1.12","sessionId":"6d36c22ef7d24a7e808121b0e0d615bc","context":{"DeviceName":"TOFUTURE","D
+40: -executeMethod
+145: Refreshing native plugins compatible for Editor in 25.06 ms, found 7 plugins.
+189: - Finished resetting the current domain, in  0.737 seconds
+190: Domain Reload Profiling: 1328ms
+196: 		CreateAndSetChildDomain (2ms)
+199: 	initialDomainReloadingComplete (64ms)
+200: 	LoadAllAssembliesAndSetupDomain (207ms)
+203: 		AnalyzeDomain (204ms)
+204: 			TypeCache.Refresh (202ms)
+215: 			RefreshPlugins (0ms)
+227: Application.AssetDatabase Initial Refresh Start
+267:       Processing assembly Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp.dll, with 133 defines and 220 references
+279:       Processing assembly Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp-Editor.dll, with 131 defines and 247 references
+294: [426/434    1s] Csc Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp.dll (+2 others)
+334: [427/434    0s] Csc Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp-Editor.dll (+2 others)
+336: [428/434    0s] ILPostProcess Library/Bee/artifacts/1900b0aE.dag/post-processed/Assembly-CSharp-Editor.dll (+pdb)
+337: Processing assembly Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp-Editor.dll, with 131 defines and 247 references
+342: [429/434    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.pdb
+343: [430/434    0s] ILPostProcess Library/Bee/artifacts/1900b0aE.dag/post-processed/Assembly-CSharp.dll (+pdb)

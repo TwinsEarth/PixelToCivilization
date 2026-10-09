@@ -1627,6 +1627,33 @@ namespace PixelToCivilization.Core
             Debug.Log("[WEB] RallyStress "+result);
             try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
         }
+        /// <summary>V9.8.2 浏览器回归：完整 UI 插旗链压力——模拟玩家「点按钮切旗种 → 落旗 → 再点按钮 → 撤销」真实循环 n 次，
+        /// 验证 0.5s 插旗节流 + 语音双节流后，连续快速插旗/撤销不再触发 speechSynthesis 高频调用崩溃（V9.8.1 连插 5 次必崩）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebRallyUiCycle(int n)
+        {
+            string result="no-rally";
+            try
+            {
+                if (Rally==null){ Debug.Log("[WEB] RallyUiCycle null"); return; }
+                float ox = State.VillageX.Count>0 ? State.VillageX[0] : 0f;
+                float oz = State.VillageZ.Count>0 ? State.VillageZ[0] : 0f;
+                string[] kinds={"navy","ground","inf"};
+                int ok=0, cleared=0;
+                for(int i=0;i<n;i++)
+                {
+                    int idx = (i/2)%3;                    // 每两轮切换旗种（模拟玩家点按钮 CycleRally）
+                    if (i%2==0){ Rally.SetRally(kinds[idx], ox+30f, oz+30f); if(State.RallyKind.Length>0) ok++; }
+                    else      { Rally.ClearRally(); cleared++; }
+                }
+                var flagRoot = Rally.GetFlagRootForTest();
+                int childCount = flagRoot!=null ? flagRoot.transform.childCount : 0;
+                result = "cycle:"+n+"|ok="+ok+"|clear="+cleared+"|children="+childCount+"|"+Rally.Probe();
+            }
+            catch(System.Exception ex){ result="cycle-ex:"+ex.GetType().Name+":"+ex.Message; }
+            Debug.Log("[WEB] RallyUiCycle "+result);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
+        }
         /// <summary>V9.4.7 浏览器回归：统一战斗目录实况（按 Kind/Key 分组）</summary>        [UnityEngine.Scripting.Preserve]
         public void WebCombatProbe()
         {

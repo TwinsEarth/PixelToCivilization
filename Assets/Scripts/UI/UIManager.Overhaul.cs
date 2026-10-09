@@ -832,7 +832,7 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
                 UITheme.Label("k",aiCard.transform,"状态："+keyShow2+"｜模型 "+cou.Model+"｜"+cou.Endpoint.Replace("https://","")+"；点击下方按钮弹窗粘贴 DeepSeek API Key，保存即联网议政，清空即离线规则自治",10,TextAnchor.UpperLeft,UITheme.Sub).gameObject.AddComponent<LayoutElement>().preferredHeight=16;   // V9.3.13 20→16
                 var hr=Row(aiCard.transform,22);   // V9.3.13 26→22
                 var kbtn=UITheme.Btn("aikey",hr.transform,"设置 AI 密钥（弹窗输入）",12);
-                kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
+                kbtn.gameObject.AddComponent<LayoutElement>().flexibleWidth=1;
                 kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{ if(_helpModal!=null && _helpModal.activeSelf) FillHelp(); },_hud!=null?_hud.transform:null); });
             }
             Section("游戏目标","从三皇五帝起步，历经 16 朝代、8 大时代发展到地球联盟；建设、科研、军事、航海、太空多线并进。九位 AI 神灵共治，允许饥荒、灾难、动乱与倒退，但保证文明 5000~10000 年不断绝。");

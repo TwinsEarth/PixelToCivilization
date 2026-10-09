@@ -1,0 +1,14 @@
+﻿4: [Licensing::Module] Error: LicensingClient has failed validation; ignoring
+15: [Licensing::Module] Error: Access token is unavailable; failed to update
+1258: *** Tundra build success (13.69 seconds), 227 items updated, 452 evaluated
+1417: *** Tundra build success (1.17 seconds), 1 items updated, 3 evaluated
+1911: *** Tundra build success (12.89 seconds), 119 items updated, 328 evaluated
+2624: -s "EXPORTED_RUNTIME_METHODS=['addRunDependency','removeRunDependency','FS_createPath','FS_createDataFile','ccall','cwrap','stackTrace']" --output_eol linux --memory-init-file 0 -s WASM=1 -O
+2831: emcc: error: 'D:/TJ2022/2022.3.62t14/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Emscripten/node/node.exe D:\TJ2022\2022.3.62t14\Editor\Data\PlaybackEngines\WebGLSupport\BuildTools\E
+2832: *** Tundra build failed (484.74 seconds - 0:08:04), 295 items updated, 517 evaluated
+4871: Building Library\Bee\artifacts\WebGL\build\debug_WebGL_wasm\build.js failed with output:
+5067: emcc: error: 'D:/TJ2022/2022.3.62t14/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Emscripten/node/node.exe D:\TJ2022\2022.3.62t14\Editor\Data\PlaybackEngines\WebGLSupport\BuildTools\E
+5097: Build Finished, Result: Failure.
+5110: BUILD_FAILED:Failed
+5123: abort_threads: Failed aborting id: 0000000000000FE4, mono_thread_manage will ignore it
+5125: abort_threads: Failed aborting id: 0000000000000FE4, mono_thread_manage will ignore it

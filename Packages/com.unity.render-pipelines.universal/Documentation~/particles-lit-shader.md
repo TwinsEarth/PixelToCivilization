@@ -1,0 +1,72 @@
+# Particles Lit Shader
+
+在通用渲染管线（URP）中，使用此 Shader 可以使粒子呈现接近真实的视觉效果，例如篝火粒子、雨滴或火炬烟雾。此 Shader 可生成逼真的视觉效果，但其使用的[着色模型](shading-model.md)是 URP 中计算量最大的一种，可能会影响性能。
+
+## 在编辑器中使用 Particles Lit Shader
+
+要选择并使用此 Shader，请执行以下步骤：
+
+1. 在项目中创建或找到要应用此 Shader 的材质（Material）。选择该 __Material__，Material Inspector 窗口将打开。
+2. 点击 __Shader__，然后选择 **Universal Render Pipeline** > **Particles** > **Lit**。
+
+## UI 概览
+
+此 Shader 的 Inspector 窗口包含以下内容：
+
+- __[Surface Options](#surface-options)__
+- __[Surface Inputs](#surface-inputs)__
+- __[Advanced](#advanced)__
+
+![Particles Lit Shader Inspector](Images/Inspectors/Shaders/ParticlesLit.png)
+
+### Surface Options
+
+__Surface Options__ 控制 URP 如何在屏幕上渲染材质。
+
+| 属性                 | 描述                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| __Surface Type__   | 选择材质的表面类型：__Opaque__ 或 __Transparent__。这决定了 URP 使用哪个渲染通道。<br/>__Opaque__ 材质始终完全可见，无论其后是否有其他对象，并且 URP 会优先渲染不透明材质。<br/>__Transparent__ 材质受背景影响，并根据所选的透明表面类型变化。URP 在不透明材质之后的独立通道中渲染透明材质。选择 __Transparent__ 后，将出现 __Blending Mode__ 选项。 |
+| __Blending Mode__  | 选择 Unity 在混合材质和背景时如何计算每个像素的颜色。<br/><br/>在混合模式的上下文中，Source 指的是设置了混合模式的透明材质，而 Destination 指的是该材质所覆盖的任何背景对象。 |
+|&#160;&#160;&#160;&#160;Alpha | ![Alpha 混合模式示例](./Images/blend-modes/blend-mode-alpha.png)<br/>*Alpha 混合模式。*<br/><br/>__Alpha__ 使用材质的 Alpha 值来调整对象的透明度。0 表示完全透明，255（或 1.0）表示完全不透明。无论 Alpha 值如何，该材质始终在透明渲染通道中渲染。<br/>此模式允许使用 [Preserve Specular Lighting](#preserve-specular) 选项。<br/><br/>Alpha 计算公式：<br/>*OutputRGBA* = (*SourceRGB* &#215; *SourceAlpha*) + *DestinationRGB* &#215; (1 &#8722; *SourceAlpha*) |
+|&#160;&#160;&#160;&#160;Premultiply | ![Premultiply 混合模式示例](./Images/blend-modes/blend-mode-premultiply.png)<br/>*Premultiply 混合模式。*<br/><br/>__Premultiply__ 先将透明材质的 RGB 值与其 Alpha 值相乘，然后应用类似于 Alpha 模式的效果。<br/>此模式的计算公式允许透明材质中 Alpha 值为 0 的区域具有加法混合效果，可减少在不透明和透明像素交界处出现的伪影。<br/><br/>Premultiply 计算公式：<br/>*OutputRGBA* = *SourceRGB* + *DestinationRGB* &#215; (1 &#8722; *SourceAlpha*) |
+|&#160;&#160;&#160;&#160;Additive | ![Additive 混合模式示例](./Images/blend-modes/blend-mode-additive.png)<br/>*Additive 混合模式。*<br/><br/>__Additive__ 通过相加材质的颜色值和背景颜色值来创建混合效果。Alpha 值决定源材质颜色的强度，然后进行混合计算。<br/>此模式允许使用 [Preserve Specular Lighting](#preserve-specular) 选项。<br/><br/>Additive 计算公式：<br/>*OutputRGBA* = (*SourceRGB* &#215; *SourceAlpha*) + *DestinationRGB* |
+|&#160;&#160;&#160;&#160;Multiply | ![Multiply 混合模式示例](./Images/blend-modes/blend-mode-multiply.png)<br/>*Multiply 混合模式。*<br/><br/>__Multiply__ 通过将材质的颜色与其背后的颜色相乘来创建混合效果。这种模式类似于透过彩色玻璃观察物体时的效果，使颜色变暗。<br/>此模式使用材质的 Alpha 值来调整颜色混合程度。Alpha 值为 1 时，颜色直接相乘；较低的 Alpha 值则使颜色向白色过渡。<br/><br/>Multiply 计算公式：<br/>*OutputRGBA* = *SourceRGB* &#215; *DestinationRGB* <a name="preserve-specular"></a> |
+| __Preserve Specular Lighting__ | 指定 Unity 是否保留 GameObject 上的高光反射。即使表面为透明状态，该选项仍会使反射光可见。<br/><br/>此属性仅在 __Surface Type__ 设为 Transparent 且 __Blending Mode__ 设为 Alpha 或 Additive 时可用。<br/><br/>![关闭 Preserve Specular Lighting](./Images/blend-modes/preserve-specular-lighting-off.png)<br/>*关闭 __Preserve Specular Lighting__ 的材质效果。*<br/><br/>![开启 Preserve Specular Lighting](./Images/blend-modes/preserve-specular-lighting-on.png)<br/>*开启 __Preserve Specular Lighting__ 的材质效果。* |
+| __Render Face__     | 选择几何体的渲染面。<br/>__Front Face__ 渲染几何体的正面，并[剔除](https://docs.unity.cn/cn/tuanjiemanual/Manual/SL-CullAndDepth.html)背面（默认设置）。<br/>__Back Face__ 渲染几何体的背面，并剔除正面。<br/>__Both__ 使 URP 渲染几何体的正反两面，适用于叶子等小型、扁平对象，使其两侧均可见。 |
+| __Alpha Clipping__  | 使材质表现为[Cutout](https://docs.unity.cn/cn/tuanjiemanual/Manual/StandardShaderMaterialParameterRenderingMode.html)（剪切）Shader，以创建透明区域与不透明区域之间具有硬边界的效果。例如，可用于创建草叶的效果。<br/>启用后，URP 将不渲染低于指定 __Threshold__（阈值）的 Alpha 值。__Threshold__ 通过滑块调整，范围为 0 到 1。所有高于阈值的区域完全不透明，低于阈值的区域完全透明。例如，设置阈值为 0.1，则 URP 不会渲染 Alpha 值低于 0.1 的部分。默认阈值为 0.5。 |
+| __Color Mode__      | 选择粒子颜色与材质颜色的混合方式。<br/>__Multiply__ 通过将两种颜色相乘，使最终颜色变暗。<br/>__Additive__ 通过将两种颜色相加，使最终颜色变亮。<br/>__Subtractive__ 通过从材质的基色中减去粒子颜色，使像素变暗。<br/>__Overlay__ 通过混合粒子颜色与材质基色，在亮度大于 0.5 时使颜色变亮，在亮度低于 0.5 时使颜色变暗。<br/>__Color__ 使用粒子颜色来影响材质颜色，同时保持材质的饱和度和亮度，适用于为单色场景添加颜色变化。<br/>__Difference__ 计算两种颜色的差异，适用于相近颜色的粒子与材质混合。 |
+
+
+## Surface Inputs
+
+__Surface Inputs__ 描述材质表面的特性。例如，可使用这些属性使表面呈现湿润、干燥、粗糙或光滑的效果。
+
+| 属性              | 描述                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| __Base Map__     | 赋予表面颜色，也称为漫反射贴图（Diffuse Map）。<br/>点击旁边的对象选择器可为 __Base Map__ 选择纹理，这将打开资源浏览器，以选择项目中的贴图。<br/>也可以使用 [颜色拾取器](https://docs.unity.cn/cn/tuanjiemanual/Manual/EditingValueProperties.html) 来调整颜色，颜色值会叠加在所选贴图之上。<br/>如果在 __Surface Options__ 中选择了 __Transparent__ 或 __Alpha Clipping__，材质将使用贴图的 Alpha 通道或颜色。 |
+| __Metallic Map__ | 用于控制表面金属度（Metallic）及其对直接光照（如 [定向光、点光源和聚光灯](https://docs.unity.cn/cn/tuanjiemanual/Manual/Lighting.html)）的高光反射。<br/>__Smoothness__（平滑度）滑块可控制表面高光的扩散程度：0 产生较宽、较粗糙的高光，1 产生类似玻璃的小而锐利的高光。<br/>介于 0 和 1 之间的值可用于创建半光泽效果，例如 0.5 可呈现类似塑料的光泽感。 |
+| __Normal Map__   | 添加法线贴图（Normal Map）以增强表面细节，例如凹凸、划痕和沟槽。<br/>点击对象选择器可分配法线贴图，该贴图会影响环境光照的交互方式。<br/>旁边的浮点值用于调整法线贴图的影响，较低的值降低法线效果，较高的值增强凹凸感。 |
+| __Emission__     | 使材质表面具有自发光效果。启用后，可配置 __Emission Map__（发光贴图）和 __Emission Color__（发光颜色）。<br/>点击对象选择器可选择发光贴图。<br/>__Emission Color__ 可通过[颜色拾取器](https://docs.unity.cn/cn/tuanjiemanual/Manual/EditingValueProperties.html)进行调整，颜色值可以超过 100% 的白色，以用于发光强度较高的效果，如熔岩。<br/>如果未分配 __Emission Map__，则仅使用 __Emission Color__ 颜色作为发光颜色。<br/>如果未启用 __Emission__，URP 会将发光颜色设为黑色，并不计算发光效果。 |
+
+### Advanced
+
+__Advanced__ 设置影响幕后渲染过程。它们不会直接改变表面外观，但会影响底层计算，从而对性能产生影响。
+
+| 属性                   | 描述                                                         |
+| ---------------------- | ------------------------------------------------------------ |
+| __Flip-Book Blending__ | 启用此选项可对 Flip-Book 帧进行平滑混合。这对于帧数有限的纹理表动画（Texture Sheet Animation）非常有用，可使动画更加流畅。<br/>如果遇到性能问题，请尝试关闭此选项。 |
+| __Vertex Streams__     | 该列表显示此材质正常运行所需的顶点流（Vertex Streams）。<br/>如果顶点流未正确分配，将显示 __Fix Now__ 按钮。点击该按钮，系统会自动为此材质所使用的粒子系统应用正确的顶点流设置。 |
+| __Sorting Priority__   | 使用此滑块调整材质的渲染顺序。URP 会优先渲染数值较低的材质。<br/>此功能可用于减少设备上的过度绘制（Overdraw），使渲染管线优先渲染前景材质，以避免重复渲染被遮挡的区域。<br/>该功能类似于 Unity 内置渲染管线中的 [Render Queue](https://docs.unity.cn/cn/tuanjiemanual/ScriptReference/Material-renderQueue.html)。 |
+
+#### 透明表面类型（Transparent Surface Type）
+
+如果在 [Surface Options](#surface-options) 中选择了透明（Transparent）表面类型，将显示以下选项：
+
+![附加粒子选项](Images/Inspectors/Shaders/ParticlesExtra.png)
+
+| 属性                 | 描述                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| __Soft Particles__ | 启用此选项可使粒子在接近其他几何体表面时逐渐淡出，而不会产生明显的交界线。此功能依赖于 [深度缓冲](https://docs.unity.cn/cn/tuanjiemanual/Manual/class-RenderTexture.html) 来计算粒子与其他物体的交互。<br/>启用此功能后，将出现 **Surface Fade** 设置：<br/>__Near__：设置粒子完全透明的距离。当粒子到达该距离时，它完全消失。<br/>__Far__：设置粒子完全不透明的距离。在此距离下，粒子保持完全可见。<br/>所有距离均以世界单位（World Units）计算，仅适用于透明表面类型。<br/><br/>**注意：** 此功能依赖 URP 生成的 `CameraDepthTexture`。要使用此功能，请在 [URP 资源](universalrp-asset.md) 或渲染粒子的[相机](camera-component-reference.md)上启用 **Depth Texture**。 |
+| __Camera Fading__  | 启用此选项可使粒子在接近相机时逐渐淡出。<br/>启用后，将出现 **Distance** 设置：<br/>__Near__：设置粒子完全透明的距离。当粒子到达该距离时，它完全消失。<br/>__Far__：设置粒子完全不透明的距离。在此距离下，粒子保持完全可见。<br/>所有距离均以世界单位（World Units）计算。<br/><br/>**注意：** 此功能依赖 URP 生成的 `CameraDepthTexture`。要使用此功能，请在 [URP 资源](universalrp-asset.md) 或渲染粒子的[相机](camera-component-reference.md)上启用 **Depth Texture**。 |
+| __Distortion__     | 通过使粒子与其后方的物体产生折射（Refraction）来创建扭曲效果。适用于模拟热浪效果或扭曲背景物体。<br/>启用后，将出现以下设置：<br/>__Strength__：控制粒子对背景的扭曲强度。负值的效果与正值相反，例如，如果正值向右偏移，则相同的负值向左偏移。<br/>__Blend__：控制扭曲效果的可见性。值为 0 时，扭曲不可见；值为 1 时，仅显示扭曲效果。<br/><br/>**注意：** 此功能依赖 URP 生成的 `CameraOpaqueTexture`。要使用此功能，请在 [URP 资源](universalrp-asset.md) 或渲染粒子的[相机](camera-component-reference.md)上启用 **Opaque Texture**。 |
+

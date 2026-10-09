@@ -1,0 +1,10 @@
+﻿4099: Compiling shader "Hidden/Universal Render Pipeline/FallbackError" pass "" (vp)
+4108: Serialized binary data for shader Hidden/Universal Render Pipeline/FallbackError in 0.00s
+6180:  4.0 kb	 0.0% Packages/com.unity.render-pipelines.universal/Shaders/Utils/FallbackError.shader
+6184:  3.8 kb	 0.0% Packages/com.unity.render-pipelines.universal/Shaders/Utils/MaterialError.shader
+6335:  0.1 kb	 0.0% Packages/com.unity.render-pipelines.universal/Runtime/Decal/DecalDrawErrorRenderPass.cs
+6984: BUILD_SUCCESS:E:\DB\pixel_to_civilization_win\PxC982\BuildWebGL
+7005: abort_threads: Failed aborting id: 00000000000038EC, mono_thread_manage will ignore it
+7007: abort_threads: Failed aborting id: 0000000000002944, mono_thread_manage will ignore it
+7009: abort_threads: Failed aborting id: 00000000000038EC, mono_thread_manage will ignore it
+7011: abort_threads: Failed aborting id: 0000000000002944, mono_thread_manage will ignore it

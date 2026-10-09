@@ -16,7 +16,7 @@ namespace PixelToCivilization.Systems
     ///  2) 生成位置——新增列装驻留宽限 GraceT（20s 原地驻守只索敌不巡航），且巡航半径缩小到 20–45，
     ///     旧实现一造出来即被 40–100 环随机航点拉走（"不在原地，被拉到某坐标"）；
     ///  3) 十维参数——速度/耐久/攻击/防御/射程/射速/载人量/体积/军衔/智能等级，随等级差异化成长。
-    /// 运行时态不进存档；陆地约束 IsWater 禁行；古典三型造价走木/粮/金（1949 前无钢）。
+    /// 运行时态不进存档；陆地约束 IsStaticLand 禁行（静态基准水位，不受月度潮汐动态水位影响）；古典三型造价走木/粮/金（1949 前无钢）。
     /// </summary>
     public class GroundWarfareSystem : GameSystemBase
     {
@@ -181,7 +181,7 @@ namespace PixelToCivilization.Systems
         {
             if(!Defs.TryGetValue(typeId,out var d)){ Debug.Log("[Ground] BuildGround reject: unknown type "+typeId); return false; }
             if(_terrain==null) _terrain=Object.FindObjectOfType<WorldGenerator>();
-            if(_terrain!=null && _terrain.IsWater(x,z)){ GM.AddEvent("bad","陆地载具不能列装在水面"); Debug.Log("[Ground] BuildGround reject: water"); return false; }
+            if(_terrain!=null && !_terrain.IsStaticLand(x,z)){ GM.AddEvent("bad","陆地载具不能列装在水面"); Debug.Log("[Ground] BuildGround reject: water"); return false; }
             if(!EraMatch(typeId))
             {
                 bool modern=ModernTypes.Contains(typeId);
@@ -221,7 +221,7 @@ namespace PixelToCivilization.Systems
                 {
                     float ang=Random.value*Mathf.PI*2f, dist=20f+Random.value*40f;
                     x=ox+Mathf.Cos(ang)*dist; z=oz+Mathf.Sin(ang)*dist;
-                    if(!_terrain.IsWater(x,z)) land=true;
+                    if(_terrain.IsStaticLand(x,z)) land=true;
                 }
                 if(!land) continue;
                 var u=MakeUnit(d,"ours",x,z);
@@ -275,7 +275,7 @@ namespace PixelToCivilization.Systems
             for(int k=0;k<32&&!land;k++)
             { float a=Random.value*Mathf.PI*2, rr=60f+Random.value*80f;
               x=ox+Mathf.Cos(a)*rr; z=oz+Mathf.Sin(a)*rr;
-              if(_terrain==null||!_terrain.IsWater(x,z)) land=true; }
+              if(_terrain==null||_terrain.IsStaticLand(x,z)) land=true; }
             var u=MakeUnit(d,"enemy",x,z,fac.name,fac.color);
             u.View=BuildView(u,d,fac.color);
             Enemies.Add(u); AssignGroup(u);
@@ -398,7 +398,7 @@ namespace PixelToCivilization.Systems
                 float ang=(idx*360f/Mathf.Max(1,cnt))*Mathf.Deg2Rad;
                 float formR=4f+Mathf.Max(leader.Footprint,u.Footprint);   // 阵型间距随体积
                 float sx=leader.X+Mathf.Sin(ang)*formR, sz=leader.Z+Mathf.Cos(ang)*formR;
-                for(int k=0;k<12&&_terrain.IsWater(sx,sz);k++)
+                for(int k=0;k<12&&!_terrain.IsStaticLand(sx,sz);k++)
                 { ang+=0.52f; sx=leader.X+Mathf.Sin(ang)*formR; sz=leader.Z+Mathf.Cos(ang)*formR; }
                 float ddx=sx-u.X, ddz=sz-u.Z;
                 if(ddx*ddx+ddz*ddz>9f){ MoveToward(u,sx,sz,dt,0.85f); return; }
@@ -412,7 +412,7 @@ namespace PixelToCivilization.Systems
                 for(int k=0;k<24;k++)
                 { float a=Random.value*Mathf.PI*2, rr=20f+Random.value*25f;
                   float nx=u.X+Mathf.Cos(a)*rr, nz=u.Z+Mathf.Sin(a)*rr;
-                  if(!_terrain.IsWater(nx,nz)){ u.RX=nx; u.RZ=nz; break; } }
+                  if(_terrain.IsStaticLand(nx,nz)){ u.RX=nx; u.RZ=nz; break; } }
             }
             float dx=u.RX-u.X,dz=u.RZ-u.Z;
             if(dx*dx+dz*dz<4f){ u.HasRoute=false; return; }
@@ -468,7 +468,7 @@ namespace PixelToCivilization.Systems
             float sp=EffectiveSpeed(u)*mul;
             float nx=u.X+dx/dist*sp*dt, nz=u.Z+dz/dist*sp*dt;
             // 陆地约束：不得下水；前方是水则贴岸转向
-            if(_terrain.IsWater(nx,nz))
+            if(!_terrain.IsStaticLand(nx,nz))
             {
                 bool slid=false;
                 for(int turn=30;turn<=150&&!slid;turn+=30)
@@ -478,7 +478,7 @@ namespace PixelToCivilization.Systems
                     {
                         float rx=dx/dist*cs-side*dz/dist*sn, rz=dz/dist*cs+side*dx/dist*sn;
                         float sx=u.X+rx*sp*dt, sz=u.Z+rz*sp*dt;
-                        if(!_terrain.IsWater(sx,sz)){ nx=sx; nz=sz; slid=true; }
+                        if(_terrain.IsStaticLand(sx,sz)){ nx=sx; nz=sz; slid=true; }
                     }
                 }
                 if(!slid){ u.HasRoute=false; return; }

@@ -190,7 +190,7 @@ namespace PixelToCivilization.UI
             h = Mathf.Clamp(h, minH, maxH);
             if (bodyLe != null) { bodyLe.flexibleHeight = 0f; bodyLe.preferredHeight = h; }
             var fitter = box.GetComponent<ContentSizeFitter>();
-            if (fitter == null) fitter = box.AddComponent<ContentSizeFitter>();
+            if (fitter == null) fitter = box.gameObject.AddComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             LayoutRebuilder.ForceRebuildLayoutImmediate(box);
@@ -443,7 +443,7 @@ namespace PixelToCivilization.UI
                 .gameObject.AddComponent<LayoutElement>().preferredHeight=18;
             var rk=Row(content,24);
             var kbtn=UITheme.Btn("aikey",rk.transform,"设置 AI 密钥（弹窗输入）",12);
-            kbtn.AddComponent<LayoutElement>().flexibleWidth=1;
+            kbtn.gameObject.AddComponent<LayoutElement>().flexibleWidth=1;
             kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM, _=>{ if(_godsModal!=null && _godsModal.activeSelf) FillGods(_godsModal); }, _hud!=null?_hud.transform:null); });
             // —— 组3：九智能体 ——
             GroupTitle(content,"九智能体 · 职能议会");

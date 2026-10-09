@@ -38,8 +38,15 @@ namespace PixelToCivilization.Systems
         }
 
         /// <summary>玩家落旗：kind = navy / ground / inf，x z 为世界坐标</summary>
+        float _lastRallyAt = -999f;
+        float _lastRespAt = -999f;
+        const float RallyInterval = 0.5f;   // V9.8.2 插旗最小间隔（防连点打崩）
+        const float RespGap = 3f;           // V9.8.2 响应广播节流（防高频插旗刷屏+GC 尖峰）
         public void SetRally(string kind, float x, float z)
         {
+            // V9.8.2 插旗节流：0.5s 内重复插旗直接忽略（玩家连点不再反复触发 广播/语音/响应统计 全链）
+            if (Time.unscaledTime < _lastRallyAt + RallyInterval) return;
+            _lastRallyAt = Time.unscaledTime;
             // V9.6.3f2 防御：NaN/Inf 旗点直接忽略（防世界坐标污染导致集结单位坐标 NaN → 渲染/寻路冻结"卡死"）
             if (float.IsNaN(x) || float.IsNaN(z) || float.IsInfinity(x) || float.IsInfinity(z))
             { GM.AddEvent("bad", "⚠ 集结令旗点无效，请重新落旗"); return; }
@@ -53,11 +60,16 @@ namespace PixelToCivilization.Systems
             string nm = kind == "navy" ? "蓝旗·海军集结" : kind == "ground" ? "绿旗·地面部队集结" : "红旗·军人集结";
             GM.AddEvent("good", "🚩 紧急集结令：" + nm + "（" + RallyRange + " 格内单位向军旗列阵）");
             // V9.8.1 集结响应统计：插旗后立刻广播范围内响应单位数，让玩家直观看到集结令已生效
-            int[] resp = CountResponders(kind, x, z);
-            string respTxt = resp[0] > 0 ? resp[0] + " 地面部队" : "";
-            if (resp[1] > 0) respTxt += (respTxt.Length > 0 ? "，" : "") + resp[1] + " 艘军舰";
-            if (resp[2] > 0) respTxt += (respTxt.Length > 0 ? "，" : "") + resp[2] + " 名军人";
-            if (respTxt.Length > 0) GM.AddEvent("good", "📣 " + RallyRange + " 格内响应：" + respTxt + " 听令向军旗列阵");
+            // V9.8.2 响应广播 3s 节流：高频插旗只报首条，其余静默生效（横幅始终显示）
+            if (Time.unscaledTime >= _lastRespAt + RespGap)
+            {
+                _lastRespAt = Time.unscaledTime;
+                int[] resp = CountResponders(kind, x, z);
+                string respTxt = resp[0] > 0 ? resp[0] + " 地面部队" : "";
+                if (resp[1] > 0) respTxt += (respTxt.Length > 0 ? "，" : "") + resp[1] + " 艘军舰";
+                if (resp[2] > 0) respTxt += (respTxt.Length > 0 ? "，" : "") + resp[2] + " 名军人";
+                if (respTxt.Length > 0) GM.AddEvent("good", "📣 " + RallyRange + " 格内响应：" + respTxt + " 听令向军旗列阵");
+            }
             // V9.6.1 战时广播：传令兵传达集结指令（语音+横幅+编年史）
             if (GM.War != null)
                 GM.War.Command("传令——" + nm + "！" + RallyRange + " 格内各军听令，火速向军旗列阵；超出 " + RallyRange + " 格者，由运输机、直升机远程投送！");

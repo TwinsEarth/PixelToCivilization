@@ -1,0 +1,20 @@
+﻿41: PixelToCivilization.EditorTools.WebGLBuilder.BuildCLI
+295: Assets\Scripts\UI\ApiKeyPrompt.cs(59,50): warning CS0618: 'Application.ExternalCall(string, params object[])' is obsolete: 'Application.ExternalCall is deprecated. See https://docs
+297: Assets\Scripts\Systems\IntercityNetworkSystem.cs(170,18): warning CS0219: The variable 'railDue' is assigned but its value is never used
+299: Assets\Scripts\Systems\IntercityNetworkSystem.cs(171,18): warning CS0219: The variable 'roadDue' is assigned but its value is never used
+301: Assets\Scripts\Systems\PopulationSystem.cs(318,43): warning CS0219: The variable 'worker' is assigned but its value is never used
+303: Assets\Scripts\Core\GameManager.cs(1188,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+305: Assets\Scripts\Core\GameManager.cs(1207,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+307: Assets\Scripts\Core\GameManager.cs(1216,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+309: Assets\Scripts\Core\GameManager.cs(1272,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+311: Assets\Scripts\Core\GameManager.cs(1282,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+313: Assets\Scripts\Core\GameManager.cs(1434,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+315: Assets\Scripts\Core\GameManager.cs(1448,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+317: Assets\Scripts\Core\GameManager.cs(1457,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+319: Assets\Scripts\Core\GameManager.cs(1504,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+321: Assets\Scripts\Core\GameManager.cs(1533,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+323: Assets\Scripts\Core\GameManager.cs(1568,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+325: Assets\Scripts\Core\GameManager.cs(1592,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+327: Assets\Scripts\Core\GameManager.cs(1628,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+329: Assets\Scripts\Core\GameManager.cs(1655,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/t
+331: Assets\Scripts\Systems\BridgeSystem.cs(21,23): warning CS0414: The field 'BridgeSystem._scanTimer' is assigned but its value is never used

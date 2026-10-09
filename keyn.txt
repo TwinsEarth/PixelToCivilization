@@ -1,0 +1,11 @@
+﻿309: System.IO.FileNotFoundException: Could not find file 'D:\TJ2022\2022.3.62t14\Editor\Data\PlaybackEngines\WebGLSupport\Managed\UnityEngine.WebGLModule.dll'.
+1272: *** Tundra build success (26.31 seconds), 256 items updated, 451 evaluated
+1431: *** Tundra build success (1.08 seconds), 1 items updated, 3 evaluated
+1464: System.IO.FileNotFoundException: Could not find file 'D:\TJ2022\2022.3.62t14\Editor\Data\PlaybackEngines\WebGLSupport\Managed\UnityEngine.WebGLModule.dll'.
+1989: *** Tundra build success (18.15 seconds), 166 items updated, 327 evaluated
+4617: Mono.Cecil.AssemblyResolutionException: Failed to resolve assembly: 'UnityEngine.WebGLModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null'
+4642: *** Tundra build failed (80.64 seconds - 0:01:20), 131 items updated, 124 evaluated
+4643: Building Library\Bee\artifacts\WebGL\ManagedStripped failed with output:
+4646: Mono.Cecil.AssemblyResolutionException: Failed to resolve assembly: 'UnityEngine.WebGLModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null'
+4685: Build Finished, Result: Failure.
+4698: BUILD_FAILED:Failed

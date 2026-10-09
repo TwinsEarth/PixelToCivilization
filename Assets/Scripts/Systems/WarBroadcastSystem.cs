@@ -60,10 +60,16 @@ namespace PixelToCivilization.Systems
             Speak(text);
         }
 
-        /// <summary>传令兵语音：WebGL → 浏览器 TTS；Editor → Log</summary>
+        /// <summary>传令兵语音：WebGL → 浏览器 TTS；Editor → Log。
+        /// V9.8.2 加固：真实时间 2.5s 节流 + 截断 140 字（与 JS 侧节流双保险，防高频插旗触发 speechSynthesis 崩溃）。</summary>
+        float _speakCd;
+        const float SpeakGap = 2.5f;
         public void Speak(string text)
         {
             if (string.IsNullOrEmpty(text)) return;
+            if (Time.unscaledTime < _speakCd) return;
+            _speakCd = Time.unscaledTime + SpeakGap;
+            if (text.Length > 140) text = text.Substring(0, 140);
 #if UNITY_WEBGL && !UNITY_EDITOR
             try
             {
