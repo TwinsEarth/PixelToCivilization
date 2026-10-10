@@ -858,7 +858,8 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
             var body=ModalBody(_logModal);Clear(body);
             var scroll=UITheme.VerticalScroll("LogScroll",body.transform,out var c,2);
             var sb=new StringBuilder();int n=0;
-            for(int i=S.EventLog.Count-1;i>=0;i--){var e=S.EventLog[i];sb.Append('[').Append(e.Year).Append("年] ").Append(e.Text).Append('\n');if(++n>=200)break;}
+            // V9.8.4 顶点治本：日志面板 200→120 条（单 Text 顶点上限 ≈120×80 字×4 = 38400，留足余量）
+            for(int i=S.EventLog.Count-1;i>=0;i--){var e=S.EventLog[i];sb.Append('[').Append(e.Year).Append("年] ").Append(e.Text).Append('\n');if(++n>=120)break;}
             UITheme.Label("all",c,sb.Length==0?"（暂无事件）":sb.ToString(),12,TextAnchor.UpperLeft);
             FitModal(_logModal, 120, 520);
         }

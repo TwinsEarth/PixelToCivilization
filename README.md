@@ -4,14 +4,14 @@
 
 - **引擎**：团结引擎 Tuanjie 2022.3.61t13（基于 Unity 2022.3 LTS，Hub 版）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.8.3「三 BUG 根治」——浏览器探针实证通过：① **集结令**：`WebRallyUiCycle(10)`（10 次插旗/撤销循环，超过用户报告的 5 次）无异常、语音桥零调用（WebGL 默认静音 + SilentCommand 插旗链路完全隔离 speechSynthesis，根治 Chrome 渲染进程崩溃）；② **古典地面部队**（骑兵/阵兵/战车）：`WebBuildClassicGround` 生成 3 队（公元 1712 古典）、敌方 3 阵营响应、战报"我军击败敌 346 个单位"、位移采样证明部队在移动（NearestLand 逐环脱困 + 每帧水域强制上岸）；③ **塔防造型**：塔墙高 2.4（<楼 3.2）+ 五型多层收分塔（箭三层弩机/火四层喷火口/炮三层旋转炮台/碉堡三层环墙+圆顶+四向机枪/烽火台木架大锅），`WebTowerBounds` 5 塔 h/w=2.38、专属部件在册。密钥 CLEAN、Release v9.8.3
+- **当前版本**：V9.8.4「三 BUG 真根治」——Pro 定位 / Lit 修复分工后治本闭环，浏览器实证通过：① **集结令**：真根因 = UGUI 动态 UI 网格顶点爆炸（`Mesh can not have more than 65000 vertices`，Chrome 渲染进程崩溃），治本 4 处（事件 80 字截断 / Ticker·Toast·Marker 三独立 Canvas / 编年史 40→25 / 日志 200→120），`WebRallyUiCycle(5)/(20)` + `WebRallyStress`（20 次随机插旗）console 零 65000 错误、页面存活；② **古典地面部队**（骑兵/阵兵/战车）：`NearestLand` 半径 48→240 格三档步进 + 困水脱困 2.0 + 去 continue，公元 1700 新局 `WebBuildClassicGround` 生成 phalanx/chariot 于真实坐标、stuck:0、inWater:0、敌方 3 阵营镜像；③ **塔防造型**：`BuildSpecial` 此前无塔分支（五型全走方盒）→ 新增 `BuildTower` 真实现（3-4 层收分塔身 + 五型专属顶部），`WebTowerBounds` 五塔 h/w=1.39-1.96（arrow 弩机 / fire 火口·火球 / cannon 旋转炮 / bunker 半球·四向机枪 / watchtower 木架大锅）。密钥 CLEAN（历史残留已脱敏）、Release v9.8.4
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
 ## ▶ 立即试玩（无需安装）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.8.3_HTML5.zip`（约 54 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.8.4_HTML5.zip`（约 54 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
 
 - **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
 - **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
@@ -201,6 +201,7 @@ export PXC_ARK_API_KEY="你的 Key"
 | V9.8.1 | 三 BUG 加固（基于 9.8.0）：①集结令崩溃根治（旗模型只创建一次，连插 20 次不崩 ok=20/children=4/nanRejected）+新增 CountResponders 响应统计广播「📣 100 格内响应：X 地面部队，Y 艘军舰，Z 名军人听令向军旗列阵」；②古典地面部队（骑兵/阵兵/战车）出生坐标广播（自动编组·雷达索敌·组阵巡航），实测自主移动 phalanx(8.8,-103.7)→(19.4,-95.8)、真实参战阵亡；③塔防再压矮（wallH 0.95），arrow_tower h/w=1.46→1.24 矮墩塔含弩机零件；9 文件改动+6 文档、BUILD_SUCCESS、密钥 CLEAN、Release v9.8.1 |
 | V9.8.2 | 三 BUG 真实路径根因：用户 Chrome 连插 5 次必崩（V9.8.2-005604 日志）→ 广播风暴 + speechSynthesis 高频 cancel/speak（Chrome 渲染进程崩溃源）双节流；古典部队困湖 → 出生坐标广播 + 索敌/组队/战斗接线；塔防方型楼 → 多层收分塔（wallH 2.4 < 楼 3.2）。61t13 兼容 AddComponent 改写（4 处 CS1061）+ 本地包 14.1.0 入库，20 轮构建排障后 BUILD_SUCCESS（Hub 版编辑器），浏览器真实 UI 回归（集结令连点 5 次存活 / 机动部队列阵 / 防御 65），Release v9.8.2 |
 | V9.8.3 | 三 BUG 根治（用户第 5 次投诉后真闭环）：①集结令——WebGL 默认静音（VoiceEnabled=false）+ SilentCommand 插旗链路完全隔离 speechSynthesis + JS 2.5s 节流/140 字截断，`WebRallyUiCycle(10)`（10 次循环 > 用户 5 次）无异常、语音桥零调用、console 非 AudioContext 错误 0；②古典部队——NearestLand（半径 2→48 逐环螺旋找陆地）+ 每帧水域强制上岸 + MoveToward 五档转向兜底 + 三处生成点贴水校正，`WebBuildClassicGround` made=3（公元 1712 古典）、敌方 3 阵营响应、战报「击败敌 346 单位」、位移采样 8s 移动 7.52（不困湖）；③塔防——塔墙高 2.4 + 五型多层收分塔（箭三层弩机/火四层喷火口+火球/炮三层旋转炮台/碉堡三层环墙+圆顶+四向机枪/烽火台木架大锅），`WebTowerBounds` 5 塔 h/w=2.38、专属部件在册。v983c BUILD_SUCCESS（22 文件）、密钥 CLEAN、Release v9.8.3 |
+| V9.8.4 | 三 BUG 真根治（Pro 定位 / Lit 修复分工，用户第 6 次投诉后治本闭环）：①集结令——**真根因 UGUI 动态 UI 网格顶点爆炸**（console 实证 `Mesh can not have more than 65000 vertices`），治本 4 处（GameManager.AddEvent 事件 80 字截断 / UIManager.Build 拆 Ticker·Toast·Marker 三独立 Canvas / 编年史 40→25 / 日志面板 200→120），`WebRallyUiCycle(5)/(20)` + `WebRallyStress`（20 次随机插旗）console 零 65000 错误、页面存活；②古典部队——NearestLand 半径 **48→240 格**三档步进（r≤10 八方向 / r≤48 十六方向步进2 / r>48 二十四方向步进4）+ 困水脱困速度 2.0 + **去 continue**（不再跳过索敌），公元 1700 新局 `WebBuildClassicGround` 生成 phalanx(-62.5,-91.6)spd1.20 + chariot×2 spd2.80 于真实坐标、`stuck:0 inWater:0`、敌方 3 阵营镜像；③塔防——`BuildSpecial` switch **此前无塔分支**（五型全走方盒）→ 新增 `BuildTower` 真实现（3-4 层收分塔身：底层 3.0、层高 1.45、逐层收窄 18%、出檐外扩 14%+0.12、塔门 + 五型专属顶部：箭弩机 Deck+BowBod/BowL/BowR/BowStr、火黑口 Mouth+Fireball、炮 TurretBase+Turret+Barrel、碉堡半球 Dome+Gun×4、烽火台 Cradle×2+Cauldron+Flame），`WebTowerBounds` 五塔 h/w=**1.39-1.96**（arrow 1.46 / fire 1.96 / cannon 1.41 / bunker 1.39 / watchtower 1.55）。v984b BUILD_SUCCESS（22 文件）、历史文档残留 key 已脱敏、复扫 CLEAN、Release v9.8.4 |
 
 ## 📋 项目审计摘要（V9.7.3）
 

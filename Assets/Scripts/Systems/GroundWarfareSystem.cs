@@ -349,11 +349,12 @@ namespace PixelToCivilization.Systems
             {
                 var u=Ours[i]; if(u.View==null) continue;
                 if (u.Lifted) continue;
-                // V9.8.3 水域脱困兜底：单位当前位置在水里（湖心/涨潮洼地/生成误入）→ 强制向最近陆地移动
+                // V9.8.4 水域脱困兜底：单位当前位置在水里（湖心/涨潮洼地/生成误入）→ 强制向最近陆地移动。
+                // 不再 continue 跳过本帧索敌：困水单位上岸途中仍可发现敌人并交战（治"困湖后不战斗"）。
                 if(_terrain!=null && !_terrain.IsStaticLand(u.X,u.Z))
                 {
                     var land=NearestLand(u.X,u.Z);
-                    if(land.HasValue){ MoveToward(u,land.Value.x,land.Value.y,dt,1.0f); continue; }
+                    if(land.HasValue) MoveToward(u,land.Value.x,land.Value.y,dt,2.0f);   // ×2 快速脱困
                 }
                 if (u.GraceT>0f) u.GraceT-=dt;   // 驻留宽限倒计时
                 u.AttackCd-=dt;
@@ -395,11 +396,11 @@ namespace PixelToCivilization.Systems
             {
                 var e=Enemies[i]; if(e.View==null) continue;
                 if (e.Lifted) continue;
-                // V9.8.3 敌方水域脱困兜底：困在水里 → 强制向最近陆地移动
+                // V9.8.4 敌方水域脱困兜底：困在水里 → 强制向最近陆地快速移动（×2）；不再 continue 跳过索敌
                 if(_terrain!=null && !_terrain.IsStaticLand(e.X,e.Z))
                 {
                     var land=NearestLand(e.X,e.Z);
-                    if(land.HasValue){ MoveToward(e,land.Value.x,land.Value.y,dt,1.0f); continue; }
+                    if(land.HasValue) MoveToward(e,land.Value.x,land.Value.y,dt,2.0f);
                 }
                 if (e.GraceT>0f) e.GraceT-=dt;
                 e.AttackCd-=dt;
@@ -496,22 +497,25 @@ namespace PixelToCivilization.Systems
         }
 
         /// <summary>
-        /// V9.8.3 找最近陆地坐标（水域脱困兜底）：以 (x,z) 为中心，半径 2→48 逐环扫描（角度步进 8/16 方向），
-        /// 返回最近 IsStaticLand 点；找不到返回 null。用于水域脱困 / 贴岸寻路失败兜底 / 生成点贴水校正。
+        /// V9.8.4 找最近陆地坐标（水域脱困兜底）：以 (x,z) 为中心，半径 2→240 逐环扫描（角度步进 8/16/24 方向），
+        /// 返回最近 IsStaticLand 点；找不到返回 null。半径上限 240 覆盖主大陆大湖泊（湖心距岸可超 100），
+        /// 根治"大湖中心部队脱困失败原地卡死"。
         /// </summary>
         Vector2? NearestLand(float x, float z)
         {
             if (_terrain == null) return null;
             if (_terrain.IsStaticLand(x, z)) return new Vector2(x, z);
-            for (float r = 2f; r <= 48f; r += 2f)
+            for (float r = 2f; r <= 240f; )
             {
-                int steps = r <= 10f ? 8 : 16;
+                int steps = r <= 10f ? 8 : r <= 48f ? 16 : 24;
+                float step = r <= 48f ? 2f : 4f;
                 for (int i = 0; i < steps; i++)
                 {
                     float a = (i * 360f / steps) * Mathf.Deg2Rad;
                     float sx = x + Mathf.Cos(a) * r, sz = z + Mathf.Sin(a) * r;
                     if (_terrain.IsStaticLand(sx, sz)) return new Vector2(sx, sz);
                 }
+                r += step;
             }
             return null;
         }

@@ -36,6 +36,9 @@ namespace PixelToCivilization.Buildings
                                         BuildShipyard(t,b.Type,s,era,sc); break;
                 case "sea_port": case "customs_house":
                                         BuildPort(t,b.Type,s,era,sc); break;
+                case "arrow_tower": case "fire_tower": case "cannon_tower":
+                case "bunker": case "watchtower":
+                                        BuildTower(t,b.Type,s,era,sc); break;   // V9.8.4 塔防独立形制：多层收分塔（塔≠楼）
                 default: return false;
             }
             SpecialTrim(t,b,s,era);
@@ -346,6 +349,85 @@ namespace PixelToCivilization.Buildings
                          Box("Container2",new Vector3(0.2f,0.45f,0.9f),new Vector3(0.8f,0.5f,0.5f),Cloth(new Color(0.7f,0.4f,0.3f)),t);}
             else { Box("Crate1",new Vector3(1.0f,0.35f,0.9f),Vector3.one*0.5f,Wood,t);Box("Crate2",new Vector3(0.4f,0.3f,1.1f),Vector3.one*0.4f,Wood,t);Box("Barrel",new Vector3(-0.4f,0.4f,1.0f),new Vector3(0.26f,0.4f,0.26f),Wood,t);}
             if(id=="customs_house") Box("CustomSign",new Vector3(0.9f,1.5f,-0.05f),new Vector3(0.8f,0.36f,0.05f),Gold,t);
+        }
+
+        // ---------------- 塔防五型：多层收分塔（V9.8.4 根治"塔建成楼"） ----------------
+        // 原则：塔身 3–4 层逐层收窄（每层比下一层小 18%，参照树木分层），层间出檐；
+        // 顶部按型安装专属武器平台。塔≠楼：总高约为楼（3.2×墙高）的 60%，且轮廓明显收分。
+        private void BuildTower(Transform t, string id, BuildingStyle s, int era, float sc)
+        {
+            Material wall = id=="fire_tower" ? Brick() : WallMat(s,era);
+            Material frame = (id=="arrow_tower"||id=="watchtower") ? Wood : Stone;
+            int tiers = id=="fire_tower" ? 4 : 3;                 // 火塔土垒尖塔 4 层，其余 3 层
+            float w0 = 3.0f*sc, h0 = 1.45f*sc;                    // 底层宽 3 单位，每层高 1.45
+            float topY = 0f;
+            for(int i=1;i<=tiers;i++)
+            {
+                float szi = 1f-(i-1)*0.18f;
+                float wi = w0*szi;
+                Box("Tier"+i, new Vector3(0, topY+h0*0.5f, 0), new Vector3(wi, h0, wi), wall, t);
+                // 层檐：比本层外扩 12%，强化分层轮廓
+                Box("Eave"+i, new Vector3(0, topY+h0+0.04f, 0), new Vector3(wi*1.14f+0.12f, 0.16f, wi*1.14f+0.12f), frame, t);
+                topY += h0;
+            }
+            float hw = w0*(1f-(tiers-1)*0.18f);                   // 顶层宽（收分后）
+            // 塔门（第一层开口，强化"塔≠实心楼"）
+            Box("Door", new Vector3(0, 0.5f, hw*0.5f), new Vector3(0.55f, 0.85f, 0.05f), Dark, t);
+            switch(id)
+            {
+                case "arrow_tower":
+                    // 顶部平台 + 弩机（弓臂 + 弦 + 机匣）
+                    Box("Deck", new Vector3(0, topY+0.12f, 0), new Vector3(hw+0.5f, 0.12f, hw+0.5f), frame, t);
+                    Box("BowBody", new Vector3(0, topY+0.45f, 0), new Vector3(0.5f, 0.3f, 0.2f), Wood, t);
+                    var bl=Box("BowL", new Vector3(0, topY+0.6f, -0.25f), new Vector3(0.5f, 0.08f, 0.65f), Wood, t);
+                    bl.transform.localRotation=Quaternion.Euler(-38,0,0);
+                    var br=Box("BowR", new Vector3(0, topY+0.6f, 0.25f), new Vector3(0.5f, 0.08f, 0.65f), Wood, t);
+                    br.transform.localRotation=Quaternion.Euler(38,0,0);
+                    Box("BowString", new Vector3(0, topY+0.4f, 0), new Vector3(0.03f, 0.55f, 0.03f), Dark, t);
+                    break;
+                case "fire_tower":
+                    // 顶部喷火口（黑口）+ 常燃火球（一烧一片的火源）
+                    Box("Mouth", new Vector3(0, topY+0.35f, 0), new Vector3(hw*0.55f, 0.55f, hw*0.55f), Dark, t);
+                    Sph("Fireball", new Vector3(0, topY+0.85f, 0), new Vector3(0.55f, 0.8f, 0.55f), Fire, t);
+                    break;
+                case "cannon_tower":
+                    // 顶部旋转炮台：基座 + 炮塔 + 炮管（可随时调整角度）
+                    Cyl("TurretBase", new Vector3(0, topY+0.2f, 0), new Vector3(hw*0.85f, 0.2f, hw*0.85f), Metal, t);
+                    Box("Turret", new Vector3(0, topY+0.55f, 0), new Vector3(hw*0.7f, 0.42f, hw*0.7f), Metal, t);
+                    Cyl("Barrel", new Vector3(0, topY+0.55f, hw*0.35f+0.6f), new Vector3(0.12f, 1.0f, 0.12f), Metal, t).transform.localRotation=Quaternion.Euler(90,0,0);
+                    break;
+                case "bunker":
+                    // 圆形堡垒：圆顶（半球）+ 四向机枪
+                    var dome=GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    dome.name="Dome"; dome.transform.SetParent(t,false);
+                    dome.transform.localPosition=new Vector3(0, topY+0.35f, 0);
+                    dome.transform.localScale=new Vector3(hw*1.15f, 0.72f, hw*1.15f);
+                    DestroyCol(dome); dome.GetComponent<Renderer>().material=wall;
+                    foreach(var ang in new[]{0f,90f,180f,270f})
+                    {
+                        float a=ang*Mathf.Deg2Rad;
+                        var gun=Cyl("Gun", new Vector3(Mathf.Sin(a)*hw*0.68f, topY+0.35f, Mathf.Cos(a)*hw*0.68f),
+                                    new Vector3(0.06f, 0.72f, 0.06f), Metal, t);
+                        gun.transform.localRotation=Quaternion.Euler(90,0,ang);
+                    }
+                    break;
+                case "watchtower":
+                    // 烽火台：几块大木头上架着一口大锅 + 火焰
+                    Box("Deck", new Vector3(0, topY+0.1f, 0), new Vector3(hw+0.5f, 0.1f, hw+0.5f), Wood, t);
+                    Box("CradleL", new Vector3(-0.3f, topY+0.32f, 0), new Vector3(0.16f, 0.3f, 0.16f), Wood, t);
+                    Box("CradleR", new Vector3( 0.3f, topY+0.32f, 0), new Vector3(0.16f, 0.3f, 0.16f), Wood, t);
+                    var pot=GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    pot.name="Cauldron"; pot.transform.SetParent(t,false);
+                    pot.transform.localPosition=new Vector3(0, topY+0.52f, 0);
+                    pot.transform.localScale=new Vector3(0.95f, 0.55f, 0.95f);
+                    DestroyCol(pot); pot.GetComponent<Renderer>().material=Dark;
+                    var fl=GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    fl.name="Flame"; fl.transform.SetParent(t,false);
+                    fl.transform.localPosition=new Vector3(0, topY+0.9f, 0);
+                    fl.transform.localScale=new Vector3(0.55f, 0.65f, 0.55f);
+                    DestroyCol(fl); fl.GetComponent<Renderer>().material=Fire;
+                    break;
+            }
         }
     }
 }

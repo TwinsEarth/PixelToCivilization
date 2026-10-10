@@ -1847,6 +1847,10 @@ namespace PixelToCivilization.Core
         // ===== 事件日志 =====
         public void AddEvent(string kind, string text)
         {
+            // V9.8.4 UI 顶点治本：事件文本全局截断 80 字（编年史/Ticker/日志面板共用同一条）。
+            // 单条超长文本在 Text 全量重建（RefreshEventLog/PushTicker）时是 UI Mesh 顶点尖峰源之一，
+            // 用户「集结令连插旗 Chrome 必崩」的真根因 = UGUI Mesh 顶点逼近 65000 上限，先全局封顶。
+            if (text != null && text.Length > 80) text = text.Substring(0, 80);
             var e = new LogEntry(State.Year, kind, text);
             State.EventLog.Insert(0, e);
             if (State.EventLog.Count > 200) State.EventLog.RemoveAt(State.EventLog.Count - 1);

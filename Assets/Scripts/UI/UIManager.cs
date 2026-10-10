@@ -74,6 +74,12 @@ namespace PixelToCivilization.UI
         private void Build()
         {
             var canvas=UITheme.CreateCanvas("UICanvas");
+            // V9.8.4 UI 顶点治本：高频动态 UI（顶部滚动条/中央横幅·时代转场/建筑浮标）拆到独立 Canvas，
+            // 不再与全量静态面板合并顶点——用户「集结令连插旗 Chrome 必崩」= UGUI Mesh 顶点逼近 65000 上限，
+            // 拆分后单 Canvas 顶点数减半以上，从结构上杜绝再次越限。
+            var tickerCanvas=UITheme.CreateCanvas("TickerCanvas");
+            var toastCanvas=UITheme.CreateCanvas("ToastCanvas");
+            var markerCanvas=UITheme.CreateCanvas("MarkerCanvas");
             BuildSplash(canvas.transform);
             _hud=UITheme.Panel("HUD",canvas.transform,new Color(0,0,0,0));
             Stretch(_hud);
@@ -82,15 +88,15 @@ namespace PixelToCivilization.UI
             _hud.GetComponent<Image>().raycastTarget=false;
             BuildTopBarV2(_hud.transform);
             BuildCryoBar(_hud.transform);   // V6.1.9 中顶冷冻倒计时
-            BuildTicker(_hud.transform);    // V9.6.1 顶部滚动信息条
+            BuildTicker(tickerCanvas.transform);    // V9.6.1 顶部滚动信息条（独立 Canvas）
             BuildLeftPanelV2(_hud.transform);
             BuildRightPanelV2(_hud.transform);
             BuildBottomBarV2(_hud.transform);
             BuildLeftBottomCluster(_hud.transform);
-            BuildMarkerLayer(_hud.transform);
+            BuildMarkerLayer(markerCanvas.transform);   // V9.8.4 建筑浮标（独立 Canvas）
             BuildModals(_hud.transform);          // 先建 _modalLayer，帮助/日志弹窗才能正确挂到 Canvas 下
             BuildHelpModals(_hud.transform);
-            BuildToastAndEra(_hud.transform);
+            BuildToastAndEra(toastCanvas.transform);    // V9.8.4 中央横幅/时代转场（独立 Canvas）
             BuildMinimap(_hud.transform);
             _hud.SetActive(false);
         }
@@ -1071,7 +1077,8 @@ namespace PixelToCivilization.UI
             if (_eventText==null) return;
             var sb=new StringBuilder();
             int n=0;
-            foreach (var e in S.EventLog){ if(n++>=40)break; sb.Append("[").Append(e.Year).Append("年] ").Append(e.Text).Append("\n"); }
+            // V9.8.4 顶点治本：编年史显示 40→25 条（单 Text 顶点上限约 25×80 字×4 = 8000，远低于 65000 越限线）
+            foreach (var e in S.EventLog){ if(n++>=25)break; sb.Append("[").Append(e.Year).Append("年] ").Append(e.Text).Append("\n"); }
             _eventText.text=sb.ToString();
         }
 

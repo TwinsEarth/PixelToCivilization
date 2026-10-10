@@ -44,6 +44,12 @@ namespace PixelToCivilization.Systems
         const float RespGap = 3f;           // V9.8.2 响应广播节流（防高频插旗刷屏+GC 尖峰）
         public void SetRally(string kind, float x, float z)
         {
+            // V9.8.4 整体异常护栏：插旗链路任何意外（列表结构/材质/广播）都不允许打断游戏主循环
+            try { SetRallyCore(kind, x, z); }
+            catch (System.Exception e) { Debug.LogWarning("[Rally] SetRally guard: " + e.GetType().Name + " " + e.Message); }
+        }
+        void SetRallyCore(string kind, float x, float z)
+        {
             // V9.8.2 插旗节流：0.5s 内重复插旗直接忽略（玩家连点不再反复触发 广播/语音/响应统计 全链）
             if (Time.unscaledTime < _lastRallyAt + RallyInterval) return;
             _lastRallyAt = Time.unscaledTime;
@@ -131,6 +137,18 @@ namespace PixelToCivilization.Systems
             else if (_flagRoot != null) { Object.Destroy(_flagRoot); _flagRoot = null; _cloth = null; _clothB = null; }
         }
 
+        // V9.8.4 旗色材质静态复用：3 种旗色只各建一次材质（插旗换色仅切换引用，杜绝高频插旗材质对象堆积）
+        static Material _navyMat, _groundMat, _infMat;
+        Material FlagClothMat(Color c, string kind)
+        {
+            if (kind == "navy" && _navyMat != null) return _navyMat;
+            if (kind == "ground" && _groundMat != null) return _groundMat;
+            if (kind == "inf" && _infMat != null) return _infMat;
+            var m = ShaderHelper.Mat(c);
+            if (kind == "navy") _navyMat = m; else if (kind == "ground") _groundMat = m; else _infMat = m;
+            return m;
+        }
+
         /// <summary>
         /// V9.6.3f2 旗模型只创建一次：后续落旗仅移动位置+换旗面颜色，不再 Destroy/Create 子物体。
         /// 根因：旧实现每次插旗新建 5 个 primitive 并 Object.Destroy 旧子物体（延迟销毁），多次快速插旗
@@ -146,8 +164,8 @@ namespace PixelToCivilization.Systems
             }
             _flagRoot.transform.position = new Vector3(x, 0, z);
             Color c = kind == "navy" ? NavyColor : kind == "ground" ? GroundColor : InfColor;
-            if (_cloth != null) _cloth.sharedMaterial = ShaderHelper.Mat(c);
-            if (_clothB != null) _clothB.sharedMaterial = ShaderHelper.Mat(c);
+            if (_cloth != null) _cloth.sharedMaterial = FlagClothMat(c, kind);
+            if (_clothB != null) _clothB.sharedMaterial = FlagClothMat(c, kind);
         }
 
         void CreateFlagBody()
