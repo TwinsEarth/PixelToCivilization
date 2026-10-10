@@ -197,7 +197,12 @@ namespace PixelToCivilization.UI
 
         public static void SetOutline(GameObject go,Color c,int width=1)
         {
-            var o=go.AddComponent<Outline>();o.effectColor=new Color(c.r,c.g,c.b,0.30f);o.effectDistance=new Vector2(width,-width);
+            // V9.8.5c 根因修复：GetComponent 复用，禁止每次 AddComponent<Outline>() 无限累积（按钮每点一次叠加一个 Outline，
+            // 多 Outline 在 UGUI Canvas rebuild 时顶点成倍膨胀 → WebGL wasm null function / Chrome 卡死）
+            var o=go.GetComponent<Outline>();
+            if(o==null) o=go.AddComponent<Outline>();
+            o.effectColor=new Color(c.r,c.g,c.b,0.30f);
+            o.effectDistance=new Vector2(width,-width);
         }
 
         /// <summary>程序化彩色矢量图标（IconFactory 已按语义上品牌色）</summary>

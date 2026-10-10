@@ -656,6 +656,12 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
         }
         private void CycleRally(Button b)
         {
+            // V9.8.5 重写：按钮链路零动态 UI 构建——反馈走静态 HUD 槽 SetRallyHint + 按钮描边/变色（SyncRallyBtn）
+            CycleRallyCore();
+        }
+        /// <summary>V9.8.5 集结令按钮核心逻辑（按钮 onClick 与浏览器探针共用同一路径）</summary>
+        private void CycleRallyCore()
+        {
             string cur=GM.State.RallyKind;
             string next = cur==""?"navy":cur=="navy"?"ground":cur=="ground"?"inf":"";
             if (next=="")
@@ -663,16 +669,84 @@ private Button MakeBuildCard(Transform parent,string iconKey,string title,Dictio
                 GM.Rally?.ClearRally();
                 GM.Tool="select";
                 SetTool("select");
-                Toast("集结令已撤销");
+                SetRallyHint("集结令已撤销");
             }
             else
             {
                 GM.State.RallyKind=next;
                 GM.Tool="rally";
                 string nm=next=="navy"?"蓝旗·海军":next=="ground"?"绿旗·地面部队":"红旗·军人";
-                Toast("已选 "+nm+"：点击地图插旗（100 格内单位将向军旗列阵）");
+                SetRallyHint("已选 "+nm+"：点击地图插旗（100 格内单位将向军旗列阵）");
             }
             SyncRallyBtn();
+        }
+        /// <summary>V9.8.5 浏览器探针：真实按钮链压力——循环 n 次执行 CycleRally 同路径（切旗种→HUD 槽→按钮状态），
+        /// 验证连点按钮不再触发任何动态 UI 构建（此前的盲区：探针直达 SetRally 绕过了按钮链）。
+        /// [Preserve] 防 IL2CPP 裁剪：本方法仅由 JS SendMessage 字符串引用，无 C# 引用链，必须显式保留（否则 null function 崩溃）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public string WebRallyCycleClick(int n)
+        {
+            string result="no-rally";
+            try
+            {
+                int ok=0, cleared=0;
+                for(int i=0;i<n;i++){ CycleRallyCore(); if(GM.State.RallyKind.Length>0) ok++; else cleared++; }
+                var flagRoot=GM.Rally!=null?GM.Rally.GetFlagRootForTest():null;
+                int childCount = flagRoot!=null ? flagRoot.transform.childCount : 0;
+                bool hintOn = _rallyHint!=null && _rallyHint.gameObject.activeSelf;
+                string hintTxt = _rallyHint!=null ? _rallyHint.text : "";
+                result = "click:"+n+"|ok="+ok+"|clear="+cleared+"|children="+childCount+"|hint="+hintOn+"|"+hintTxt+"|"+(GM.Rally!=null?GM.Rally.Probe():"rally:null");
+            }
+            catch(System.Exception ex){ result="click-ex:"+ex.GetType().Name+":"+ex.Message; }
+            Debug.Log("[WEB] RallyCycleClick "+result);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
+            return result;
+        }
+        /// <summary>V9.8.5c 二分探针A：纯状态切换（RallyKind + GM.Tool），零 UI/零 HUD/零 Eval。
+        /// 用于对照 WebRallyCycleClick：若本探针也崩 → 根因在状态切换后主循环；若不崩 → 根因在 UI 子调用。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public string WebRallyBtnOnlyProbe(int n)
+        {
+            string result="btnonly:";
+            try
+            {
+                string[] seq={"navy","ground","inf",""};
+                for(int i=0;i<n;i++)
+                {
+                    GM.State.RallyKind=seq[i%4];
+                    GM.Tool=(GM.State.RallyKind.Length>0)?"rally":"select";
+                }
+                result+="ok:"+n+"|rally="+(GM.Rally!=null?GM.Rally.Probe():"null");
+            }
+            catch(System.Exception ex){ result="btnonly-ex:"+ex.GetType().Name+":"+ex.Message; }
+            Debug.Log("[WEB] BtnOnly "+result);
+            return result;
+        }
+        /// <summary>V9.8.5c 二分探针B：完整 CycleRallyCore 链路但【不做 ExternalEval】（只 Debug.Log）。
+        /// 对照 WebRallyCycleClick：若本探针不崩 → ExternalEval 桥是崩溃源；若崩 → UI 子调用/状态是崩溃源。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public string WebRallyCycleClickNoEval(int n)
+        {
+            string result="noeval:";
+            try
+            {
+                for(int i=0;i<n;i++) CycleRallyCore();
+                result+="ok:"+n+"|rally="+(GM.Rally!=null?GM.Rally.Probe():"null");
+            }
+            catch(System.Exception ex){ result="noeval-ex:"+ex.GetType().Name+":"+ex.Message; }
+            Debug.Log("[WEB] CycleNoEval "+result);
+            return result;
+        }
+        /// <summary>V9.8.5 浏览器探针：读 HUD 槽文本（验证静态反馈生效）。[Preserve] 防 IL2CPP 裁剪（同 WebRallyCycleClick）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public string WebRallyHintProbe()
+        {
+            string txt = _rallyHint!=null ? _rallyHint.text : "no-hint";
+            bool on = _rallyHint!=null && _rallyHint.gameObject.activeSelf;
+            string r = "hint:"+(on?"on":"off")+"|"+txt;
+            Debug.Log("[WEB] RallyHintProbe "+r);
+            try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(r) + "');"); } catch (System.Exception ex) { Debug.Log("[WEB] eval fail "+ex.Message); }
+            return r;
         }
         private void SyncRallyBtn()
         {

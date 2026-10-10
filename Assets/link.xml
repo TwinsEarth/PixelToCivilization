@@ -19,4 +19,15 @@
     一次性保证所有 SendMessage 反射目标与 JSON 序列化数据类型不被裁剪。
   -->
   <assembly fullname="Assembly-CSharp" preserve="all" />
+
+  <!--
+    V9.8.5c 集结令崩溃根因（连续插旗/连点集结按钮 Chrome 卡死）：
+    UIManager.SyncRallyBtn / UITheme.SetOutline 每次点击集结按钮都会
+    AddComponent<UnityEngine.UI.Outline>()（历史代码不清理、无限累积），
+    而 UnityEngine.UI 程序集此前未被 link.xml 保留，IL2CPP 将其裁剪，
+    运行时 AddComponent<Outline>() 触发 "RuntimeError: null function"（wasm 崩溃）。
+    保留整个 UnityEngine.UI 程序集 + SetOutline 已改为 GetComponent 复用，
+    根治动态 UI 组件被裁剪导致的 WebGL 崩溃。
+  -->
+  <assembly fullname="UnityEngine.UI" preserve="all" />
 </linker>

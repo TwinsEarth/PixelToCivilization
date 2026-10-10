@@ -1433,6 +1433,20 @@ namespace PixelToCivilization.Core
             Debug.Log(s);
             try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch (System.Exception ex) { Debug.Log("[WEB] eval fail "+ex.Message); }
         }
+        /// <summary>V9.8.5c 二分探针A 转发：纯状态切换（RallyKind+GM.Tool），零 UI/零 HUD/零 Eval。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public string WebRallyBtnOnlyProbe(int n)
+        {
+            var ui=PixelToCivilization.UI.UIManager.Instance;
+            return ui!=null ? ui.WebRallyBtnOnlyProbe(n) : "no-ui";
+        }
+        /// <summary>V9.8.5c 二分探针B 转发：完整 CycleRallyCore 链路但不做 ExternalEval。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public string WebRallyCycleClickNoEval(int n)
+        {
+            var ui=PixelToCivilization.UI.UIManager.Instance;
+            return ui!=null ? ui.WebRallyCycleClickNoEval(n) : "no-ui";
+        }
         /// <summary>V9.4.7 浏览器回归：强制我方军舰传送到敌舰旁交战</summary>
         [UnityEngine.Scripting.Preserve]
         public void WebForceNavalBattle(){ int p=Naval!=null?Naval.ForceNavalBattle():-99; Debug.Log("[Web] ForceNavalBattle paired="+p); }
@@ -1653,6 +1667,21 @@ namespace PixelToCivilization.Core
             catch(System.Exception ex){ result="cycle-ex:"+ex.GetType().Name+":"+ex.Message; }
             Debug.Log("[WEB] RallyUiCycle "+result);
             try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(result) + "');"); } catch (System.Exception ex2) { Debug.Log("[WEB] eval fail "+ex2.Message); }
+        }
+        /// <summary>V9.8.5 浏览器回归：真实按钮链压力——调 UIManager.WebRallyCycleClick（CycleRally 同路径），
+        /// 覆盖此前探针盲区（用户是点底部按钮切旗种，旧探针直达 SetRally 绕过了按钮链）。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebRallyClickProbe(int n)
+        {
+            if (UI.UIManager.Instance!=null) UI.UIManager.Instance.WebRallyCycleClick(n);
+            else Debug.Log("[WEB] RallyClickProbe no-ui");
+        }
+        /// <summary>V9.8.5 浏览器回归：静态 HUD 状态槽文本（验证插旗反馈不再走动态 Toast/事件广播）</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebRallyHintProbe()
+        {
+            if (UI.UIManager.Instance!=null) UI.UIManager.Instance.WebRallyHintProbe();
+            else Debug.Log("[WEB] RallyHintProbe no-ui");
         }
         /// <summary>V9.4.7 浏览器回归：统一战斗目录实况（按 Kind/Key 分组）</summary>        [UnityEngine.Scripting.Preserve]
         public void WebCombatProbe()

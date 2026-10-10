@@ -47,6 +47,8 @@ namespace PixelToCivilization.UI
         private Slider _speedSlider;
         private GameObject _oceanBtn,_spaceBtn;
         private Text _toast,_eraTitle,_eraDesc; private GameObject _eraTransition;
+        // V9.8.5 集结令静态 HUD 状态槽（预建 Text，只改 text，零对象创建——替换旧插旗链路里的动态 Toast/事件广播）
+        private Text _rallyHint; private float _rallyHintHide;
         // V6.1.9 画面中顶冷冻冷却倒计时条
         private GameObject _cryoBar; private Text _cryoText;
         private float _refreshCd;
@@ -837,6 +839,17 @@ namespace PixelToCivilization.UI
             _toast=UITheme.Label("Toast",parent,"",16,TextAnchor.MiddleCenter,UITheme.Good);
             Place(_toast.rectTransform,new Vector2(0.5f,0.82f),new Vector2(0.5f,0.82f),new Vector2(-200,-30),new Vector2(200,30));
             _toast.gameObject.SetActive(false);
+            // V9.8.5 集结令静态 HUD 槽：预建一次，SetRallyHint 只改 text（插旗反馈不再走 Toast/事件广播）
+            _rallyHint=UITheme.Label("RallyHint",parent,"",18,TextAnchor.MiddleCenter,UITheme.Gold);
+            Place(_rallyHint.rectTransform,new Vector2(0.5f,0.74f),new Vector2(0.5f,0.74f),new Vector2(-260,-24),new Vector2(260,24));
+            _rallyHint.gameObject.SetActive(false);
+        }
+        /// <summary>V9.8.5 集结令静态 HUD 槽：只改 text + 短暂显示，零对象创建；空串隐藏。</summary>
+        public void SetRallyHint(string msg)
+        {
+            if (_rallyHint==null) return;
+            if (string.IsNullOrEmpty(msg)){ _rallyHint.gameObject.SetActive(false); return; }
+            _rallyHint.text=msg; _rallyHint.gameObject.SetActive(true); _rallyHintHide=Time.unscaledTime+2.5f;
         }
         private float _eraHide;
         public void ShowEraTransition(string title,string desc)
@@ -897,6 +910,7 @@ namespace PixelToCivilization.UI
         {
             if (_eraTransition&&_eraTransition.activeSelf&&_eraHide>0&&Time.unscaledTime>_eraHide)_eraTransition.SetActive(false);
             if (_toast&&_toast.gameObject.activeSelf&&_toastHide>0&&Time.unscaledTime>_toastHide)_toast.gameObject.SetActive(false);
+            if (_rallyHint&&_rallyHint.gameObject.activeSelf&&_rallyHintHide>0&&Time.unscaledTime>_rallyHintHide)_rallyHint.gameObject.SetActive(false);
         }
 
         /// <summary>

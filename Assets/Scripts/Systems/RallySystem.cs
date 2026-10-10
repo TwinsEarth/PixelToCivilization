@@ -6,9 +6,11 @@ using PixelToCivilization.World;
 namespace PixelToCivilization.Systems
 {
     /// <summary>
-    /// V9.6.0 紧急集结令：底部插旗（蓝旗=海军 / 绿旗=地面作战部队 / 红旗=军人），
-    /// 100 格范围内对应我方军事单位自动向军旗坐标集结列阵。
-    /// 旗点与种类存于 GameState（随存档持久化），旗帜模型为运行时视图（读档后由 SetRally 重建）。
+    /// V9.8.5 紧急集结令 · 重新设计（推倒重写，非修补）。
+    /// 铁律：插旗/按钮链路上【零 UI 构建】——不 AddEvent、不 Toast、不刷新编年史/Ticker/日志、不广播语音。
+    /// 旗帜在 Init 预建一次，落旗仅改位置+材质引用；反馈走静态 HUD 状态槽（预建 Text，只改 text）；
+    /// 响应统计延迟 0.6s 执行一次（节流 3s），结果写 HUD 槽，不再产生任何事件广播。
+    /// 旗点与种类仍存 GameState（随存档持久化），读档用预建旗帜重建视图（零创建）。
     /// </summary>
     public class RallySystem : GameSystemBase
     {
@@ -20,8 +22,41 @@ namespace PixelToCivilization.Systems
 
         GameObject _flagRoot;
         Renderer _cloth, _clothB;
+        WorldGenerator _terrain;          // V9.8.5 Init 缓存，落旗零 FindObjectOfType
 
-        public override void Init(GameManager gm) { base.Init(gm); }
+        // V9.8.5 节流/延迟统计
+        float _lastRallyAt = -999f;
+        float _lastRespAt  = -999f;
+        float _respPending = -1f;         // >0 表示等待延迟统计；到点执行一次
+        const float RallyInterval = 0.5f; // 插旗最小间隔
+        const float RespDelay = 0.6f;     // 落旗后延迟统计
+        const float RespGap   = 3f;       // 统计节流
+
+        public override void Init(GameManager gm)
+        {
+            base.Init(gm);
+            _terrain = FindObjectOfType<WorldGenerator>();   // 仅一次
+            BuildFlag("navy", 0f, 0f);                       // 预建旗帜（初始隐藏）
+            if (_flagRoot != null) _flagRoot.SetActive(false);
+        }
+
+        /// <summary>每帧：延迟响应统计（只写 HUD 槽，不广播）</summary>
+        public override void Tick(float dt)
+        {
+            if (_respPending > 0f)
+            {
+                _respPending -= dt;
+                if (_respPending <= 0f)
+                {
+                    _respPending = -1f;
+                    if (Time.unscaledTime >= _lastRespAt + RespGap)
+                    {
+                        _lastRespAt = Time.unscaledTime;
+                        TryReportResponders();
+                    }
+                }
+            }
+        }
 
         /// <summary>指定兵种集结令是否生效</summary>
         public bool Active(string kind)
@@ -37,55 +72,62 @@ namespace PixelToCivilization.Systems
             return new Vector2(GM.State.RallyX, GM.State.RallyZ);
         }
 
-        /// <summary>玩家落旗：kind = navy / ground / inf，x z 为世界坐标</summary>
-        float _lastRallyAt = -999f;
-        float _lastRespAt = -999f;
-        const float RallyInterval = 0.5f;   // V9.8.2 插旗最小间隔（防连点打崩）
-        const float RespGap = 3f;           // V9.8.2 响应广播节流（防高频插旗刷屏+GC 尖峰）
+        /// <summary>玩家落旗：kind = navy / ground / inf，x z 为世界坐标。全程零 UI 构建。</summary>
         public void SetRally(string kind, float x, float z)
         {
-            // V9.8.4 整体异常护栏：插旗链路任何意外（列表结构/材质/广播）都不允许打断游戏主循环
             try { SetRallyCore(kind, x, z); }
-            catch (System.Exception e) { Debug.LogWarning("[Rally] SetRally guard: " + e.GetType().Name + " " + e.Message); }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[Rally] SetRally guard: " + e.GetType().Name + " " + e.Message);
+                Hint("⚠ 集结令执行异常，请重试");
+            }
         }
         void SetRallyCore(string kind, float x, float z)
         {
-            // V9.8.2 插旗节流：0.5s 内重复插旗直接忽略（玩家连点不再反复触发 广播/语音/响应统计 全链）
+            // 0.5s 插旗节流：连点不重复触发
             if (Time.unscaledTime < _lastRallyAt + RallyInterval) return;
             _lastRallyAt = Time.unscaledTime;
-            // V9.6.3f2 防御：NaN/Inf 旗点直接忽略（防世界坐标污染导致集结单位坐标 NaN → 渲染/寻路冻结"卡死"）
+            // NaN/Inf 防御
             if (float.IsNaN(x) || float.IsNaN(z) || float.IsInfinity(x) || float.IsInfinity(z))
-            { GM.AddEvent("bad", "⚠ 集结令旗点无效，请重新落旗"); return; }
-            // V9.6.3f2 防御：地面部队/军人旗必须插在陆地（海军旗允许海上）
-            var terr = UnityEngine.Object.FindObjectOfType<PixelToCivilization.World.WorldGenerator>();
-            if (kind != "navy" && terr != null && terr.IsWater(x, z))
-            { GM.AddEvent("bad", "⚠ 地面部队/军人军旗须插在陆地（海军旗可插海上）"); return; }
+            { Hint("⚠ 旗点无效，请重新落旗"); return; }
+            // 陆地防御（用缓存引用）：地面/军人旗须在陆地，海军旗允许海上
+            if (kind != "navy" && _terrain != null && _terrain.IsWater(x, z))
+            { Hint("⚠ 地面/军人旗须插在陆地"); return; }
             var s = GM.State;
             s.RallyKind = kind; s.RallyX = x; s.RallyZ = z;
-            BuildFlag(kind, x, z);
-            string nm = kind == "navy" ? "蓝旗·海军集结" : kind == "ground" ? "绿旗·地面部队集结" : "红旗·军人集结";
-            GM.AddEvent("good", "🚩 紧急集结令：" + nm + "（" + RallyRange + " 格内单位向军旗列阵）");
-            // V9.8.1 集结响应统计：插旗后立刻广播范围内响应单位数，让玩家直观看到集结令已生效
-            // V9.8.2 响应广播 3s 节流：高频插旗只报首条，其余静默生效（横幅始终显示）
-            if (Time.unscaledTime >= _lastRespAt + RespGap)
+            // 移动预建旗帜 + 换旗色（零创建）
+            if (_flagRoot != null)
             {
-                _lastRespAt = Time.unscaledTime;
-                int[] resp = CountResponders(kind, x, z);
-                string respTxt = resp[0] > 0 ? resp[0] + " 地面部队" : "";
-                if (resp[1] > 0) respTxt += (respTxt.Length > 0 ? "，" : "") + resp[1] + " 艘军舰";
-                if (resp[2] > 0) respTxt += (respTxt.Length > 0 ? "，" : "") + resp[2] + " 名军人";
-                if (respTxt.Length > 0) GM.AddEvent("good", "📣 " + RallyRange + " 格内响应：" + respTxt + " 听令向军旗列阵");
+                _flagRoot.SetActive(true);
+                _flagRoot.transform.position = new Vector3(x, 0, z);
+                Color c = kind == "navy" ? NavyColor : kind == "ground" ? GroundColor : InfColor;
+                if (_cloth != null)  _cloth.sharedMaterial  = FlagClothMat(c, kind);
+                if (_clothB != null) _clothB.sharedMaterial = FlagClothMat(c, kind);
             }
-            // V9.6.1 战时广播：传令兵传达集结指令（横幅+编年史）
-            // V9.8.3 根治：插旗链路改静默通道（不触发 speechSynthesis 语音）——高频插旗是 Chrome 崩溃源
-            if (GM.War != null)
-                GM.War.SilentCommand("传令——" + nm + "！" + RallyRange + " 格内各军听令，火速向军旗列阵；超出 " + RallyRange + " 格者，由运输机、直升机远程投送！");
+            string nm = kind == "navy" ? "蓝旗·海军集结" : kind == "ground" ? "绿旗·地面部队集结" : "红旗·军人集结";
+            Hint("🚩 紧急集结令：" + nm + "（" + RallyRange + " 格内单位向军旗列阵）");
+            // 延迟响应统计（0.6s 后一次，节流 3s；只写 HUD 槽）
+            _respPending = RespDelay;
         }
 
-        /// <summary>
-        /// V9.8.1 统计 RallyRange 格内响应集结的单位数（0=地面部队 / 1=军舰 / 2=军人）。
-        /// 地面部队读 Ground.Ours（世界坐标），军舰读 State.Ships，军人读 State.FriendlyUnits。
-        /// </summary>
+        /// <summary>延迟统计并写 HUD 槽（异常全隔离，不影响主循环）</summary>
+        void TryReportResponders()
+        {
+            try
+            {
+                var s = GM.State;
+                if (string.IsNullOrEmpty(s.RallyKind) || s.RallyX <= -9000f) return;
+                int[] resp = CountResponders(s.RallyKind, s.RallyX, s.RallyZ);
+                string txt = "";
+                if (resp[0] > 0) txt = resp[0] + " 地面部队";
+                if (resp[1] > 0) txt += (txt.Length > 0 ? "，" : "") + resp[1] + " 艘军舰";
+                if (resp[2] > 0) txt += (txt.Length > 0 ? "，" : "") + resp[2] + " 名军人";
+                if (txt.Length > 0) Hint("📣 " + RallyRange + " 格内响应：" + txt + " 听令向军旗列阵");
+            }
+            catch (System.Exception e) { Debug.LogWarning("[Rally] resp guard: " + e.GetType().Name + " " + e.Message); }
+        }
+
+        /// <summary>统计 RallyRange 格内响应集结的单位数（0=地面部队 / 1=军舰 / 2=军人）。只读，不广播。</summary>
         int[] CountResponders(string kind, float x, float z)
         {
             int ground = 0, navy = 0, inf = 0;
@@ -120,21 +162,40 @@ namespace PixelToCivilization.Systems
             return new[] { ground, navy, inf };
         }
 
-        /// <summary>撤销集结令（清旗）</summary>
+        /// <summary>撤销集结令（清旗）：隐藏预建旗帜 + 清 HUD 槽，零创建零广播。</summary>
         public void ClearRally()
         {
             GM.State.RallyKind = ""; GM.State.RallyX = -9999f; GM.State.RallyZ = -9999f;
-            if (_flagRoot != null) { Object.Destroy(_flagRoot); _flagRoot = null; _cloth = null; _clothB = null; }
-            // V9.6.1 战时广播：撤销指令（V9.8.3 改静默通道，不触发语音）
-            if (GM.War != null) GM.War.SilentCommand("传令——紧急集结令撤销，各军回防待命！");
+            if (_flagRoot != null) _flagRoot.SetActive(false);
+            _respPending = -1f;
+            Hint("");
         }
 
-        /// <summary>读档恢复：若存档带旗则重建旗帜模型</summary>
+        /// <summary>读档恢复：若存档带旗则显示预建旗帜并定位（零创建），否则隐藏</summary>
         public void RestoreFlag()
         {
             var s = GM.State;
-            if (!string.IsNullOrEmpty(s.RallyKind) && s.RallyX > -9000f) BuildFlag(s.RallyKind, s.RallyX, s.RallyZ);
-            else if (_flagRoot != null) { Object.Destroy(_flagRoot); _flagRoot = null; _cloth = null; _clothB = null; }
+            if (_flagRoot == null) return;
+            if (!string.IsNullOrEmpty(s.RallyKind) && s.RallyX > -9000f)
+            {
+                _flagRoot.SetActive(true);
+                _flagRoot.transform.position = new Vector3(s.RallyX, 0, s.RallyZ);
+                Color c = s.RallyKind == "navy" ? NavyColor : s.RallyKind == "ground" ? GroundColor : InfColor;
+                if (_cloth != null)  _cloth.sharedMaterial  = FlagClothMat(c, s.RallyKind);
+                if (_clothB != null) _clothB.sharedMaterial = FlagClothMat(c, s.RallyKind);
+            }
+            else _flagRoot.SetActive(false);
+        }
+
+        /// <summary>静态 HUD 状态槽（预建 Text，只改 text；空串隐藏）。零对象创建。</summary>
+        void Hint(string msg)
+        {
+            try
+            {
+                var ui = PixelToCivilization.UI.UIManager.Instance;
+                if (ui != null) ui.SetRallyHint(msg);
+            }
+            catch (System.Exception e) { Debug.LogWarning("[Rally] hint guard: " + e.GetType().Name + " " + e.Message); }
         }
 
         // V9.8.4 旗色材质静态复用：3 种旗色只各建一次材质（插旗换色仅切换引用，杜绝高频插旗材质对象堆积）
@@ -149,23 +210,13 @@ namespace PixelToCivilization.Systems
             return m;
         }
 
-        /// <summary>
-        /// V9.6.3f2 旗模型只创建一次：后续落旗仅移动位置+换旗面颜色，不再 Destroy/Create 子物体。
-        /// 根因：旧实现每次插旗新建 5 个 primitive 并 Object.Destroy 旧子物体（延迟销毁），多次快速插旗
-        /// → 子物体堆积 + 每帧 GC 尖峰，WebGL 表现即"插旗多几次就卡死"。
-        /// </summary>
+        /// <summary>预建旗帜体（Init 调用一次；子物体恒 5：底座/旗杆/旗面/旗面背/清碰撞由创建时处理）</summary>
         void BuildFlag(string kind, float x, float z)
         {
-            if (_flagRoot == null)
-            {
-                _flagRoot = new GameObject("RallyFlag");
-                _flagRoot.transform.SetParent(GM.transform, false);
-                CreateFlagBody();
-            }
+            _flagRoot = new GameObject("RallyFlag");
+            _flagRoot.transform.SetParent(GM.transform, false);
+            CreateFlagBody();
             _flagRoot.transform.position = new Vector3(x, 0, z);
-            Color c = kind == "navy" ? NavyColor : kind == "ground" ? GroundColor : InfColor;
-            if (_cloth != null) _cloth.sharedMaterial = FlagClothMat(c, kind);
-            if (_clothB != null) _clothB.sharedMaterial = FlagClothMat(c, kind);
         }
 
         void CreateFlagBody()
@@ -194,7 +245,7 @@ namespace PixelToCivilization.Systems
             clothB.transform.localPosition = new Vector3(0.06f, 2.45f, 0f);
             clothB.transform.localScale = new Vector3(0.3f, 0.72f, 0.09f);
             _clothB = clothB.GetComponent<Renderer>();
-            // 清除碰撞（不挡点击/不参与物理）——仅首次创建执行一次
+            // 清除碰撞（不挡点击/不参与物理）——仅预建时执行一次
             foreach (var col in _flagRoot.GetComponentsInChildren<Collider>()) Object.Destroy(col);
         }
 
