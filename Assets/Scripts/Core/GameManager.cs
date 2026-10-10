@@ -1423,6 +1423,15 @@ namespace PixelToCivilization.Core
             int m=Ground.DebugBuildOwn(3);
             Debug.Log("[Web] BuildGround made="+m+" "+Ground.Probe());
         }
+        /// <summary>V9.8.6 回归：古典部队困湖检测（先生成古典 3 支，再输出坐标+权威水域判定）</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebGroundLakeProbe()
+        {
+            if (Ground==null){ Debug.Log("[Web] GroundLake Ground=null"); return; }
+            if (Time!=null && State.Year>=4949) Time.DebugJumpTo(3000);   // 回公元 0 前=古典时代
+            int m=Ground.DebugBuildOwn(3);
+            Debug.Log("[Web] GroundLake made="+m+" "+Ground.ProbeLake());
+        }
         /// <summary>V9.6.2 浏览器回归：集结与投送链实况（ground/军人投送中数量、机队、兜底复位计数）</summary>
         [UnityEngine.Scripting.Preserve]
         public void WebV962Probe()

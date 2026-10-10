@@ -915,7 +915,10 @@ namespace PixelToCivilization.World
                 float cur=HeightMap[gz,gx];
                 float nv=Mathf.Max(cur,Mathf.Max(-3.2f,lh));
                 HeightMap[gz,gx]=nv;
-                if (nv<GameConstants.WaterLevel){ WaterMap[gz,gx]=1f; if (Biome[gz,gx]==BiomeKind.Default && d<L.Br*0.72f) Biome[gz,gx]=BiomeKind.FreshWater; }
+                // V9.8.6 湖床浅水带标水：湖泊/海岸缓坡带（高度<基准水位+0.5）此前 IsStaticLand 误判为"陆地"，
+                // 导致地面部队生成点/巡航/组阵目标可落在湖里→"生成后被拉扯进大陆湖、困湖卡死无法行动"。
+                // 浅水带一并标记 WaterMap=1（潮汐视觉与陆地判定同时收敛）。
+                if (nv<GameConstants.WaterLevel+0.5f){ WaterMap[gz,gx]=1f; if (Biome[gz,gx]==BiomeKind.Default && d<L.Br*0.72f) Biome[gz,gx]=BiomeKind.FreshWater; }
                 else if (Biome[gz,gx]==BiomeKind.FreshWater) Biome[gz,gx]=BiomeKind.Default;
             }
             // 沙漠（仅新增主大陆）
@@ -1133,6 +1136,9 @@ namespace PixelToCivilization.World
             int gx=Mathf.FloorToInt(x/Tile+G/2f), gz=Mathf.FloorToInt(z/TZ+G/2f);
             if (gx<0||gx>=G||gz<0||gz>=G) return false;
             if (WaterMap[gz,gx]>0.5f) return false;
+            // V9.8.6 湖群系永远不算陆地：湖泊碗体（含旧存档中 WaterMap 未标全的浅水缓坡带）全部排除，
+            // 根治地面部队/人员被"浅水湖床误判陆地"拉进湖中卡死（生成/巡航/组阵/脱困目标不再落在湖里）。
+            if (Biome[gz,gx]==BiomeKind.FreshWater) return false;
             return HeightMap[gz,gx] >= GameConstants.WaterLevel;
         }
         /// <summary>V6.3.6 船只可航行水域：海洋/河流/人工运河均可，但排除被陆地包围的淡水湖(FreshWater)，

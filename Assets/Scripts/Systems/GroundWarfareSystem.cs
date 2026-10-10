@@ -851,5 +851,20 @@ namespace PixelToCivilization.Systems
             sb.Append("]");
             return sb.ToString();
         }
+        /// <summary>V9.8.6 回归：古典/现代部队困湖检测——前 8 单位输出坐标 + 权威水域判定(IsWater 潮汐)+静态陆地判定。
+        /// 验收：W(水中) 计数必须为 0，L(静态陆地) 计数量大；修复前湖床浅水带被判陆地 → 单位 W=0 但实为湖内。</summary>
+        public string ProbeLake()
+        {
+            var sb=new System.Text.StringBuilder();
+            sb.Append("L[");
+            int n=0, wc=0;
+            foreach(var u in Ours){ if(n++>=8) break;
+                bool w = _terrain!=null && _terrain.IsWater(u.X,u.Z);
+                bool l = _terrain!=null && _terrain.IsStaticLand(u.X,u.Z);
+                if(w) wc++;
+                sb.Append(u.TypeId).Append("(").Append(u.X.ToString("F0")).Append(",").Append(u.Z.ToString("F0")).Append(")").Append(w?"W":"L").Append(l?"S":"~").Append(";"); }
+            sb.Append("]").Append("wInWater=").Append(wc);
+            return sb.ToString();
+        }
     }
 }
