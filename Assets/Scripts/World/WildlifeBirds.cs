@@ -57,6 +57,7 @@ namespace PixelToCivilization.World
         readonly List<Flock> _flocks=new();
         readonly List<Bird> _all=new();
         readonly List<Bird> _detachTmp=new();   // V9.8.9 GC优化：离群暂存列表字段复用，杜绝每帧 List 分配
+        float _lifeAt=-999f;    // V9.9.0 P2 生态层节流时间戳（寿命/补员）
         Transform _root;
         Vector3 _home;
         float _range=220f;   // 兜底活动半径
@@ -441,17 +442,25 @@ namespace PixelToCivilization.World
                 if(b.Lod==null||b.Lod.Tick(dt))Flap(b,dt);
                 TryJoin(b);
             }
-            // 寿命（游戏年份）与补充
-            for(int i=_all.Count-1;i>=0;i--)
+            // 寿命（游戏年份）与补充 —— V9.9.0 P2 生态层：AmbientHz 低频节流 + 分级崩溃（异常吞掉不拖垮模拟）
+            if(!PixelToCivilization.Rendering.SimPriority.AmbientTick(ref _lifeAt))
             {
-                var b=_all[i];
-                if(nowYear-b.BirthYear>=b.LifeYears){RemoveBird(b,i);}
+                PixelToCivilization.Rendering.SimPriority.AmbientSkipped++;
+                return;
             }
-            // 维持种群：低于 80 上限则缓慢补群
-            if(_all.Count<MaxBirds*0.7f && Random.value<dt*0.25f && Core.MemoryBudgetManager.EntitySpawnGate(Core.MemoryBudgetManager.EntityKind.Bird,_all.Count))   // V9.7.1 实体上限门控
+            PixelToCivilization.Core.LayeredGuard.Run("WildlifeBirds.Life", PixelToCivilization.Rendering.SimLayer.P2Ambient, () =>
             {
-                if(_flocks.Count<48)SpawnFlock(); else SpawnLone();
-            }
+                for(int i=_all.Count-1;i>=0;i--)
+                {
+                    var b=_all[i];
+                    if(nowYear-b.BirthYear>=b.LifeYears){RemoveBird(b,i);}
+                }
+                // 维持种群：低于 80 上限则缓慢补群
+                if(_all.Count<MaxBirds*0.7f && Random.value<dt*0.25f && Core.MemoryBudgetManager.EntitySpawnGate(Core.MemoryBudgetManager.EntityKind.Bird,_all.Count))   // V9.7.1 实体上限门控
+                {
+                    if(_flocks.Count<48)SpawnFlock(); else SpawnLone();
+                }
+            });
             SeparateBirds(dt);   // V9.4.6 鸟个体体积分离（含孤鸟，4Hz）
         }
 

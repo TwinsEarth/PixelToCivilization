@@ -1467,7 +1467,8 @@ namespace PixelToCivilization.Core
             string t = ModernTraffic!=null ? ModernTraffic.Diagnose() : "no-traffic";
             string i = Intercity!=null ? Intercity.Diagnose() : "no-intercity";
             string st = PixelToCivilization.Rendering.StreamingManager.Report();   // V9.8.9 按需加载：活跃半径/相机分区
-            string s = "[WEB] v963 "+g+" | "+t+" | "+i+" | "+st;
+            string pf = PixelToCivilization.Core.LayeredGuard.Report();            // V9.9.0 算力优先级&分级崩溃：P0/P1/P2 计数+帧耗
+            string s = "[WEB] v963 "+g+" | "+t+" | "+i+" | "+st+" | "+pf;
             Debug.Log(s);
             try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch (System.Exception ex) { Debug.Log("[WEB] eval fail "+ex.Message); }
         }

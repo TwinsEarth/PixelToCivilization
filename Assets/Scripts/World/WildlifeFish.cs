@@ -53,6 +53,7 @@ namespace PixelToCivilization.World
 
         readonly List<School> _schools=new();
         readonly List<Fish> _all=new();
+        float _lifeAt=-999f;    // V9.9.0 P2 生态层节流时间戳（寿命/补员）
         readonly List<Vector3> _waters=new();
         float _sepAt;   // V9.4.6 鱼个体分离节流（4Hz）
         Transform _root;
@@ -394,17 +395,25 @@ namespace PixelToCivilization.World
                 f.Root.position=f.LonePos; f.Root.rotation=Quaternion.LookRotation(f.LoneDir);
                 if(f.Lod==null||f.Lod.Tick(dt))Swim(f,dt); TryJoin(f);
             }
-            // 寿命（游戏年份）
-            for(int i=_all.Count-1;i>=0;i--)
+            // 寿命（游戏年份）—— V9.9.0 P2 生态层：AmbientHz 低频节流 + 分级崩溃（异常吞掉不拖垮模拟）
+            if(!PixelToCivilization.Rendering.SimPriority.AmbientTick(ref _lifeAt))
             {
-                var f=_all[i];
-                if(nowYear-f.BirthYear>=f.LifeYears) RemoveFish(f,i);
+                PixelToCivilization.Rendering.SimPriority.AmbientSkipped++;
+                return;
             }
-            // 缓慢维持种群
-            if(_all.Count<MaxFish*0.7f && Random.value<dt*0.2f && Core.MemoryBudgetManager.EntitySpawnGate(Core.MemoryBudgetManager.EntityKind.Fish,_all.Count))   // V9.7.1 实体上限门控
+            PixelToCivilization.Core.LayeredGuard.Run("WildlifeFish.Life", PixelToCivilization.Rendering.SimLayer.P2Ambient, () =>
             {
-                if(_schools.Count<58) SpawnSchool(); else SpawnLone();
-            }
+                for(int i=_all.Count-1;i>=0;i--)
+                {
+                    var f=_all[i];
+                    if(nowYear-f.BirthYear>=f.LifeYears) RemoveFish(f,i);
+                }
+                // 缓慢维持种群
+                if(_all.Count<MaxFish*0.7f && Random.value<dt*0.2f && Core.MemoryBudgetManager.EntitySpawnGate(Core.MemoryBudgetManager.EntityKind.Fish,_all.Count))   // V9.7.1 实体上限门控
+                {
+                    if(_schools.Count<58) SpawnSchool(); else SpawnLone();
+                }
+            });
             SeparateFish(dt);   // V9.4.6 鱼个体体积分离（含孤鱼，4Hz）
         }
 
