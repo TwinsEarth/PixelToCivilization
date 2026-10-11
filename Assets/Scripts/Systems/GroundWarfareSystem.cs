@@ -127,25 +127,26 @@ namespace PixelToCivilization.Systems
             _matPhalanx = ShaderHelper.Pbr(new Color(0.62f,0.18f,0.15f),0.15f,0.45f,9625,0.4f);
             _matCavalry = ShaderHelper.Pbr(new Color(0.20f,0.34f,0.28f),0.15f,0.45f,9626,0.4f);
 
-            // 现代三型（1949 起）
+            // 现代三型（1949 起）。V9.8.7 速度钳制到用户 V9.6.3 规格（最高 0.10 / 最低 0.01，世界单位=格/秒）：
+            // 此前 1.2~5.0 格/秒高速巡航 → 单位"生成后马上被拉走"、瞬间冲出视野/冲入水域
             Defs["tank"] = new GroundDef{Id="tank",Name="坦克",Icon="🛡",ColorHex="5B7F2B",
-                Speed=3.5f,Durability=180,Attack=40,Defense=20,Range=12,FireInterval=2.4f,Capacity=3,Footprint=3.2f,
+                Speed=0.07f,Durability=180,Attack=40,Defense=20,Range=12,FireInterval=2.4f,Capacity=3,Footprint=3.2f,
                 Rank="装甲营长",Intel=3,CostSteel=120,CostGold=40,Modern=true,Desc="重型装甲突击，高耐久中射程，攻坚主力"};
             Defs["apc"] = new GroundDef{Id="apc",Name="装甲车",Icon="🚐",ColorHex="8A8F7A",
-                Speed=5.0f,Durability=100,Attack=15,Defense=12,Range=8,FireInterval=1.8f,Capacity=8,Footprint=2.8f,
+                Speed=0.10f,Durability=100,Attack=15,Defense=12,Range=8,FireInterval=1.8f,Capacity=8,Footprint=2.8f,
                 Rank="侦察连长",Intel=3,CostSteel=60,CostGold=20,Modern=true,Desc="高速运兵装甲，机动侦察，支援步兵突击"};
             Defs["missile_vehicle"] = new GroundDef{Id="missile_vehicle",Name="导弹车",Icon="🚀",ColorHex="6E4F2B",
-                Speed=2.5f,Durability=120,Attack=70,Defense=10,Range=20,FireInterval=3.5f,Capacity=3,Footprint=3.0f,
+                Speed=0.05f,Durability=120,Attack=70,Defense=10,Range=20,FireInterval=3.5f,Capacity=3,Footprint=3.0f,
                 Rank="导弹营长",Intel=4,CostSteel=100,CostGold=60,Modern=true,Desc="超远程导弹打击，射程 20 格火力压制"};
             // 古典三型（1949 前；木/粮/金列装，不耗钢）
             Defs["cavalry"] = new GroundDef{Id="cavalry",Name="骑兵",Icon="🐎",ColorHex="8B5E3C",
-                Speed=3.2f,Durability=80,Attack=12,Defense=6,Range=2,FireInterval=1.8f,Capacity=1,Footprint=2.1f,
+                Speed=0.09f,Durability=80,Attack=12,Defense=6,Range=2,FireInterval=1.8f,Capacity=1,Footprint=2.1f,
                 Rank="骑兵都尉",Intel=2,CostWood=40,CostGold=10,CostFood=20,Modern=false,Desc="古典高速突击骑兵，机动冲击敌阵"};
             Defs["phalanx"] = new GroundDef{Id="phalanx",Name="列方阵兵",Icon="🛡",ColorHex="C0C0C8",
-                Speed=1.2f,Durability=140,Attack=18,Defense=14,Range=2,FireInterval=2.2f,Capacity=3,Footprint=3.0f,
+                Speed=0.03f,Durability=140,Attack=18,Defense=14,Range=2,FireInterval=2.2f,Capacity=3,Footprint=3.0f,
                 Rank="百夫长",Intel=1,CostWood=20,CostGold=10,CostFood=30,Modern=false,Desc="古典 3 人一组重装方阵，高耐久列阵防守"};
             Defs["chariot"] = new GroundDef{Id="chariot",Name="马拉战车",Icon="🏇",ColorHex="7A5C2E",
-                Speed=2.8f,Durability=100,Attack=15,Defense=8,Range=3,FireInterval=1.9f,Capacity=2,Footprint=2.6f,
+                Speed=0.08f,Durability=100,Attack=15,Defense=8,Range=3,FireInterval=1.9f,Capacity=2,Footprint=2.6f,
                 Rank="战车校尉",Intel=2,CostWood=80,CostGold=30,CostFood=20,Modern=false,Desc="古典马拉战车，冲锋践踏撕裂敌阵"};
 
             var go=new GameObject("GroundWarfare"); go.transform.SetParent(gm.transform,false);
@@ -171,6 +172,9 @@ namespace PixelToCivilization.Systems
                 Capacity=d.Capacity,Footprint=d.Footprint,
                 Rank=d.Rank,Intel=d.Intel,
                 FactionId=factionId,FactionColor=factionColor,
+                // V9.8.7 巡航航点初始化为生成点：防"领队巡逻 24 次未找到陆地航点"时 RX/RZ 保持 (0,0)，
+                // 单位被拉向地图原点（主大陆湖/海域）→"生成后被拉扯进大陆湖"
+                RX=x,RZ=z,
                 AttackCd=0f,GraceT=GraceSeconds
             };
             return u;
@@ -435,8 +439,14 @@ namespace PixelToCivilization.Systems
                 float ang=(idx*360f/Mathf.Max(1,cnt))*Mathf.Deg2Rad;
                 float formR=4f+Mathf.Max(leader.Footprint,u.Footprint);   // 阵型间距随体积
                 float sx=leader.X+Mathf.Sin(ang)*formR, sz=leader.Z+Mathf.Cos(ang)*formR;
-                for(int k=0;k<12&&!_terrain.IsStaticLand(sx,sz);k++)
-                { ang+=0.52f; sx=leader.X+Mathf.Sin(ang)*formR; sz=leader.Z+Mathf.Cos(ang)*formR; }
+                bool slotOk=false;
+                for(int k=0;k<12;k++)
+                {
+                    if(_terrain.IsStaticLand(sx,sz)){ slotOk=true; break; }
+                    ang+=0.52f; sx=leader.X+Mathf.Sin(ang)*formR; sz=leader.Z+Mathf.Cos(ang)*formR;
+                }
+                // V9.8.7 槽位 12 次旋转全在水（湖心/海中）→ 拉向领队本人，绝不走向可能在水里的槽位
+                if(!slotOk){ sx=leader.X; sz=leader.Z; }
                 float ddx=sx-u.X, ddz=sz-u.Z;
                 if(ddx*ddx+ddz*ddz>9f){ MoveToward(u,sx,sz,dt,0.85f); return; }
                 u.HasRoute=true;
@@ -446,10 +456,14 @@ namespace PixelToCivilization.Systems
             if(!u.HasRoute)
             {
                 u.HasRoute=true;
+                bool found=false;
                 for(int k=0;k<24;k++)
                 { float a=Random.value*Mathf.PI*2, rr=20f+Random.value*25f;
                   float nx=u.X+Mathf.Cos(a)*rr, nz=u.Z+Mathf.Sin(a)*rr;
-                  if(_terrain.IsStaticLand(nx,nz)){ u.RX=nx; u.RZ=nz; break; } }
+                  if(_terrain.IsStaticLand(nx,nz)){ u.RX=nx; u.RZ=nz; found=true; break; } }
+                // V9.8.7 24 次全未找到陆地航点（海边浅滩区/被水包围）：原地待命下帧重试，
+                // 绝不拉向 (0,0) 地图原点（主大陆湖/海域）——根治"生成后被拉扯进大陆湖、困湖卡死"
+                if(!found){ u.HasRoute=false; return; }
             }
             float dx=u.RX-u.X,dz=u.RZ-u.Z;
             if(dx*dx+dz*dz<4f){ u.HasRoute=false; return; }
@@ -477,11 +491,12 @@ namespace PixelToCivilization.Systems
         }
 
         // ===== V9.7.2 实际生效参数（类型基础 × 等级成长；属性面板与移动/开火全部读这里，口径唯一）=====
-        /// <summary>实际移动速度（世界单位/秒）= 基础速度 ×(1+8%×(lv-1))。</summary>
+        /// <summary>实际移动速度（世界单位/秒）= 基础速度 ×(1+8%×(lv-1))。
+        /// V9.8.7 钳制：用户 V9.6.3 规格统一最高 0.10 / 最低 0.01（格/秒）；此前 1.2~5.0 高速 = "生成后马上被拉走"主因。</summary>
         public float EffectiveSpeed(GroundUnit u)
         {
             if(u==null) return 0f;
-            return u.BaseSpeed*(1f+LvSpeed*(u.Level-1));
+            return Mathf.Clamp(u.BaseSpeed*(1f+LvSpeed*(u.Level-1)), 0.01f, 0.10f);
         }
         /// <summary>实际雷达/发现距离（格）= 60 ×(1+6%×(lv-1))。</summary>
         public float EffectiveRadar(GroundUnit u)
