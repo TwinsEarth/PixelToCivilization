@@ -1,0 +1,101 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Successfully connected to the License Client on channel: "LicenseClient-fangw" at "2026-10-09T15:13:49.6871684Z"
+[Licensing::Client] Error: Code 10 while verifying Licensing Client signature (process Id: 8772, path: "D:/TJ2022/2022.3.62t14/Editor/Data/Resources/Licensing/Client/Tuanjie.Licensing.Client.exe")
+[Licensing::Module] Error: LicensingClient has failed validation; ignoring
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Ewh6pCqnCeRmOQ==","messageType":"HandshakeRequest","protocolVersion":"1.12","userAgent":"TuanjieEditor/2022.3.62t14 (Windows; U; Windows NT 10.0; zh)","externalCorrelationId":"6839059056741099445"} at 1791558830
+[Licensing::Client] Successfully receive message: {"protocolVersion":"1.12","sessionId":"0a30f28f7d834c8cb80a2f31b0416abe","context":{"DeviceName":"TOFUTURE","DeviceModel":"16Z95P-G.AD78C (LG Electronics)","PhysicalMemoryMB":"32476","SystemLanguageISO":"zh","ProcessorCount":"8","ProcessorType":"11th Gen Intel(R) Core(TM) i7-1195G7 @ 2.90GHz","OperatingSystem":"Windows 10  (10.0.22621) 64bit","OperatingSystemNumeric":"1000","Legacy.MachineBinding1":"00342-20955-21162-AAOEM","Legacy.MachineBinding2":"00523_48_A12141_66.5","Legacy.MachineBinding4":"MjEwTlpSUDAwNDkzNA==","Legacy.MachineBinding5":"78:af:08:bb:b2:6a","EnvironmentUser":"fangw","EnvironmentDomain":"TOFUTURE","EnvironmentHostname":"TOFUTURE"},"assemblyProductVersion":"1.14.0+5d8f2d1","machineId":"fhF0vxawx2/5xMScewSeE8p3du4=","correlationId":"783c51ac0f176f29cef9c87a33916d86","responseCode":200,"responseStatus":"Handshake successful","messageType":"HandshakeResponse"} at 1791558830
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.14.0+5d8f2d1
+  Session Id:              0a30f28f7d834c8cb80a2f31b0416abe
+  Correlation Id:          783c51ac0f176f29cef9c87a33916d86
+  External correlation Id: 6839059056741099445
+  Machine Id:              fhF0vxawx2/5xMScewSeE8p3du4=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-fangw" (connect: 0.00s, validation: 0.14s, handshake: 0.44s)
+[Licensing::IpcConnector] Successfully connected to the License Notification on channel: "LicenseClient-fangw-notifications" at "2026-10-09T15:13:50.2505428Z"
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"1DiumvhbAmGFDA==","messageType":"UpdateLicenseRequest","AccessToken":"","OrgId":"","ProjectId":"","forceUpdateLicense":true} at 1791558830
+[Licensing::Client] Successfully receive message: {"responseCode":200,"responseStatus":"Licenses updated.","messageType":"UpdateLicenseResponse","authorizationCheck":"1DiumvhbAmGFDJU5PPU2GvVJvt9g"} at 1791558831
+[Licensing::Client] Attempt to check time stamp (startTime: 1791558830, endTime: 1791558831)
+[Licensing::Client] Successfully updated license
+Built from 'tuanjie/1.10/staging' branch; Version is '2022.3.62t14 (1f04f7aba499) revision 2032887'; Using compiler version '192829333'; Build Type 'Release'
+OS: 'Windows 11  (10.0.22621) 64bit Core' Language: 'zh' Physical Memory: 32476 MB
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVbSl0m9g==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.legacy.pro","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791558831
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791821632000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVbSl0m9pzEM4wgynJTyqYd"} at 1791558831
+[Licensing::Client] Attempt to check time stamp (startTime: 1791558831, endTime: 1791558831)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Serial number assigned to: "F4-4ZTC-MWXR-KRZN-V5ZS-XXXX"
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1, IsPro: 0
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVbSl0m9g==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.headless","com.unity.editor.ui"],"packageEntitlementIds":[],"includeCustomData":false} at 1791558831
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791821632000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.ui","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVbSl0m9pzEM4wgynJTyqYe"} at 1791558832
+[Licensing::Client] Attempt to check time stamp (startTime: 1791558831, endTime: 1791558832)
+[Licensing::Client] Successfully resolved entitlement details
+
+COMMAND LINE ARGUMENTS:
+D:\TJ2022\2022.3.62t14\Editor\Tuanjie.exe
+-batchmode
+-quit
+-nographics
+-projectPath
+E:\DB\pixel_to_civilization_win\PxC982
+-executeMethod
+PixelToCivilization.EditorTools.WebGLBuilder.BuildCLI
+-logFile
+E:\DB\pixel_to_civilization_win\PxC982\build_v982j.log
+Successfully changed project path to: E:\DB\pixel_to_civilization_win\PxC982
+E:/DB/pixel_to_civilization_win/PxC982
+[Memory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gfx=262144"
+Player connection [7228]  Target information:
+
+Player connection [7228]  * "[IP] 192.168.0.37 [Port] 55504 [Flags] 2 [Guid] 2309321358 [EditorId] 2309321358 [Version] 1048832 [Id] WindowsEditor(7,ToFuture) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [7228] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [7228] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+AS: AutoStreaming module initializing.
+[LiveLink] LiveLink library is loaded successfully. Initializing...
+Begin write certificate to file.
+Write certificate complete, return 1.
+InitScreenManager.StartServer, cert is C:/Users/fangw/AppData/Roaming/Tuanjie/3972-rest-certificate.pem
+Start HTTP server port 38000, HTTPS server port 38443.
+[Package Manager] UpmClient::Connect -- Connected to IPC stream "Upm-3972" after 0.5 seconds.
+ArtifactDBVersion changed from '0x5ce21767' to '0x01b4a447'
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVbSl0m8A==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.ui","com.unity.editor.headless","com.unity.editor.dark-skin","com.unity.editor.disable-splash-screen","com.unity.editor.legacy.embedded","com.unity.editor.legacy.pro","com.unity.editor.platforms.android","com.unity.editor.platforms.android.pro","com.unity.editor.platforms.ios","com.unity.editor.platforms.ios.pro","com.unity.editor.platforms.nintendo3ds","com.unity.editor.platforms.ps4","com.unity.editor.platforms.pzazz","com.unity.editor.platforms.uwp","com.unity.editor.platforms.uwp.pro","com.unity.editor.platforms.vita","com.unity.editor.platforms.xboxone","com.unity.editor.watermarks.disable","com.unity.editor.watermarks.edu","com.unity.editor.watermarks.prototyping","com.unity.editor.watermarks.trial","com.unity.editor.time-limited-license","com.unity.editor.internal-developer","com.unity.tiny","cn.tuanjie.hmirp","com.unity.editor.unity.compliant","com.unity.editor.platforms.minigame","com.unity.editor.watermarks.forcedisable","com.unity.editor.guid.encryption","com.unity.editor.open-harmony.analytics.disabled","com.unity.editor.mini-game.analytics.disabled","com.unity.editor.last.activation.date","com.unity.editor.unity.expiration.2d","com.unity.editor.unity.expiration.7d","com.unity.editor.playableads.watermark","com.unity.editor.android.analytics.enable","com.unity.editor.ios.analytics.enable"],"packageEntitlementIds":[],"includeCustomData":false} at 1791558837
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791821632000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.platforms.android","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.platforms.uwp","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.platforms.minigame","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.platforms.ios","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.guid.encryption","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.ui","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.unity.expiration.2d","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.ios.analytics.enable","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.android.analytics.enable","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.watermarks.forcedisable","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.last.activation.date","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.unity.compliant","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.mini-game.analytics.disabled","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.time-limited-license","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVbSl0m8JzEM4wgyq6tbQ4M"} at 1791558838
+[Licensing::Client] Attempt to check time stamp (startTime: 1791558837, endTime: 1791558838)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVbSl0m/w==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.allow-mix-usage","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791558838
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791821632000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVbSl0m/5zEM4wgygQsLagN"} at 1791558839
+[Licensing::Client] Attempt to check time stamp (startTime: 1791558838, endTime: 1791558839)
+[Licensing::Client] Successfully resolved entitlement details
+Package Manager log level set to [2]

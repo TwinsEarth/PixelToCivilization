@@ -239,13 +239,14 @@ namespace PixelToCivilization.Rendering
         }
     }
 
-    /// <summary>全局 LOD 档位：静态合并网格（地形/植被）远距裁剪与相机空间天气降频。</summary>
+    /// <summary>全局 LOD 档位：静态合并网格（地形/植被）远距裁剪与相机空间天气降频。
+    /// V9.8.7 增：合并网格支持"相机距离按需裁剪"（MaxDist）——远处整块植被隐藏，近处才显示（按需加载）。</summary>
     public static class LODManager
     {
         public static LodTier Global=LodTier.Near;
         static float _timer;
         static Camera _cam;
-        class CullItem{public Renderer R;public int MinTier,MaxTier=(int)LodTier.Near;}
+        class CullItem{public Renderer R;public int MinTier,MaxTier=(int)LodTier.Near;public float MaxDist;}
         static readonly List<CullItem> _cull=new();
 
         public static void RegisterCull(Renderer r,int minTierToShow)
@@ -259,6 +260,12 @@ namespace PixelToCivilization.Rendering
             if(r==null)return;
             _cull.Add(new CullItem{R=r,MinTier=minTier,MaxTier=maxTier});
         }
+        /// <summary>V9.8.7 相机距离按需裁剪：水平距离（x,z）&gt; maxDist 时隐藏该合并网格整块（远树/远草不渲染）。</summary>
+        public static void RegisterCullDist(Renderer r,float maxDist)
+        {
+            if(r==null)return;
+            _cull.Add(new CullItem{R=r,MinTier=(int)LodTier.Far,MaxTier=(int)LodTier.Near,MaxDist=maxDist});
+        }
         public static void ClearCull(){_cull.Clear();}
 
         public static void Recompute(float dt)
@@ -268,10 +275,17 @@ namespace PixelToCivilization.Rendering
             float alt=_cam.transform.position.y;
             Global=alt<130f?LodTier.Near:alt<300f?LodTier.Mid:LodTier.Far;
             int g=(int)Global;
+            var camPos=_cam.transform.position;
             for(int i=_cull.Count-1;i>=0;i--)
             {
                 var it=_cull[i]; if(it.R==null){_cull.RemoveAt(i);continue;}
                 bool show=g>=it.MinTier && g<=it.MaxTier;
+                if(it.MaxDist>0f)
+                {
+                    var b=it.R.bounds;
+                    float dx=camPos.x-b.center.x, dz=camPos.z-b.center.z;
+                    if(Mathf.Sqrt(dx*dx+dz*dz)>it.MaxDist) show=false;   // 距相机过远：整块按需隐藏
+                }
                 if(it.R.enabled!=show)it.R.enabled=show;
             }
         }

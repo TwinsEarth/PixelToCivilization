@@ -1,0 +1,1909 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Successfully connected to the License Client on channel: "LicenseClient-fangw" at "2026-10-09T23:15:37.4849012Z"
+[Licensing::Client] Error: Code 10 while verifying Licensing Client signature (process Id: 2116, path: "D:/TJ2022/2022.3.62t14/Editor/Data/Resources/Licensing/Client/Tuanjie.Licensing.Client.exe")
+[Licensing::Module] Error: LicensingClient has failed validation; ignoring
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Ewh6pCqqBut0WQ==","messageType":"HandshakeRequest","protocolVersion":"1.12","userAgent":"TuanjieEditor/2022.3.61t13 (Windows; U; Windows NT 10.0; zh)","externalCorrelationId":"4336574156522152368"} at 1791587737
+[Licensing::Client] Successfully receive message: {"protocolVersion":"1.12","sessionId":"bd4d8a35af9c431e8e81c4e000145f6e","context":{"DeviceName":"TOFUTURE","DeviceModel":"16Z95P-G.AD78C (LG Electronics)","PhysicalMemoryMB":"32476","SystemLanguageISO":"zh","ProcessorCount":"8","ProcessorType":"11th Gen Intel(R) Core(TM) i7-1195G7 @ 2.90GHz","OperatingSystem":"Windows 10  (10.0.22621) 64bit","OperatingSystemNumeric":"1000","Legacy.MachineBinding1":"00342-20955-21162-AAOEM","Legacy.MachineBinding2":"00523_48_A12141_66.5","Legacy.MachineBinding4":"MjEwTlpSUDAwNDkzNA==","Legacy.MachineBinding5":"78:af:08:bb:b2:6a","EnvironmentUser":"fangw","EnvironmentDomain":"TOFUTURE","EnvironmentHostname":"TOFUTURE"},"assemblyProductVersion":"1.14.0+5d8f2d1","machineId":"fhF0vxawx2/5xMScewSeE8p3du4=","correlationId":"6646f91f99d8d64e6f046ac7f0c6d228","responseCode":200,"responseStatus":"Handshake successful","messageType":"HandshakeResponse"} at 1791587737
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.14.0+5d8f2d1
+  Session Id:              bd4d8a35af9c431e8e81c4e000145f6e
+  Correlation Id:          6646f91f99d8d64e6f046ac7f0c6d228
+  External correlation Id: 4336574156522152368
+  Machine Id:              fhF0vxawx2/5xMScewSeE8p3du4=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-fangw" (connect: 0.00s, validation: 0.02s, handshake: 0.08s)
+[Licensing::IpcConnector] Successfully connected to the License Notification on channel: "LicenseClient-fangw-notifications" at "2026-10-09T23:15:37.5851198Z"
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"1DiumvhWDW6oqA==","messageType":"UpdateLicenseRequest","AccessToken":"","OrgId":"","ProjectId":"","forceUpdateLicense":true} at 1791587737
+[Licensing::Client] Successfully receive message: {"responseCode":200,"responseStatus":"Licenses updated.","messageType":"UpdateLicenseResponse","authorizationCheck":"1DiumvhWDW6oqEXsf9b3pa0VJvLr"} at 1791587738
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587737, endTime: 1791587738)
+[Licensing::Client] Successfully updated license
+Built from 'tuanjie/1.6/staging' branch; Version is '2022.3.61t13 (e6e6a3640b39) revision 15132323'; Using compiler version '192829333'; Build Type 'Release'
+OS: 'Windows 11  (10.0.22621) 64bit Core' Language: 'zh' Physical Memory: 32476 MB
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJaaw==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.legacy.pro","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587738
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJaa0oGDjYUeuC/F2LF"} at 1791587738
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587738, endTime: 1791587738)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Serial number assigned to: "F4-4ZTC-MWXR-KRZN-V5ZS-XXXX"
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1, IsPro: 0
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJaaw==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.headless","com.unity.editor.ui"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587738
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.ui","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJaa0oGDjYUeuC/F2LF"} at 1791587738
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587738, endTime: 1791587738)
+[Licensing::Client] Successfully resolved entitlement details
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Tuanjie.exe
+-batchmode
+-quit
+-projectPath
+E:\DB\pixel_to_civilization_win\PxC982
+-executeMethod
+PixelToCivilization.EditorTools.WebGLBuilder.BuildCLI
+-logFile
+E:\DB\pixel_to_civilization_win\PxC982\build_v983a.log
+Successfully changed project path to: E:\DB\pixel_to_civilization_win\PxC982
+E:/DB/pixel_to_civilization_win/PxC982
+[Memory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gfx=262144"
+Player connection [15516]  Target information:
+
+Player connection [15516]  * "[IP] 192.168.0.37 [Port] 55504 [Flags] 2 [Guid] 673185102 [EditorId] 673185102 [Version] 1048832 [Id] WindowsEditor(7,ToFuture) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [15516] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [15516] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+AS: AutoStreaming module initializing.
+Begin write certificate to file.
+Write certificate complete, return 1.
+StartServer, cert is C:/Users/fangw/AppData/Roaming/Tuanjie/15652-rest-certificate.pem
+Start HTTP server port 38000, HTTPS server port 38443.
+[Package Manager] UpmClient::Connect -- Connected to IPC stream "Upm-15652" after 0.4 seconds.
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJaag==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.last.activation.date","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587739
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.last.activation.date","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJaakoGDjYUejko8y46"} at 1791587739
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587739, endTime: 1791587739)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJaag==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.disable-splash-screen","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587739
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJaakoGDjYUejko8y46"} at 1791587739
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587739, endTime: 1791587739)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJaag==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.allow-mix-usage","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587739
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJaakoGDjYUejko8y46"} at 1791587739
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587739, endTime: 1791587739)
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJaag==","messageType":"EntitlementDetailsRequest","entitlementIds":[],"packageEntitlementIds":["cn.tuanjie.codely.bridge","com.unity.burst","com.unity.mathematics","com.unity.render-pipelines.core","com.unity.render-pipelines.universal","com.unity.shadergraph","com.unity.toolchain.win-x86_64-linux-x86_64","com.unity.ugui","com.unity.visualeffectgraph","com.unity.modules.ai","com.unity.modules.animation","com.unity.modules.audio","com.unity.modules.cloth","com.unity.modules.imageconversion","com.unity.modules.imgui","com.unity.modules.jsonserialize","com.unity.modules.particlesystem","com.unity.modules.physics","com.unity.modules.terrain","com.unity.modules.terrainphysics","com.unity.modules.ui","com.unity.modules.uielements","com.unity.modules.umbra","com.unity.modules.unitywebrequest","com.unity.modules.vehicles","com.unity.modules.wind","com.unity.sysroot","com.unity.sysroot.linux-x86_64","com.unity.searcher","com.unity.render-pipelines.universal-config","com.unity.ext.nunit"],"includeCustomData":false} at 1791587739
+[Licensing::Client] Successfully receive message: {"freeEntitlementIds":["cn.tuanjie.codely.bridge","com.unity.burst","com.unity.mathematics","com.unity.render-pipelines.core","com.unity.render-pipelines.universal","com.unity.shadergraph","com.unity.toolchain.win-x86_64-linux-x86_64","com.unity.ugui","com.unity.visualeffectgraph","com.unity.modules.ai","com.unity.modules.animation","com.unity.modules.audio","com.unity.modules.cloth","com.unity.modules.imageconversion","com.unity.modules.imgui","com.unity.modules.jsonserialize","com.unity.modules.particlesystem","com.unity.modules.physics","com.unity.modules.terrain","com.unity.modules.terrainphysics","com.unity.modules.ui","com.unity.modules.uielements","com.unity.modules.umbra","com.unity.modules.unitywebrequest","com.unity.modules.vehicles","com.unity.modules.wind","com.unity.sysroot","com.unity.sysroot.linux-x86_64","com.unity.searcher","com.unity.render-pipelines.universal-config","com.unity.ext.nunit"],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 0 entitlement groups and 31 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJaakoGDjYUejko8ykz"} at 1791587740
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587739, endTime: 1791587740)
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 31 packages:
+  Packages from [https://packages.tuanjie.cn]:
+    cn.tuanjie.codely.bridge@1.0.78 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\cn.tuanjie.codely.bridge@1.0.78)
+    com.unity.burst@1.8.30-t2 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.burst@1.8.30-t2)
+    com.unity.mathematics@1.3.2 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.mathematics@1.3.2)
+    com.unity.toolchain.win-x86_64-linux-x86_64@2.1.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.toolchain.win-x86_64-linux-x86_64@2.1.0)
+    com.unity.sysroot@2.1.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.sysroot@2.1.0)
+    com.unity.sysroot.linux-x86_64@2.1.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.sysroot.linux-x86_64@2.1.0)
+    com.unity.searcher@4.9.2 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.searcher@4.9.2)
+    com.unity.ext.nunit@1.0.6 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.ext.nunit@1.0.6)
+  Built-in packages:
+    com.unity.ugui@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.ugui@1.0.0)
+    com.unity.modules.ai@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.ai@1.0.0)
+    com.unity.modules.animation@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.animation@1.0.0)
+    com.unity.modules.audio@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.audio@1.0.0)
+    com.unity.modules.cloth@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.cloth@1.0.0)
+    com.unity.modules.imageconversion@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.imageconversion@1.0.0)
+    com.unity.modules.imgui@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.imgui@1.0.0)
+    com.unity.modules.jsonserialize@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.jsonserialize@1.0.0)
+    com.unity.modules.particlesystem@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.particlesystem@1.0.0)
+    com.unity.modules.physics@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.physics@1.0.0)
+    com.unity.modules.terrain@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.terrain@1.0.0)
+    com.unity.modules.terrainphysics@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.terrainphysics@1.0.0)
+    com.unity.modules.ui@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.ui@1.0.0)
+    com.unity.modules.uielements@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.uielements@1.0.0)
+    com.unity.modules.umbra@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.umbra@1.0.0)
+    com.unity.modules.unitywebrequest@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.unitywebrequest@1.0.0)
+    com.unity.modules.vehicles@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.vehicles@1.0.0)
+    com.unity.modules.wind@1.0.0 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.modules.wind@1.0.0)
+    com.unity.render-pipelines.universal-config@14.0.10 (location: E:\DB\pixel_to_civilization_win\PxC982\Library\PackageCache\com.unity.render-pipelines.universal-config@14.0.10)
+  Embedded packages:
+    com.unity.render-pipelines.core@file:E:\DB\pixel_to_civilization_win\PxC982\Packages\com.unity.render-pipelines.core (location: E:\DB\pixel_to_civilization_win\PxC982\Packages\com.unity.render-pipelines.core)
+    com.unity.render-pipelines.universal@file:E:\DB\pixel_to_civilization_win\PxC982\Packages\com.unity.render-pipelines.universal (location: E:\DB\pixel_to_civilization_win\PxC982\Packages\com.unity.render-pipelines.universal)
+    com.unity.shadergraph@file:E:\DB\pixel_to_civilization_win\PxC982\Packages\com.unity.shadergraph (location: E:\DB\pixel_to_civilization_win\PxC982\Packages\com.unity.shadergraph)
+    com.unity.visualeffectgraph@file:E:\DB\pixel_to_civilization_win\PxC982\Packages\com.unity.visualeffectgraph (location: E:\DB\pixel_to_civilization_win\PxC982\Packages\com.unity.visualeffectgraph)
+[Subsystems] No new subsystems found in resolved package list.
+Package Manager log level set to [2]
+[Package Manager] Done registering packages in 1.78 seconds
+Refreshing native plugins compatible for Editor in 23.48 ms, found 7 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Initialize engine version: 2022.3.61t13 (e6e6a3640b39)
+[Subsystems] Discovering subsystems at path C:/Program Files/Tuanjie/Hub/Editor/2022.3.61t13/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path E:/DB/pixel_to_civilization_win/PxC982/Assets
+GfxDevice: creating device client; threaded=0; jobified=0
+Direct3D:
+    Version:  Direct3D 11.0 [level 11.1]
+    Renderer: Intel(R) Iris(R) Xe Graphics (ID=0x9a49)
+    Vendor:   Intel
+    VRAM:     16238 MB
+    Driver:   32.0.101.7088
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJdYQ==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.cluster","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587742
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJdYUoGDjYUejjlpK5v"} at 1791587742
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587742, endTime: 1791587742)
+[Licensing::Client] Successfully resolved entitlement details
+Initialize mono
+Mono path[0] = 'C:/Program Files/Tuanjie/Hub/Editor/2022.3.61t13/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Tuanjie/Hub/Editor/2022.3.61t13/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Tuanjie/Hub/Editor/2022.3.61t13/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=0.0.0.0:56652
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+ImportWorker Server TCP listen port: 0
+Begin MonoManager ReloadAssembly
+Registering precompiled tuanjie dll's ...
+Register platform support module: C:/Program Files/Tuanjie/Hub/Editor/2022.3.61t13/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
+Register platform support module: C:/Program Files/Tuanjie/Hub/Editor/2022.3.61t13/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Registered in 0.015963 seconds.
+- Loaded All Assemblies, in  0.565 seconds
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJdYA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.minigame.subplatform.wechat","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587743
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.minigame.subplatform.wechat","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJdYEoGDjYUeiuvWz6A"} at 1791587743
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587743, endTime: 1791587743)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJdYA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.minigame.subplatform.douyin","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587743
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.minigame.subplatform.douyin","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJdYEoGDjYUeiuvWz6A"} at 1791587743
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587743, endTime: 1791587743)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJdYA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.minigame.subplatform.kuaishou","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587743
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.minigame.subplatform.kuaishou","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJdYEoGDjYUeiuvWz6A"} at 1791587743
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587743, endTime: 1791587743)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJdYA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.minigame.subplatform.minihost","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587743
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.minigame.subplatform.minihost","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJdYEoGDjYUeiuvWz6A"} at 1791587743
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587743, endTime: 1791587743)
+[Licensing::Client] Successfully resolved entitlement details
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.698 seconds
+Domain Reload Profiling: 1261ms
+	BeginReloadAssembly (215ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (0ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (1ms)
+	RebuildCommonClasses (45ms)
+	RebuildNativeTypeToScriptingClass (14ms)
+	initialDomainReloadingComplete (81ms)
+	LoadAllAssembliesAndSetupDomain (206ms)
+		LoadAssemblies (214ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (202ms)
+			TypeCache.Refresh (200ms)
+				TypeCache.ScanAssembly (180ms)
+			ScanForSourceGeneratedMonoScriptInfo (0ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (699ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (635ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (22ms)
+			SetLoadedEditorAssemblies (8ms)
+			RefreshPlugins (0ms)
+			BeforeProcessingInitializeOnLoad (2ms)
+			ProcessInitializeOnLoadAttributes (574ms)
+			ProcessInitializeOnLoadMethodAttributes (28ms)
+			AfterProcessingInitializeOnLoad (0ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (0ms)
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJdYA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.legacy.pro","com.unity.editor.watermarks.disable","com.unity.editor.watermarks.prototyping","com.unity.editor.watermarks.edu","com.unity.editor.watermarks.trial","com.unity.editor.time-limited-license","com.unity.editor.cluster","com.unity.editor.unity.compliant","com.unity.editor.watermarks.forcedisable","com.unity.editor.open-harmony.analytics.disabled","com.unity.editor.mini-game.analytics.disabled","com.unity.editor.unity.expiration.2d","com.unity.editor.unity.expiration.7d","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587743
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.unity.expiration.2d","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.watermarks.forcedisable","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.unity.compliant","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.mini-game.analytics.disabled","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.time-limited-license","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJdYEoGDjYUeiuvWz6A"} at 1791587743
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587743, endTime: 1791587743)
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[ScriptCompilation] Requested script compilation because: Assetdatabase observed changes in script compilation related files
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:80
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: E:\DB\pixel_to_civilization_win\PxC982\
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 57.5747ms
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\bee_backend.exe --dont-print-to-structured-log --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+ExitCode: 4 Duration: 0s97ms
+[             ] Require frontend run.  Library/Bee/2000b0aE.dag couldn't be loaded
+DisplayProgressbar: Compiling Scripts
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\Tools\netcorerun\netcorerun.exe "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\Tools\BuildPipeline\ScriptCompilationBuildProgram.exe" "Library/Bee/2000b0aE.dag.json" "Library/Bee/2000b0aE-inputdata.json" "Library\Bee\buildprogram0.traceevents"
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+ExitCode: 0 Duration: 0s897ms
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\bee_backend.exe --dont-print-to-structured-log --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aE.dag" --continue-on-failure --dagfilejson="Library\Bee\2000b0aE.dag.json" --profile="Library/Bee/backend2.traceevents" ScriptAssemblies
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.runtime.interopservices.windowsruntime has duplicate hint path. Ignoring "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\TuanjieReferenceAssemblies\tuanjie-4.8-api\Facades\System.Runtime.InteropServices.WindowsRuntime.dll" in favor of "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\NetStandard\Extensions\2.0.0\System.Runtime.InteropServices.WindowsRuntime.dll"
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.componentmodel.composition has duplicate hint path. Ignoring "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\TuanjieReferenceAssemblies\tuanjie-4.8-api\System.ComponentModel.Composition.dll" in favor of "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\NetStandard\compat\2.1.0\shims\netfx\System.ComponentModel.Composition.dll"
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved Unity.Burst.Cecil, Version=0.11.6.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e with Library\PackageCache\com.unity.burst@1.8.30-t2\Unity.Burst.CodeGen\Unity.Burst.Cecil.dll
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors application/grpc - - 200 - application/grpc 1028.7887ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Shaders.dll, with 116 defines and 195 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 307.7131ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Runtime.dll, with 119 defines and 201 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.dll, with 116 defines and 195 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved Unity.Burst.Cecil.Rocks, Version=0.11.6.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e with Library\PackageCache\com.unity.burst@1.8.30-t2\Unity.Burst.CodeGen\Unity.Burst.Cecil.Rocks.dll
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 1152.8869ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.dll, with 116 defines and 195 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 19.2348ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Config.Runtime.dll, with 116 defines and 196 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 18.4729ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipeline.Universal.ShaderLibrary.dll, with 116 defines and 196 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll, with 116 defines and 195 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 22.1897ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Runtime.dll, with 116 defines and 195 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 127.6366ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 145.0589ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.ShaderLibrary.dll, with 116 defines and 195 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Runtime.dll, with 120 defines and 195 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 123.1378ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 77.3917ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/UnityEngine.UI.dll, with 119 defines and 193 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 8.2042ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.2D.Internal.dll, with 116 defines and 195 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 66.7050ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Editor.dll, with 115 defines and 228 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 60.6786ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Sysroot.Linux_x86_64.dll, with 114 defines and 225 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 6.1757ms
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.Editor.dll, with 114 defines and 225 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/UnityTcp.Editor.dll, with 114 defines and 227 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Toolchain.Win-x86_64-Linux-x86_64.dll, with 114 defines and 226 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 61.5304ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 606.2361ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 624.0589ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.Editor.dll, with 114 defines and 225 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.SysrootPackage.Editor.dll, with 114 defines and 224 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Cn.Tuanjie.Codely.Editor.dll, with 114 defines and 225 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 539.0199ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 539.4033ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Codely.Common.dll, with 114 defines and 224 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 10.2600ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Searcher.Editor.dll, with 114 defines and 224 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Utilities.dll, with 114 defines and 224 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 1233.6819ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 14.1698ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Editor.dll, with 115 defines and 226 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/UnityEditor.UI.dll, with 116 defines and 223 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 126.4602ms
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 242.0630ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 459.9813ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 4899.0327ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Editor.dll, with 115 defines and 226 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 8.8529ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Editor.dll, with 115 defines and 231 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 5.2079ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/PPv2URPConverters.dll, with 114 defines and 228 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 6.5018ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.dll, with 116 defines and 217 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp-Editor.dll, with 114 defines and 250 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 13.8007ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 175.4289ms
+ExitCode: 0 Duration: 30s
+Finished compiling graph: 440 nodes, 4956 flattened edges (4102 ToBuild, 62 ToUse), maximum node priority 396
+[ 81/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityEngine.UI.UnityAdditionalFile.txt
+[ 97/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityEngine.UI.rsp2
+[ 98/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityEditor.UI.UnityAdditionalFile.txt
+[ 99/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityEditor.UI.dll.mvfrm.rsp
+[100/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityEditor.UI.rsp2
+[102/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityEngine.UI.rsp
+[103/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityEngine.UI.dll.mvfrm.rsp
+[104/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityEditor.UI.rsp
+[105/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Runtime.UnityAdditionalFile.txt
+[106/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Runtime.rsp2
+[107/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.UnityAdditionalFile.txt
+[108/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.rsp
+[109/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.rsp2
+[110/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Runtime.dll.mvfrm.rsp
+[111/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Runtime.rsp
+[112/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Editor.rsp2
+[113/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.CodeGen.UnityAdditionalFile.txt
+[114/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Editor.UnityAdditionalFile.txt
+[115/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.CodeGen.rsp2
+[116/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Searcher.Editor.UnityAdditionalFile.txt
+[117/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Searcher.Editor.rsp2
+[118/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Utilities.UnityAdditionalFile.txt
+[119/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Editor.dll.mvfrm.rsp
+[120/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Editor.rsp
+[121/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Utilities.rsp2
+[122/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Searcher.Editor.dll.mvfrm.rsp
+[123/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.rsp2
+[124/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Searcher.Editor.rsp
+[125/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.UnityAdditionalFile.txt
+[126/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Utilities.rsp
+[127/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Utilities.dll.mvfrm.rsp
+[128/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Editor.rsp2
+[129/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.dll.mvfrm.rsp
+[130/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.2D.Internal.UnityAdditionalFile.txt
+[131/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipeline.Universal.ShaderLibrary.UnityAdditionalFile.txt
+[132/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipeline.Universal.ShaderLibrary.rsp2
+[133/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.2D.Internal.rsp2
+[139/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Config.Runtime.rsp2
+[140/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Editor.UnityAdditionalFile.txt
+[141/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.dll.mvfrm.rsp
+[142/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Runtime.UnityAdditionalFile.txt
+[143/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Runtime.rsp2
+[144/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.rsp
+[145/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.CodeGen.dll.mvfrm.rsp
+[146/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipeline.Universal.ShaderLibrary.dll.mvfrm.rsp
+[147/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.2D.Internal.dll.mvfrm.rsp
+[148/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Editor.dll.mvfrm.rsp
+[149/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Config.Runtime.dll.mvfrm.rsp
+[150/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.CodeGen.rsp
+[151/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.2D.Internal.rsp
+[152/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Editor.rsp
+[153/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Runtime.dll.mvfrm.rsp
+[154/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipeline.Universal.ShaderLibrary.rsp
+[155/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Config.Runtime.rsp
+[156/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Config.Runtime.UnityAdditionalFile.txt
+[157/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Runtime.rsp
+[158/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Runtime.UnityAdditionalFile.txt
+[159/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.SysrootPackage.Editor.dll.mvfrm.rsp
+[160/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Runtime.rsp2
+[161/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Editor.UnityAdditionalFile.txt
+[162/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.Editor.rsp2
+[163/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.Editor.UnityAdditionalFile.txt
+[164/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.SysrootPackage.Editor.rsp
+[165/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.Editor.rsp2
+[166/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Runtime.dll.mvfrm.rsp
+[167/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.Editor.UnityAdditionalFile.txt
+[168/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Runtime.rsp
+[169/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.Editor.dll.mvfrm.rsp
+[170/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.Editor.dll.mvfrm.rsp
+[171/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Editor.dll.mvfrm.rsp
+[172/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Codely.Common.UnityAdditionalFile.txt
+[173/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.SysrootPackage.Editor.rsp2
+[174/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Codely.Common.rsp2
+[175/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.Editor.rsp
+[176/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Sysroot.Linux_x86_64.UnityAdditionalFile.txt
+[177/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.Editor.rsp
+[178/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Editor.rsp
+[179/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Sysroot.Linux_x86_64.rsp2
+[180/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Codely.Common.dll.mvfrm.rsp
+[181/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Editor.UnityAdditionalFile.txt
+[182/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Sysroot.Linux_x86_64.dll.mvfrm.rsp
+[183/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.SysrootPackage.Editor.UnityAdditionalFile.txt
+[184/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Codely.Common.rsp
+[185/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/4747638433968585886.rsp
+[186/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Sysroot.Linux_x86_64.rsp
+[187/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Editor.rsp2
+[188/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Cn.Tuanjie.Codely.Editor.UnityAdditionalFile.txt
+[189/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Cn.Tuanjie.Codely.Editor.rsp2
+[190/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Cn.Tuanjie.Codely.Editor.dll.mvfrm.rsp
+[191/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.ShaderLibrary.UnityAdditionalFile.txt
+[192/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Editor.rsp
+[193/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Cn.Tuanjie.Codely.Editor.rsp
+[194/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.UnityAdditionalFile.txt
+[195/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Toolchain.Win-x86_64-Linux-x86_64.UnityAdditionalFile.txt
+[196/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityTcp.Editor.UnityAdditionalFile.txt
+[197/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.rsp2
+[198/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Shaders.UnityAdditionalFile.txt
+[199/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityTcp.Editor.rsp2
+[200/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Toolchain.Win-x86_64-Linux-x86_64.rsp2
+[201/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Shaders.rsp2
+[202/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll.mvfrm.rsp
+[203/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Toolchain.Win-x86_64-Linux-x86_64.dll.mvfrm.rsp
+[204/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Shaders.rsp
+[205/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityTcp.Editor.dll.mvfrm.rsp
+[206/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Shaders.dll.mvfrm.rsp
+[207/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.ShaderLibrary.dll.mvfrm.rsp
+[208/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Editor.dll.mvfrm.rsp
+[209/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.Toolchain.Win-x86_64-Linux-x86_64.rsp
+[210/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.ShaderLibrary.rsp
+[211/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/UnityTcp.Editor.rsp
+[212/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.rsp
+[213/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.ShaderLibrary.rsp2
+[214/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/PPv2URPConverters.rsp2
+[215/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/PPv2URPConverters.dll.mvfrm.rsp
+[216/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/PPv2URPConverters.rsp
+[217/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/PPv2URPConverters.UnityAdditionalFile.txt
+[218/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.UnityAdditionalFile.txt
+[219/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.rsp2
+[220/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.dll.mvfrm.rsp
+[221/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/16991194940733997725.rsp
+[222/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/12783842955110642247.rsp
+[223/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/3037372816226278216.rsp
+[224/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/628646688752965343.rsp
+[225/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/1785922449084373292.rsp
+[226/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp-Editor.UnityAdditionalFile.txt
+[227/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp-Editor.dll.mvfrm.rsp
+[228/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.rsp
+[229/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp-Editor.rsp2
+[230/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp-Editor.rsp
+[231/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/9138376835669937927.rsp
+[232/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/12176746820506266677.rsp
+[233/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/10746227388266335481.rsp
+[234/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/4791036871885797247.rsp
+[235/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/13928283897259147783.rsp
+[236/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/2359241780799432324.rsp
+[237/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/11777448413204399724.rsp
+[238/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/8824286945966794202.rsp
+[239/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/7668679593555154362.rsp
+[240/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/8618721156627110911.rsp
+[241/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/85834358619079495.rsp
+[242/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/16148781348983234511.rsp
+[243/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/3048475396556682832.rsp
+[244/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/4254347875206450264.rsp
+[245/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/6675480975834226854.rsp
+[246/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/5674956039949290316.rsp
+[247/437    0s] WriteText Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Editor.rsp2
+[248/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/10017656952941242526.rsp
+[249/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/1317364399733402406.rsp
+[250/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/4239244781479931187.rsp
+[251/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/8070994851108164409.rsp
+[252/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/16904749478697258018.rsp
+[253/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/7013743738914867227.rsp
+[254/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/8330621126963511463.rsp
+[255/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/8542837875481535423.rsp
+[256/437    0s] WriteResponseFile Library/Bee/artifacts/rsp/1626365193864338622.rsp
+[257/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/UnityEngine.UI.dll.mvfrm
+[258/437    2s] Csc Library/Bee/artifacts/2000b0aE.dag/UnityEngine.UI.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/UnityEngine.UI.dll (+2 others) [CacheWrite ]
+[259/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEngine.UI.ref.dll_7A28423D4A766FDA.mvfrm
+[260/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/UnityEditor.UI.dll.mvfrm
+[261/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/UnityEditor.UI.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/UnityEditor.UI.dll (+2 others) [CacheWrite ]
+[262/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityEditor.UI.ref.dll_BDC26BE24454476F.mvfrm
+[263/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.2D.Internal.dll.mvfrm
+[264/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.Searcher.Editor.dll.mvfrm
+[265/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.dll.mvfrm
+[266/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Runtime.dll.mvfrm
+[267/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Utilities.dll.mvfrm
+[268/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.SysrootPackage.Editor.dll.mvfrm
+[269/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Runtime.dll.mvfrm
+[270/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.dll.mvfrm
+[271/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.2D.Internal.dll (+2 others)
+[272/437    1s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Searcher.Editor.dll (+2 others)
+[273/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Utilities.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Searcher.Editor.dll (+2 others) [CacheWrite ]
+[           1s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Utilities.dll (+2 others) [CacheWrite ]
+[274/437    2s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Runtime.dll (+2 others)
+[275/437    2s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.SysrootPackage.Editor.dll (+2 others)
+[276/437    1s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Searcher.Editor.ref.dll_0B020369C2B9D134.mvfrm
+[277/437    3s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Runtime.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Runtime.dll (+2 others) [CacheWrite ]
+[278/437    3s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.dll (+2 others)
+[           1s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.SysrootPackage.Editor.dll (+2 others) [CacheWrite ]
+[279/437    1s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.ShaderGraph.Utilities.ref.dll_51678CFD4C3F7803.mvfrm
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.dll (+2 others) [CacheWrite ]
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Runtime.dll (+2 others) [CacheWrite ]
+[280/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Codely.Common.dll.mvfrm
+[281/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.VisualEffectGraph.Runtime.ref.dll_E48397BB468984A5.mvfrm
+[282/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.SysrootPackage.Editor.ref.dll_9E0122523FBA1972.mvfrm
+[283/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Cn.Tuanjie.Codely.Editor.dll.mvfrm
+[284/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Burst.ref.dll_75A67EE1951F90CE.mvfrm
+[285/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipelines.Core.Runtime.ref.dll_CF30EDBCD4D1A604.mvfrm
+[286/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.ShaderLibrary.dll.mvfrm
+[287/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.Sysroot.Linux_x86_64.dll.mvfrm
+[288/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/UnityTcp.Editor.dll.mvfrm
+[289/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Codely.Common.dll (+2 others)
+[290/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.CodeGen.dll.mvfrm
+[291/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Editor.dll.mvfrm
+[292/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipeline.Universal.ShaderLibrary.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Codely.Common.dll (+2 others) [CacheWrite ]
+[293/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Config.Runtime.dll.mvfrm
+[           4s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.2D.Internal.dll (+2 others) [CacheWrite ]
+[294/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.Editor.dll.mvfrm
+[295/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipelines.Universal.2D.Internal.ref.dll_549AA65E60DE9511.mvfrm
+[296/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipeline.Universal.ShaderLibrary.dll (+2 others)
+[297/437    1s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.CodeGen.dll (+2 others)
+[298/437    1s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Config.Runtime.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipeline.Universal.ShaderLibrary.dll (+2 others) [CacheWrite ]
+[299/437    6s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.CodeGen.dll (+2 others) [CacheWrite ]
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Config.Runtime.dll (+2 others) [CacheWrite ]
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.dll (+2 others) [CacheWrite ]
+[300/437    1s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Editor.dll (+2 others)
+[301/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipeline.Universal.ShaderLibrary.ref.dll_E247BC73EF2948C5.mvfrm
+[302/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipelines.Universal.Config.Runtime.ref.dll_A3C85FC5BF68AEBA.mvfrm
+[303/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Mathematics.ref.dll_9B4CF66C9079F0F4.mvfrm
+[304/437    1s] Csc Library/Bee/artifacts/2000b0aE.dag/Cn.Tuanjie.Codely.Editor.dll (+2 others)
+[305/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Editor.dll (+2 others) [CacheWrite ]
+[306/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Runtime.dll.mvfrm
+[307/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Shaders.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Cn.Tuanjie.Codely.Editor.dll (+2 others) [CacheWrite ]
+[308/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.Editor.dll.mvfrm
+[309/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipelines.Core.Editor.ref.dll_DCDF94754BA77937.mvfrm
+[310/437    1s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[311/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Shaders.dll (+2 others)
+[312/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Editor.dll.mvfrm
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Shaders.dll (+2 others) [CacheWrite ]
+[313/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.Editor.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.Editor.dll (+2 others) [CacheWrite ]
+[314/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll (+2 others)
+[315/437    1s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Mathematics.Editor.ref.dll_64944B6DD477E1FD.mvfrm
+[316/437    1s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Sysroot.Linux_x86_64.dll (+2 others)
+[317/437    2s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Runtime.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Sysroot.Linux_x86_64.dll (+2 others) [CacheWrite ]
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Runtime.dll (+2 others) [CacheWrite ]
+[318/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipelines.Universal.Shaders.ref.dll_2EC7FF2F52ED0106.mvfrm
+[319/437    1s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Sysroot.Linux_x86_64.ref.dll_37DB98B07DDE4079.mvfrm
+[320/437    1s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipelines.Universal.Runtime.ref.dll_EE5FEFE6147E65D0.mvfrm
+[321/437    6s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.Editor.dll (+2 others)
+[322/437    1s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipelines.Universal.Shaders.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Shaders.dll, with 116 defines and 195 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[323/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.Toolchain.Win-x86_64-Linux-x86_64.dll.mvfrm
+[324/437    4s] Csc Library/Bee/artifacts/2000b0aE.dag/UnityTcp.Editor.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/UnityTcp.Editor.dll (+2 others) [CacheWrite ]
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.Editor.dll (+2 others) [CacheWrite ]
+[325/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Toolchain.Win-x86_64-Linux-x86_64.dll (+2 others)
+[326/437    4s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Editor.dll (+2 others)
+[327/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/UnityTcp.Editor.ref.dll_9224D4B249FF0106.mvfrm
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.Toolchain.Win-x86_64-Linux-x86_64.dll (+2 others) [CacheWrite ]
+[328/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Burst.Editor.ref.dll_030BCB777AA5BDC3.mvfrm
+[329/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.ShaderLibrary.dll (+2 others)
+[330/437    1s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipelines.Universal.Runtime.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Runtime.dll, with 119 defines and 201 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Editor.dll (+2 others) [CacheWrite ]
+[           4s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll (+2 others) [CacheWrite ]
+[331/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.Mathematics.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.dll, with 116 defines and 195 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[332/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.Toolchain.Win-x86_64-Linux-x86_64.ref.dll_BCAA9FBF948D0DCE.mvfrm
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.ShaderLibrary.dll (+2 others) [CacheWrite ]
+[333/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipelines.Universal.Config.Runtime.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Config.Runtime.dll, with 116 defines and 196 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[334/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.ShaderGraph.Editor.ref.dll_D9C390C28F91CC8A.mvfrm
+[335/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.ref.dll_8B66DE12A280B752.mvfrm
+[336/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll, with 116 defines and 195 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[337/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipelines.Core.ShaderLibrary.ref.dll_E399BB15452351D2.mvfrm
+[338/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipeline.Universal.ShaderLibrary.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipeline.Universal.ShaderLibrary.dll, with 116 defines and 196 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[339/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipelines.Core.Runtime.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Runtime.dll, with 116 defines and 195 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[340/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Editor.dll.mvfrm
+[341/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipelines.Core.ShaderLibrary.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.ShaderLibrary.dll, with 116 defines and 195 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[342/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.VisualEffectGraph.Runtime.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Runtime.dll, with 120 defines and 195 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[343/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/UnityEngine.UI.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/UnityEngine.UI.dll, with 119 defines and 193 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[344/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipelines.Universal.2D.Internal.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.2D.Internal.dll, with 116 defines and 195 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[345/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.ShaderGraph.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Editor.dll, with 115 defines and 228 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[346/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.Sysroot.Linux_x86_64.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Sysroot.Linux_x86_64.dll, with 114 defines and 225 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[347/437    1s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.Toolchain.Win-x86_64-Linux-x86_64.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Toolchain.Win-x86_64-Linux-x86_64.dll, with 114 defines and 226 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[348/437    1s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.Burst.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.Editor.dll, with 114 defines and 225 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[349/437    1s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/UnityTcp.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/UnityTcp.Editor.dll, with 114 defines and 227 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[350/437    1s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.SysrootPackage.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.SysrootPackage.Editor.dll, with 114 defines and 224 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[351/437    1s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Cn.Tuanjie.Codely.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Cn.Tuanjie.Codely.Editor.dll, with 114 defines and 225 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[352/437    1s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Codely.Common.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Codely.Common.dll, with 114 defines and 224 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[353/437    2s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.Mathematics.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Mathematics.Editor.dll, with 114 defines and 225 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[354/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.ShaderGraph.Utilities.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.ShaderGraph.Utilities.dll, with 114 defines and 224 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[355/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Config.Runtime.dll
+[356/437    1s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.Searcher.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Searcher.Editor.dll, with 114 defines and 224 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[357/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Core.ShaderLibrary.dll
+[358/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.2D.Internal.dll
+[359/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Runtime.dll
+[360/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Core.Runtime.dll
+[361/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Shaders.dll
+[362/437    0s] CopyFiles Library/ScriptAssemblies/Unity.VisualEffectGraph.Runtime.dll
+[363/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipeline.Universal.ShaderLibrary.dll
+[364/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Searcher.Editor.pdb
+[365/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll
+[366/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.dll
+[367/437    0s] CopyFiles Library/ScriptAssemblies/Unity.ShaderGraph.Utilities.dll
+[368/437    0s] CopyFiles Library/ScriptAssemblies/Unity.ShaderGraph.Utilities.pdb
+[369/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.Editor.pdb
+[370/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/UnityEditor.UI.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/UnityEditor.UI.dll, with 116 defines and 223 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[371/437    0s] CopyFiles Library/ScriptAssemblies/Codely.Common.pdb
+[372/437    0s] CopyFiles Library/ScriptAssemblies/UnityEngine.UI.dll
+[373/437    0s] CopyFiles Library/ScriptAssemblies/Codely.Common.dll
+[374/437    0s] CopyFiles Library/ScriptAssemblies/Unity.SysrootPackage.Editor.pdb
+[375/437    0s] CopyFiles Library/ScriptAssemblies/UnityEditor.UI.pdb
+[376/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Searcher.Editor.dll
+[377/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.Editor.dll
+[378/437    0s] CopyFiles Library/ScriptAssemblies/Cn.Tuanjie.Codely.Editor.pdb
+[379/437    0s] CopyFiles Library/ScriptAssemblies/UnityTcp.Editor.pdb
+[380/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Burst.Editor.pdb
+[381/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipelines.Core.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Core.Editor.dll, with 115 defines and 226 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[382/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Core.Editor.pdb
+[383/437    0s] CopyFiles Library/ScriptAssemblies/UnityTcp.Editor.dll
+[384/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Toolchain.Win-x86_64-Linux-x86_64.pdb
+[385/437    0s] CopyFiles Library/ScriptAssemblies/Unity.SysrootPackage.Editor.dll
+[386/437    5s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.Burst.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.Burst.dll, with 116 defines and 195 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[387/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Toolchain.Win-x86_64-Linux-x86_64.dll
+[388/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Sysroot.Linux_x86_64.dll
+[389/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Sysroot.Linux_x86_64.pdb
+[390/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Burst.pdb
+[391/437    0s] CopyFiles Library/ScriptAssemblies/Unity.ShaderGraph.Editor.pdb
+[392/437    0s] CopyFiles Library/ScriptAssemblies/UnityEditor.UI.dll
+[393/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.2D.Internal.pdb
+[394/437    0s] CopyFiles Library/ScriptAssemblies/UnityEngine.UI.pdb
+[395/437    0s] CopyFiles Library/ScriptAssemblies/Unity.VisualEffectGraph.Runtime.pdb
+[396/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Core.ShaderLibrary.pdb
+[397/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Core.Runtime.pdb
+[398/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipeline.Universal.ShaderLibrary.pdb
+[399/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Config.Runtime.pdb
+[400/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.pdb
+[401/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Mathematics.pdb
+[402/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Runtime.pdb
+[403/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Shaders.pdb
+[404/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Burst.CodeGen.pdb
+[405/437    0s] CopyFiles Library/ScriptAssemblies/Cn.Tuanjie.Codely.Editor.dll
+[406/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Burst.dll
+[407/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Burst.Editor.dll
+[408/437    3s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Editor.dll (+2 others)
+[409/437    0s] CopyFiles Library/ScriptAssemblies/Unity.Burst.CodeGen.dll
+[410/437    0s] CopyFiles Library/ScriptAssemblies/Unity.ShaderGraph.Editor.dll
+[411/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Core.Editor.dll
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Editor.dll (+2 others) [CacheWrite ]
+[412/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.VisualEffectGraph.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.VisualEffectGraph.Editor.dll, with 115 defines and 226 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[413/437    0s] CopyFiles Library/ScriptAssemblies/Unity.VisualEffectGraph.Editor.pdb
+[414/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.VisualEffectGraph.Editor.ref.dll_2559439CD6E1C826.mvfrm
+[415/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Editor.dll.mvfrm
+[416/437    0s] CopyFiles Library/ScriptAssemblies/Unity.VisualEffectGraph.Editor.dll
+[417/437    1s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Editor.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Editor.dll (+2 others) [CacheWrite ]
+[418/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Unity.RenderPipelines.Universal.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Unity.RenderPipelines.Universal.Editor.dll, with 115 defines and 231 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[419/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Editor.pdb
+[420/437    0s] MovedFromExtractor Library/Bee/artifacts/mvdfrm/Unity.RenderPipelines.Universal.Editor.ref.dll_FA965DB48716C02B.mvfrm
+[421/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/PPv2URPConverters.dll.mvfrm
+[422/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.dll.mvfrm
+[423/437    0s] MovedFromExtractorCombine Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp-Editor.dll.mvfrm
+[424/437    0s] CopyFiles Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Editor.dll
+[425/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/PPv2URPConverters.dll (+2 others)
+[           0s] Csc Library/Bee/artifacts/2000b0aE.dag/PPv2URPConverters.dll (+2 others) [CacheWrite ]
+[426/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/PPv2URPConverters.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/PPv2URPConverters.dll, with 114 defines and 228 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[427/437    0s] CopyFiles Library/ScriptAssemblies/PPv2URPConverters.dll
+[428/437    0s] CopyFiles Library/ScriptAssemblies/PPv2URPConverters.pdb
+[429/437    1s] Csc Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.dll (+2 others)
+Assets\Scripts\UI\ApiKeyPrompt.cs(59,50): warning CS0618: 'Application.ExternalCall(string, params object[])' is obsolete: 'Application.ExternalCall is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Systems\PopulationSystem.cs(318,43): warning CS0219: The variable 'worker' is assigned but its value is never used
+
+Assets\Scripts\Core\GameManager.cs(1188,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1207,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1216,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1272,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1282,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1434,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1448,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1457,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1504,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1533,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Systems\IntercityNetworkSystem.cs(170,18): warning CS0219: The variable 'railDue' is assigned but its value is never used
+
+Assets\Scripts\Systems\IntercityNetworkSystem.cs(171,18): warning CS0219: The variable 'roadDue' is assigned but its value is never used
+
+Assets\Scripts\Core\GameManager.cs(1568,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1592,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1628,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1655,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1267,13): warning CS0414: The field 'GameManager._lastProbeYear' is assigned but its value is never used
+
+Assets\Scripts\Systems\BridgeSystem.cs(21,23): warning CS0414: The field 'BridgeSystem._scanTimer' is assigned but its value is never used
+[430/437    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp-Editor.dll (+2 others)
+Assets\Scripts\Editor\PlayModeProbe.cs(15,21): warning CS0414: The field 'PlayModeProbe._armed' is assigned but its value is never used
+[431/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Assembly-CSharp-Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp-Editor.dll, with 114 defines and 250 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[432/437    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Assembly-CSharp.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.dll, with 116 defines and 217 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[433/437    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.pdb
+[434/437    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.pdb
+[435/437    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.dll
+[436/437    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.dll
+*** Tundra build success (30.92 seconds), 335 items updated, 437 evaluated
+Assets\Scripts\UI\ApiKeyPrompt.cs(59,50): warning CS0618: 'Application.ExternalCall(string, params object[])' is obsolete: 'Application.ExternalCall is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Systems\PopulationSystem.cs(318,43): warning CS0219: The variable 'worker' is assigned but its value is never used
+Assets\Scripts\Core\GameManager.cs(1188,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1207,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1216,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1272,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1282,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1434,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1448,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1457,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1504,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1533,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Systems\IntercityNetworkSystem.cs(170,18): warning CS0219: The variable 'railDue' is assigned but its value is never used
+Assets\Scripts\Systems\IntercityNetworkSystem.cs(171,18): warning CS0219: The variable 'roadDue' is assigned but its value is never used
+Assets\Scripts\Core\GameManager.cs(1568,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1592,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1628,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1655,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1267,13): warning CS0414: The field 'GameManager._lastProbeYear' is assigned but its value is never used
+Assets\Scripts\Systems\BridgeSystem.cs(21,23): warning CS0414: The field 'BridgeSystem._scanTimer' is assigned but its value is never used
+Assets\Scripts\Editor\PlayModeProbe.cs(15,21): warning CS0414: The field 'PlayModeProbe._armed' is assigned but its value is never used
+AssetDatabase: script compilation time: 33.182097s
+Begin MonoManager ReloadAssembly
+- Loaded All Assemblies, in  1.088 seconds
+Refreshing native plugins compatible for Editor in 17.35 ms, found 7 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Start importing ProjectSettings/ProjectSettings.asset using Guid(00000000000000004000000000000000) Importer(Primary)  -> (artifact id: 'c74f4b90de43bcd9243ea11037ed5351') in 0.027516 seconds
+Start importing Assets/Scripts/Systems/RallySystem.cs using Guid(a018aa165dbf9d4499e94a1610bea489) Importer(Primary)  -> (artifact id: '3ef1b8c3ef4a33e090d36d146e75f997') in 0.014310 seconds
+Start importing Assets/Scripts/Systems/WarBroadcastSystem.cs using Guid(b11c6d13f40705c46b93e500ce5e487a) Importer(Primary)  -> (artifact id: '20098d20e4aff26ea9313f785d272bf1') in 0.012824 seconds
+Start importing Assets/Scripts/Systems/GroundWarfareSystem.cs using Guid(45e77d357ae498848b37f86bae8da771) Importer(Primary)  -> (artifact id: 'd71cab29435f43de26fba7e9926bfe07') in 0.013598 seconds
+Start importing Assets/Scripts/Editor/LODDiag.cs using Guid(7628f47b8f6951b4086db481485d4aae) Importer(Primary)  -> (artifact id: '26f463fe6d093e9842130fb25aa9dd30') in 0.013263 seconds
+Start importing Assets/Scripts/Editor/V601SmokeTest.cs using Guid(a6745ebfabb4e1d459cfc19ca9ab092f) Importer(Primary)  -> (artifact id: '49acc2e7fb2ce3f00ffbd5bad6f14785') in 0.012734 seconds
+Start importing Assets/Scripts/Buildings/BuildingMeshFactory.cs using Guid(b6f29569f61aeb44e8ab1d53028c6a40) Importer(Primary) Partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects -> (artifact id: 'a93f64f100a57886e4a4e000e5cab886') in 0.013789 seconds
+Refreshing native plugins compatible for Editor in 15.89 ms, found 7 plugins.
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  2.915 seconds
+Domain Reload Profiling: 3999ms
+	BeginReloadAssembly (319ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (7ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (38ms)
+	RebuildCommonClasses (56ms)
+	RebuildNativeTypeToScriptingClass (24ms)
+	initialDomainReloadingComplete (51ms)
+	LoadAllAssembliesAndSetupDomain (633ms)
+		LoadAssemblies (508ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (327ms)
+			TypeCache.Refresh (286ms)
+				TypeCache.ScanAssembly (257ms)
+			ScanForSourceGeneratedMonoScriptInfo (20ms)
+			ResolveRequiredComponents (18ms)
+	FinalizeReload (2916ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (2581ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (21ms)
+			SetLoadedEditorAssemblies (6ms)
+			RefreshPlugins (0ms)
+			BeforeProcessingInitializeOnLoad (78ms)
+			ProcessInitializeOnLoadAttributes (2259ms)
+			ProcessInitializeOnLoadMethodAttributes (201ms)
+			AfterProcessingInitializeOnLoad (16ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (23ms)
+Launched and connected shader compiler TuanjieShaderCompiler.exe after 0.01 seconds
+Refreshing native plugins compatible for Editor in 18.78 ms, found 7 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=dcc0c5708678f9a4ca62d6240f51d9df): Total: 41.160 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	Summary:
+		Imports: total=7 (actual=7, local cache=0, cache server=0)
+		Asset DB Process Time: managed=5 ms, native=2419 ms
+		Asset DB Callback time: managed=71 ms, native=1330 ms
+		Scripting: domain reloads=1, domain reload time=4111 ms, compile time=33185 ms, other=36 ms
+		Project Asset Count: scripts=3498, non-scripts=1592
+		Asset File Changes: new=0, changed=5, moved=0, deleted=0
+		Scan Filter Count: 0
+		OnDemandAssets Count:0
+	InvokeBeforeRefreshCallbacks: 4.138ms
+	ApplyChangesToAssetFolders: 0.104ms
+	Scan: 116.583ms
+	OnSourceAssetsModified: 4.912ms
+	GetAllGuidsForCategorization: 1.382ms
+	CategorizeAssets: 179.038ms
+	ImportOutOfDateAssets: 3116.452ms (-30220.685ms without children)
+		ImportManagerImport: 118.763ms (8.231ms without children)
+			ImportInProcess: 110.432ms
+			UpdateCategorizedAssets: 0.100ms
+		CompileScripts: 33185.483ms
+		ReloadNativeAssets: 0.039ms
+		UnloadImportedAssets: 23.494ms
+		ReloadImportedAssets: 3.836ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 2.902ms
+		InitializingProgressBar: 0.001ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.002ms
+		OnDemandSchedulerStart: 2.618ms
+	PostProcessAllAssets: 1456.841ms
+	Hotreload: 20.811ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.504ms
+	UnloadStreamsBegin: 1.366ms
+	PersistCurrentRevisions: 0.634ms
+	UnloadStreamsEnd: 0.077ms
+	GenerateScriptTypeHashes: 3.273ms
+	Untracked: 36257.586ms
+Application.AssetDatabase Initial Refresh End
+Scanning for USB devices : 1.710ms
+Initializing Tuanjie extensions:
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Enep5D1ZmF4Afg==","messageType":"ProductNameRequest","Value":"com.ToFuture.-------------------V9.8.3"} at 1791587785
+[Licensing::Client] Successfully receive message: {"responseCode":200,"messageType":"ProductNameResponse"} at 1791587785
+[Licensing::Client] Error: ProductNameResponse could not be deserialized
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-从像素到文明 V9.8.3
+Unloading 29 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 102 unused Assets / (1.1 MB). Loaded Objects now: 3507.
+Memory consumption went from 134.2 MB to 133.0 MB.
+Total: 6.031700 ms (FindLiveObjects: 0.294800 ms CreateObjectMapping: 0.133000 ms MarkObjects: 4.964800 ms  DeleteObjects: 0.637800 ms)
+
+Asset Pipeline Refresh (id=e53f3f3ee32248e4786e87696cf7e00c): Total: 0.076 seconds - Initiated by RefreshV2(ForceUpdate)
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJRZA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587787
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJRZEoGDjYUevf85SQU"} at 1791587787
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587787, endTime: 1791587787)
+[Licensing::Client] Successfully resolved entitlement details
+Start importing ProjectSettings/ProjectSettings.asset using Guid(00000000000000004000000000000000) Importer(Primary)  -> (artifact id: 'eb5a0686bf8f0178bea7ef1e959790b1') in 0.012142 seconds
+Start importing Assets/Settings/PxC_URP_High.asset using Guid(14da0bca9c3b21e4ba492f235557c140) Importer(Primary)  -> (artifact id: 'a2a9a5dcee0d5e26b3c3c99c06c1e04c') in 0.014331 seconds
+Refreshing native plugins compatible for Editor in 19.94 ms, found 7 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=15c98a4bea41a6c428bd923af5aaaa61): Total: 0.111 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFVWRVJRZA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791587787
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791850542000,"matchedEntitlements":[{"entitlementId":"com.unity.editor","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFVWRVJRZEoGDjYUevf85SQU"} at 1791587787
+[Licensing::Client] Attempt to check time stamp (startTime: 1791587787, endTime: 1791587787)
+[Licensing::Client] Successfully resolved entitlement details
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 0.2755ms
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\bee_backend.exe --dont-print-to-structured-log --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aESkipCompile.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssembliesAndTypeDB
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+ExitCode: 0 Duration: 1s408ms
+[2/3        1s] BuildPlayerDataGenerator Library/BuildPlayerData/Editor/TypeDb-All.json
+*** Tundra build success (1.33 seconds), 1 items updated, 3 evaluated
+Asset Pipeline Refresh (id=ce37c0323441a3144a0b0230011c2724): Total: 0.039 seconds - Initiated by RefreshV2(NoUpdateAssetOptions)
+[ScriptCompilation] Requested script compilation because: Recompiling scripts for player build.
+BuildPlayer: start building target 20
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 0.1216ms
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\bee_backend.exe --dont-print-to-structured-log --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aP.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssembliesAndTypeDB
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      ALC ILPP context 1 is unloading
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.runtime.interopservices.windowsruntime has duplicate hint path. Ignoring "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\TuanjieReferenceAssemblies\tuanjie-4.8-api\Facades\System.Runtime.InteropServices.WindowsRuntime.dll" in favor of "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\NetStandard\Extensions\2.0.0\System.Runtime.InteropServices.WindowsRuntime.dll"
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.componentmodel.composition has duplicate hint path. Ignoring "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\TuanjieReferenceAssemblies\tuanjie-4.8-api\System.ComponentModel.Composition.dll" in favor of "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\NetStandard\compat\2.1.0\shims\netfx\System.ComponentModel.Composition.dll"
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved Unity.Burst.Cecil, Version=0.11.6.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e with Library\PackageCache\com.unity.burst@1.8.30-t2\Unity.Burst.CodeGen\Unity.Burst.Cecil.dll
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors application/grpc - - 200 - application/grpc 672.5627ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aP.dag/Assembly-CSharp.dll, with 104 defines and 184 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved Unity.Burst.Cecil.Rocks, Version=0.11.6.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e with Library\PackageCache\com.unity.burst@1.8.30-t2\Unity.Burst.CodeGen\Unity.Burst.Cecil.Rocks.dll
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly application/grpc - - 200 - application/grpc 446.9141ms
+ExitCode: 0 Duration: 4s172ms
+[233/324    0s] WriteResponseFile Library/Bee/artifacts/rsp/4747638433968585886.rsp
+[281/324    1s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[294/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Core.ShaderLibrary.dll
+[295/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll
+[296/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Universal.Shaders.dll
+[297/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Universal.2D.Internal.dll
+[298/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Universal.Config.Runtime.dll
+[299/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipeline.Universal.ShaderLibrary.dll
+[300/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UnityEngine.UI.dll
+[301/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Core.Runtime.dll
+[302/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Burst.dll
+[303/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Universal.2D.Internal.pdb
+[304/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.VisualEffectGraph.Runtime.pdb
+[305/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Mathematics.dll
+[306/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Universal.Shaders.pdb
+[307/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UnityEngine.UI.pdb
+[308/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.pdb
+[309/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Core.Runtime.pdb
+[310/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Core.ShaderLibrary.pdb
+[311/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Burst.pdb
+[312/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Universal.Config.Runtime.pdb
+[313/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Universal.Runtime.pdb
+[314/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Mathematics.pdb
+[315/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.VisualEffectGraph.Runtime.dll
+[316/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipeline.Universal.ShaderLibrary.pdb
+[317/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.RenderPipelines.Universal.Runtime.dll
+[318/324    1s] Csc Library/Bee/artifacts/2000b0aP.dag/Assembly-CSharp.dll (+2 others)
+Assets\Scripts\Core\CrashGuardSystem.cs(67,17): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\UI\ApiKeyPrompt.cs(59,50): warning CS0618: 'Application.ExternalCall(string, params object[])' is obsolete: 'Application.ExternalCall is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Systems\IntercityNetworkSystem.cs(170,18): warning CS0219: The variable 'railDue' is assigned but its value is never used
+
+Assets\Scripts\Systems\IntercityNetworkSystem.cs(171,18): warning CS0219: The variable 'roadDue' is assigned but its value is never used
+
+Assets\Scripts\Systems\PopulationSystem.cs(318,43): warning CS0219: The variable 'worker' is assigned but its value is never used
+
+Assets\Scripts\Systems\WarBroadcastSystem.cs(99,17): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1188,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1207,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1216,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1272,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1282,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1434,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1448,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1457,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1504,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1533,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1568,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1592,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1628,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1655,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+
+Assets\Scripts\Core\GameManager.cs(1267,13): warning CS0414: The field 'GameManager._lastProbeYear' is assigned but its value is never used
+
+Assets\Scripts\Systems\BridgeSystem.cs(21,23): warning CS0414: The field 'BridgeSystem._scanTimer' is assigned but its value is never used
+[319/324    0s] ILPostProcess Library/Bee/artifacts/2000b0aP.dag/post-processed/Assembly-CSharp.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aP.dag/Assembly-CSharp.dll, with 104 defines and 184 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[320/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Assembly-CSharp.pdb
+[321/324    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Assembly-CSharp.dll
+[323/324    0s] BuildPlayerDataGenerator Library/BuildPlayerData/Player/RuntimeInitializeOnLoads.json (+1 other)
+*** Tundra build success (4.10 seconds), 31 items updated, 324 evaluated
+Assets\Scripts\Core\CrashGuardSystem.cs(67,17): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\UI\ApiKeyPrompt.cs(59,50): warning CS0618: 'Application.ExternalCall(string, params object[])' is obsolete: 'Application.ExternalCall is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Systems\IntercityNetworkSystem.cs(170,18): warning CS0219: The variable 'railDue' is assigned but its value is never used
+Assets\Scripts\Systems\IntercityNetworkSystem.cs(171,18): warning CS0219: The variable 'roadDue' is assigned but its value is never used
+Assets\Scripts\Systems\PopulationSystem.cs(318,43): warning CS0219: The variable 'worker' is assigned but its value is never used
+Assets\Scripts\Systems\WarBroadcastSystem.cs(99,17): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1188,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1207,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1216,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1272,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1282,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1434,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1448,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1457,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1504,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1533,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1568,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1592,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1628,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1655,19): warning CS0618: 'Application.ExternalEval(string)' is obsolete: 'Application.ExternalEval is deprecated. See https://docs.unity.cn/cn/tuanjiemanual/Manual/webgl-interactingwithbrowserscripting.html for alternatives.'
+Assets\Scripts\Core\GameManager.cs(1267,13): warning CS0414: The field 'GameManager._lastProbeYear' is assigned but its value is never used
+Assets\Scripts\Systems\BridgeSystem.cs(21,23): warning CS0414: The field 'BridgeSystem._scanTimer' is assigned but its value is never used
+Not rebuilding Data files -- no changes
+Asset Pipeline Refresh (id=1ec5bb8a6d370174fbe0ee2857a723e9): Total: 0.082 seconds - Initiated by RefreshV2(NoUpdateAssetOptions)
+
+
+Mono dependencies included in the build
+Dependency assembly - System.Threading.Tasks.Extensions.dll
+Dependency assembly - System.IO.UnmanagedMemoryStream.dll
+Dependency assembly - System.Diagnostics.StackTrace.dll
+Dependency assembly - System.ServiceModel.Duplex.dll
+Dependency assembly - System.Xml.XPath.XmlDocument.dll
+Dependency assembly - System.Security.Claims.dll
+Dependency assembly - System.ComponentModel.Composition.dll
+Dependency assembly - System.Diagnostics.Tracing.dll
+Dependency assembly - System.Reflection.Primitives.dll
+Dependency assembly - System.Resources.ResourceManager.dll
+Dependency assembly - System.Xml.dll
+Dependency assembly - System.IO.dll
+Dependency assembly - System.Data.Linq.dll
+Dependency assembly - System.Reflection.Extensions.dll
+Dependency assembly - System.Reflection.Context.dll
+Dependency assembly - Unity.RenderPipelines.Core.ShaderLibrary.dll
+Dependency assembly - System.Runtime.InteropServices.RuntimeInformation.dll
+Dependency assembly - System.Runtime.InteropServices.WindowsRuntime.dll
+Dependency assembly - Accessibility.dll
+Dependency assembly - System.Threading.Tasks.dll
+Dependency assembly - System.Text.Encoding.dll
+Dependency assembly - System.Threading.AccessControl.dll
+Dependency assembly - Unity.RenderPipeline.Universal.ShaderLibrary.dll
+Dependency assembly - System.Xml.XPath.dll
+Dependency assembly - System.Data.SqlClient.dll
+Dependency assembly - System.Reflection.Emit.ILGeneration.dll
+Dependency assembly - System.Security.Cryptography.Algorithms.dll
+Dependency assembly - System.Windows.Forms.DataVisualization.dll
+Dependency assembly - System.ServiceModel.Primitives.dll
+Dependency assembly - System.Threading.dll
+Dependency assembly - System.Net.HttpListener.dll
+Dependency assembly - System.Net.dll
+Dependency assembly - System.Memory.dll
+Dependency assembly - System.Drawing.dll
+Dependency assembly - System.Reflection.TypeExtensions.dll
+Dependency assembly - System.Web.DynamicData.dll
+Dependency assembly - Mono.Data.Tds.dll
+Dependency assembly - System.Net.Ping.dll
+Dependency assembly - System.Numerics.dll
+Dependency assembly - System.Security.Cryptography.RandomNumberGenerator.dll
+Dependency assembly - System.Linq.Expressions.dll
+Dependency assembly - System.Resources.ReaderWriter.dll
+Dependency assembly - System.Net.Cache.dll
+Dependency assembly - System.Xaml.dll
+Dependency assembly - System.IO.FileSystem.AccessControl.dll
+Dependency assembly - UnityEngine.UI.dll
+Dependency assembly - Mono.Security.dll
+Dependency assembly - System.Resources.Writer.dll
+Dependency assembly - System.Security.Cryptography.DeriveBytes.dll
+Dependency assembly - System.Globalization.dll
+Dependency assembly - System.Drawing.Primitives.dll
+Dependency assembly - System.Threading.Timer.dll
+Dependency assembly - System.ServiceProcess.dll
+Dependency assembly - System.Security.Cryptography.Hashing.Algorithms.dll
+Dependency assembly - System.EnterpriseServices.dll
+Dependency assembly - System.Web.Extensions.Design.dll
+Dependency assembly - System.Diagnostics.TraceSource.dll
+Dependency assembly - System.Data.Services.Client.dll
+Dependency assembly - System.Runtime.Handles.dll
+Dependency assembly - System.Data.DataSetExtensions.dll
+Dependency assembly - System.IO.Compression.FileSystem.dll
+Dependency assembly - System.IO.MemoryMappedFiles.dll
+Dependency assembly - Microsoft.Win32.Primitives.dll
+Dependency assembly - System.Threading.ThreadPool.dll
+Dependency assembly - System.Web.Services.dll
+Dependency assembly - System.ObjectModel.dll
+Dependency assembly - System.Runtime.Extensions.dll
+Dependency assembly - System.Threading.Overlapped.dll
+Dependency assembly - Assembly-CSharp.dll
+Dependency assembly - System.DirectoryServices.dll
+Dependency assembly - System.Reflection.Emit.dll
+Dependency assembly - System.Net.Mail.dll
+Dependency assembly - System.Security.Cryptography.Encryption.Aes.dll
+Dependency assembly - mscorlib.dll
+Dependency assembly - System.Reflection.dll
+Dependency assembly - Unity.RenderPipelines.Universal.Config.Runtime.dll
+Dependency assembly - System.Text.RegularExpressions.dll
+Dependency assembly - System.Transactions.dll
+Dependency assembly - System.Reflection.Emit.Lightweight.dll
+Dependency assembly - System.Runtime.Numerics.dll
+Dependency assembly - nunit.framework.dll
+Dependency assembly - System.IO.Compression.dll
+Dependency assembly - System.dll
+Dependency assembly - System.Security.Cryptography.Encryption.ECDiffieHellman.dll
+Dependency assembly - System.Runtime.Serialization.Formatters.Soap.dll
+Dependency assembly - System.Collections.Concurrent.dll
+Dependency assembly - System.Runtime.InteropServices.dll
+Dependency assembly - System.Windows.Forms.dll
+Dependency assembly - System.Collections.Specialized.dll
+Dependency assembly - System.Net.Primitives.dll
+Dependency assembly - System.Xml.XmlDocument.dll
+Dependency assembly - System.Core.dll
+Dependency assembly - System.Diagnostics.Debug.dll
+Dependency assembly - System.Numerics.Vectors.dll
+Dependency assembly - System.IdentityModel.Selectors.dll
+Dependency assembly - System.Text.Encoding.CodePages.dll
+Dependency assembly - System.Buffers.dll
+Dependency assembly - System.Net.Sockets.dll
+Dependency assembly - System.Runtime.Remoting.dll
+Dependency assembly - System.ValueTuple.dll
+Dependency assembly - System.Diagnostics.TraceEvent.dll
+Dependency assembly - System.Diagnostics.Tools.dll
+Dependency assembly - System.IO.FileSystem.dll
+Dependency assembly - System.Runtime.Serialization.Xml.dll
+Dependency assembly - System.ServiceModel.Internals.dll
+Dependency assembly - System.Linq.dll
+Dependency assembly - System.Security.Cryptography.ProtectedData.dll
+Dependency assembly - System.ServiceModel.dll
+Dependency assembly - System.Web.ApplicationServices.dll
+Dependency assembly - System.Text.Encoding.Extensions.dll
+Dependency assembly - System.Xml.XmlSerializer.dll
+Dependency assembly - System.Dynamic.Runtime.dll
+Dependency assembly - System.Linq.Queryable.dll
+Dependency assembly - System.Security.Cryptography.OpenSsl.dll
+Dependency assembly - System.Net.ServicePoint.dll
+Dependency assembly - System.Threading.Thread.dll
+Dependency assembly - System.Security.Cryptography.Pkcs.dll
+Dependency assembly - System.Data.Entity.dll
+Dependency assembly - System.ComponentModel.Primitives.dll
+Dependency assembly - System.Net.AuthenticationManager.dll
+Dependency assembly - System.Runtime.CompilerServices.VisualC.dll
+Dependency assembly - System.ServiceModel.NetTcp.dll
+Dependency assembly - System.Xml.Xsl.Primitives.dll
+Dependency assembly - System.Net.Security.dll
+Dependency assembly - System.Diagnostics.Contracts.dll
+Dependency assembly - System.Json.dll
+Dependency assembly - Unity.Burst.dll
+Dependency assembly - System.IO.Compression.ZipFile.dll
+Dependency assembly - System.Runtime.Loader.dll
+Dependency assembly - System.Resources.Reader.dll
+Dependency assembly - Microsoft.Win32.Registry.dll
+Dependency assembly - System.Collections.dll
+Dependency assembly - System.DirectoryServices.Protocols.dll
+Dependency assembly - System.ComponentModel.EventBasedAsync.dll
+Dependency assembly - System.Security.dll
+Dependency assembly - System.Runtime.DurableInstancing.dll
+Dependency assembly - System.ServiceModel.Activation.dll
+Dependency assembly - System.Xml.XDocument.dll
+Dependency assembly - System.Net.Utilities.dll
+Dependency assembly - System.Runtime.Serialization.Primitives.dll
+Dependency assembly - System.Diagnostics.Process.dll
+Dependency assembly - System.Globalization.Extensions.dll
+Dependency assembly - System.Runtime.Serialization.Json.dll
+Dependency assembly - System.IO.Pipes.dll
+Dependency assembly - System.Security.Cryptography.Primitives.dll
+Dependency assembly - System.Web.Extensions.dll
+Dependency assembly - System.Net.Requests.dll
+Dependency assembly - System.Net.NameResolution.dll
+Dependency assembly - System.Xml.Serialization.dll
+Dependency assembly - System.Security.Cryptography.RSA.dll
+Dependency assembly - System.Net.Http.dll
+Dependency assembly - System.ServiceModel.Web.dll
+Dependency assembly - System.ServiceModel.Http.dll
+Dependency assembly - System.Diagnostics.FileVersionInfo.dll
+Dependency assembly - System.Globalization.Calendars.dll
+Dependency assembly - System.Net.NetworkInformation.dll
+Dependency assembly - System.Linq.Parallel.dll
+Dependency assembly - Unity.RenderPipelines.Universal.2D.Internal.dll
+Dependency assembly - System.ComponentModel.Annotations.dll
+Dependency assembly - System.Security.Principal.Windows.dll
+Dependency assembly - System.Net.WebSockets.Client.dll
+Dependency assembly - System.IO.FileSystem.DriveInfo.dll
+Dependency assembly - System.Security.Cryptography.Encryption.ECDsa.dll
+Dependency assembly - System.Xml.ReaderWriter.dll
+Dependency assembly - System.Security.Principal.dll
+Dependency assembly - Unity.VisualEffectGraph.Runtime.dll
+Dependency assembly - System.Security.Cryptography.Hashing.dll
+Dependency assembly - Unity.RenderPipelines.Universal.Runtime.dll
+Dependency assembly - System.Management.dll
+Dependency assembly - System.Security.AccessControl.dll
+Dependency assembly - System.ServiceModel.Routing.dll
+Dependency assembly - System.Configuration.dll
+Dependency assembly - System.Xml.XPath.XDocument.dll
+Dependency assembly - Mono.Data.Sqlite.dll
+Dependency assembly - System.Console.dll
+Dependency assembly - Unity.RenderPipelines.Universal.Shaders.dll
+Dependency assembly - System.ServiceProcess.ServiceController.dll
+Dependency assembly - System.Web.RegularExpressions.dll
+Dependency assembly - System.Security.Cryptography.Csp.dll
+Dependency assembly - Unity.RenderPipelines.Core.Runtime.dll
+Dependency assembly - Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll
+Dependency assembly - Unity.Mathematics.dll
+Dependency assembly - System.ComponentModel.TypeConverter.dll
+Dependency assembly - System.Xml.Linq.dll
+Dependency assembly - System.Runtime.Serialization.dll
+Dependency assembly - Unity.Burst.Unsafe.dll
+Dependency assembly - System.Data.Common.dll
+Dependency assembly - System.ComponentModel.DataAnnotations.dll
+Dependency assembly - System.Security.Cryptography.X509Certificates.dll
+Dependency assembly - System.Runtime.dll
+Dependency assembly - System.ServiceModel.Security.dll
+Dependency assembly - System.Security.SecureString.dll
+Dependency assembly - System.Net.WebHeaderCollection.dll
+Dependency assembly - System.Windows.dll
+Dependency assembly - System.ComponentModel.dll
+Dependency assembly - System.IO.FileSystem.Watcher.dll
+Dependency assembly - System.Design.dll
+Dependency assembly - Microsoft.CSharp.dll
+Dependency assembly - Microsoft.Win32.Registry.AccessControl.dll
+Dependency assembly - System.Runtime.Caching.dll
+Dependency assembly - System.Security.Cryptography.Cng.dll
+Dependency assembly - System.Security.Cryptography.Encryption.dll
+Dependency assembly - System.Configuration.Install.dll
+Dependency assembly - netstandard.dll
+Dependency assembly - System.Data.OracleClient.dll
+Dependency assembly - System.Runtime.Serialization.Formatters.dll
+Dependency assembly - System.Reflection.DispatchProxy.dll
+Dependency assembly - System.Net.Http.WebRequest.dll
+Dependency assembly - System.Threading.Tasks.Parallel.dll
+Dependency assembly - System.Security.Cryptography.Encoding.dll
+Dependency assembly - System.Data.dll
+Dependency assembly - System.Data.Services.dll
+Dependency assembly - System.AppContext.dll
+Dependency assembly - System.Collections.NonGeneric.dll
+Dependency assembly - System.IdentityModel.dll
+Dependency assembly - System.Drawing.Design.dll
+Dependency assembly - System.Net.WebSockets.dll
+Dependency assembly - System.Messaging.dll
+Dependency assembly - System.IO.IsolatedStorage.dll
+Dependency assembly - System.Web.dll
+Dependency assembly - System.ServiceModel.Discovery.dll
+Dependency assembly - System.IO.FileSystem.Primitives.dll
+Dependency assembly - System.Diagnostics.TextWriterTraceListener.dll
+
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 0.1741ms
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\bee_backend.exe --dont-print-to-structured-log --ipc --dagfile="Library/Bee/Player62af47c1.dag" --profile="Library/Bee/backend1.traceevents" Player
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+DisplayProgressbar: Incremental Player Build
+[203/506    0s] CopyFiles BuildWebGL/TemplateData/tuanjie-logo-light.png
+[204/506    0s] CopyFiles BuildWebGL/TemplateData/tuanjie-logo-dark.png
+[205/506    0s] CopyFiles BuildWebGL/TemplateData/progress-bar-empty-dark.png
+[206/506    0s] CopyFiles BuildWebGL/TemplateData/progress-bar-empty-light.png
+[207/506    0s] CopyFiles BuildWebGL/TemplateData/fullscreen-button.png
+[208/506    0s] CopyFiles BuildWebGL/TemplateData/progress-bar-full-dark.png
+[209/506    0s] CopyFiles BuildWebGL/TemplateData/favicon.ico
+[210/506    0s] CopyFiles BuildWebGL/TemplateData/MemoryProfiler.png
+[211/506    0s] CopyFiles BuildWebGL/Build/BuildWebGL.loader.js
+[212/506    0s] CopyFiles BuildWebGL/TemplateData/webmemd-icon.png
+[213/506    0s] CopyFiles BuildWebGL/TemplateData/webgl-logo.png
+[214/506    0s] CopyFiles BuildWebGL/TemplateData/progress-bar-full-light.png
+[215/506    0s] PreprocessJS BuildWebGL/TemplateData/style.css
+[216/506    0s] PreprocessJS BuildWebGL/index.html
+[217/506    0s] AddBootConfigGUID Library/Bee/artifacts/WebGL/boot.config
+[BUSY       6s] UnityLinker E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/unitylinker_ber2.traceevents
+[218/506    7s] UnityLinker E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/unitylinker_ber2.traceevents
+C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\il2cpp\build\deploy\UnityLinker.exe @Library\Bee\artifacts\rsp\1856673336023289291.rsp
+Unable to process reflection call because there are not enough loads on the stack, needs 3, found 2
+*** Tundra requires additional run (8.53 seconds), 16 items updated, 506 evaluated
+*** Additional run caused by: contents change of Library/Bee/artifacts/WebGL/ManagedStripped
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\Tools\netcorerun\netcorerun.exe "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\PlaybackEngines\WebGLSupport\WebGLPlayerBuildProgram.exe" "C:/Program Files/Tuanjie/Hub/Editor/2022.3.61t13/Editor/Data/PlaybackEngines/WebGLSupport/Bee;C:/Program Files/Tuanjie/Hub/Editor/2022.3.61t13/Editor/Data/Tools/BuildPipeline" "Library/Bee/Player62af47c1.dag.json" "Library/Bee/Player62af47c1-inputdata.json" "Library\Bee\buildprogram0.traceevents"
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+ExitCode: 4 Duration: 8s599ms
+ExitCode: 0 Duration: 0s821ms
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\bee_backend.exe --dont-print-to-structured-log --ipc --dagfile="Library/Bee/Player62af47c1.dag" --dagfilejson="Library\Bee\Player62af47c1.dag.json" --profile="Library/Bee/backend2.traceevents" Player
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+Total cache size 285048346
+CreateDirectoryW failed to create C:\Users\fangw\AppData\Local\Tuanjie\Caches\bee\trash
+Total cache size after purge 267641406
+Total cache size 285048346
+Total cache size after purge 267641406
+Total cache size 285048346
+CreateDirectoryW failed to create C:\Users\fangw\AppData\Local\Tuanjie\Caches\bee\trash
+Total cache size after purge 267641406
+Finished compiling graph: 508 nodes, 1294 flattened edges (1290 ToBuild, 2 ToUse), maximum node priority 299
+[223/506    0s] CopyFiles Temp/EditorBuildOutput/UnityLinkerToEditorData.json
+[BUSY       6s] IL2CPP_CodeGen E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/il2cpp_conv_q0us.traceevents
+[224/506    9s] IL2CPP_CodeGen E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/il2cpp_conv_q0us.traceevents
+C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\il2cpp\build\deploy\il2cpp.exe --convert-to-cpp --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Assembly-CSharp.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Mono.Security.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/mscorlib.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Configuration.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Core.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Xml.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Unity.Burst.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Unity.Burst.Unsafe.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Unity.Mathematics.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Unity.RenderPipeline.Universal.ShaderLibrary.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Unity.RenderPipelines.Core.Runtime.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Unity.RenderPipelines.Universal.Runtime.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Unity.VisualEffectGraph.Runtime.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.AnimationModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.AudioModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.CoreModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.IMGUIModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.InputLegacyModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.JSONSerializeModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.ParticleSystemModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.PhysicsModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.PropertiesModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.SharedInternalsModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.SpriteMaskModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.TerrainModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.TextCoreFontEngineModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.TextCoreTextEngineModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.TextRenderingModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.UI.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.UIElementsModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.UIModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.UnityWebRequestModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.VFXModule.dll --generatedcppdir=E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/WebGL/il2cppOutput/cpp --symbols-folder=E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/WebGL/il2cppOutput/cpp/Symbols --enable-analytics --emit-method-map --dotnetprofile=unityaot-linux --profiler-report --profiler-output-file=E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/il2cpp_conv_q0us.traceevents --print-command-line --data-folder=E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/WebGL/il2cppOutput/data
+[249/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/2ps3vlb50iob.o
+[253/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/xelg0u0nphdy.o
+[254/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/chvtofiypfq7.o
+[255/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/sbz1yqhd4d4i.o
+[266/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/ic9q6o9p3qz0.o
+[267/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/c4o1s6z2qghc.o
+[278/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/tof7mspcebc6.o
+[279/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/3grxw44g9yeu.o
+[291/506    3s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/eo6vsc0sm4wq.o
+[305/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/i1guazva5vl6.o
+[306/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/ezw8pjdljilx.o
+[315/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/xktort6kadii.o
+[325/506    3s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/h1h75qk8586n.o
+[326/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/bz6lki2eqkhi.o
+[332/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/qcfews7v3aw3.o
+[336/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/2q7nujvbozcj.o
+[338/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/dnpg3egwli52.o
+[343/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/x4rpy76laomy.o
+[348/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/0t5266rzygt4.o
+[354/506    6s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/to7x4k3oygxe.o
+[355/506    7s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/1zi74ysgcxic.o
+[369/506    7s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/fcv249xk56pd.o
+[376/506    2s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/chel3www2fpr.o
+[388/506    2s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/u77bzfiqr2p5.o
+[397/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/ec8mfshzmpf3.o
+[398/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/5ak3atfh0qe8.o
+[399/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/dfh372zxr90g.o
+[403/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/crnhh61ye3lu.o
+[407/506    3s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/0thiupz7qsef.o
+[408/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/cpuswelv6f4k.o
+[412/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/zzmxgyatwyiq.o
+[414/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/460mpzq2enf5.o
+[430/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/l6friivpb0tr.o
+[434/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/zn4u90t0y2ni.o
+[435/506    3s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/sijfgzcrdte6.o
+[446/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/mzhdsblg5a40.o
+[448/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/sil92fk9eyps.o
+[460/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/yob4rmqnn4o9.o
+[467/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/e5fmczcf4bsc.o
+[468/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/7de47j3o0fsn.o
+[473/506    2s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/9x8mrswgr0ab.o
+[476/506    5s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/18iuc42yvua4.o
+[477/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/jmq6hln8fclr.o
+[479/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/rex2478lp1r5.o
+[489/506    0s] CopyFiles E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/WebGL/il2cppOutput/build/Data/Resources/mscorlib.dll-resources.dat
+[490/506    0s] CopyFiles E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/WebGL/il2cppOutput/build/Data/Metadata/global-metadata.dat
+[491/506    0s] Assemble WebGL Data Library/Bee/artifacts/WebGL/webgl.data
+[492/506    0s] CopyFiles BuildWebGL/Build/BuildWebGL.data
+[493/506    4s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/5m6gwtyjuy14.o
+[494/506    1s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/xvhvie1l3see.o
+[495/506    1s] CopyFiles Temp/EditorBuildOutput/MethodMap.tsv
+[496/506    2s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/c3b4qmp3yr0p.o
+[497/506    5s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/uwrep0jn2ieu.o
+[498/506    5s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/73p67mvt16x6.o
+[BUSY      14s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/6fanjari4qll.o
+[499/506   21s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/6fanjari4qll.o
+[500/506    0s] Lib_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/GameAssembly.a
+[501/506    0s] CopyFiles E:/DB/pixel_to_civilization_win/PxC982/Library/Bee/artifacts/WebGL/il2cppOutput/build/GameAssembly.a
+[BUSY       6s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      16s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      26s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      36s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      46s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      56s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      66s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      77s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      87s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      97s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     107s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     117s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     127s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     138s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     148s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+IPCStream (Upm-15652): IPC stream failed to read (Not connected)
+[BUSY     158s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     168s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     178s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     188s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     199s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)

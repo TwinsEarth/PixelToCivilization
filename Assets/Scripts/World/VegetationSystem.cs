@@ -615,6 +615,9 @@ namespace PixelToCivilization.World
             go.isStatic=true;
             // V6.3.1：只在全局档位 [minTier,maxTier] 区间显示，近景 LV3 与中景 LV2 互斥不重叠
             LODManager.RegisterCullBand(mr,minTier,maxTier);
+            // V9.8.7：合并网格按相机距离按需裁剪——近景 LV3 块 240 格内才渲染、中景 700、远景 1400；
+            // 远处整块植被直接隐藏（不生成像素/方块占位），配合既有档位互斥实现"树木按需加载"
+            LODManager.RegisterCullDist(mr, minTier==(int)LodTier.Near ? 240f : minTier==(int)LodTier.Mid ? 700f : 1400f);
         }
 
         static Mesh Builtin(string n)=>Resources.GetBuiltinResource<Mesh>(n);
