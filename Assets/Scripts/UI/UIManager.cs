@@ -730,14 +730,18 @@ namespace PixelToCivilization.UI
 
             // —— V9.3.10：AI 密钥入口（按钮弹窗输入，仿 Debug 密码门——弹窗出现即聚焦） ——
             // V9.6.3f：整栏高度缩小到原 1/3（行高 24→8、状态行 12→6、字号 11/12→9/10）
+            // V9.9.0：字号恢复 20（清晰醒目）、状态行/按钮框高度贴合文字高度（紧凑无留白）
             {
                 var cou=GM.Council;
                 string keyShow = string.IsNullOrEmpty(cou.ApiKey) ? "未配置·离线规则自治" : "已配置 " + cou.ApiKey.Substring(0, Mathf.Min(5, cou.ApiKey.Length)) + "…";
-                var keyLbl=UITheme.Label("aiS",outer.transform,"AI 密钥："+keyShow+"｜模型 "+cou.Model,9,TextAnchor.MiddleLeft,UITheme.Sky);
-                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=6;   // V9.6.3f 12→6（缩小1/3）
-                var rk=Row(outer.transform,8);   // V9.6.3f 24→8（缩小1/3）
-                var kbtn=UITheme.Btn("aikey",rk.transform,"AI 密钥",10);
-                kbtn.gameObject.AddComponent<LayoutElement>().flexibleWidth=1;
+                var keyLbl=UITheme.Label("aiS",outer.transform,"AI 密钥："+keyShow+"｜模型 "+cou.Model,20,TextAnchor.MiddleLeft,UITheme.Sky);
+                keyLbl.gameObject.AddComponent<LayoutElement>().preferredHeight=26;   // V9.9.0 6→26：20号字行高贴合文字
+                var rk=Row(outer.transform,28);   // V9.9.0 8→28：按钮行高=按钮框高（与20号字高度一致）
+                var kbtn=UITheme.Btn("aikey",rk.transform,"AI 密钥",20);
+                var kle=kbtn.GetComponent<LayoutElement>();
+                kle.preferredHeight=28;   // V9.9.0 按钮框高=文字高度（默认值显式化，杜绝被父行压缩）
+                kle.preferredWidth=104;   // 20号字按钮宽度
+                kle.flexibleWidth=1;      // 行内伸展
                 kbtn.onClick.AddListener(()=>{ var pr=gameObject.AddComponent<ApiKeyPrompt>(); pr.Show(GM,_=>{},_hud!=null?_hud.transform:null); });
             }
 
