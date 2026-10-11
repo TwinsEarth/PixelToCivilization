@@ -76,6 +76,21 @@ namespace PixelToCivilization.Core
         public string PoolReportText { get; private set; } = "";
         public int PoolBuckets { get; private set; }
 
+        // ===== V9.8.7 内存自动回收机制（在原只读监控+钳制之上新增主动回收，保持玩法兼容）=====
+        public bool AutoCollectEnabled = true;   // 总开关（Debug 可关）
+        public int PoolIdleTarget = 400;         // 池全局空闲健康水位：超过即缩容
+        public int PoolMinKeepPerBucket = 8;     // 缩容时每桶至少保留的空闲实例
+        const float HighCollectInterval = 20f;   // High 水位 GC 最小间隔（现实秒）
+        const float CriticalCollectInterval = 5f;// Critical 水位 GC 最小间隔
+        const float UnloadInterval = 30f;        // Resources.UnloadUnusedAssets 最小间隔
+        const float ShrinkInterval = 10f;        // 池缩容检查最小间隔
+
+        public int CollectCount { get; private set; }   // 自动 GC 累计次数
+        public int UnloadCount { get; private set; }    // 自动资源卸载累计次数
+        public int PoolShrinkCount { get; private set; }// 池缩容累计销毁数
+        public float LastCollectTime { get; private set; }
+        float _lastUnload, _lastShrink;
+
         float _timer;
         long _prevManaged;
         float _lastGateLog;
@@ -144,6 +159,60 @@ namespace PixelToCivilization.Core
                 if (LastWindowAlloc > ManagedBytes / 50L)
                     Debug.Log("[MEM] 高位增长中 原生=" + NativeAllocatedBytes + "B 托管+" + LastWindowAlloc + "B/5s");
             }
+
+            AutoReclaim(); // V9.8.7 每次采样后执行自动回收调度
+        }
+
+        /// <summary>
+        /// V9.8.7 内存自动回收调度（分级、限频、可关）：
+        /// 1) GC.Collect 分级：High 水位 ≥20s 一次轻量回收；Critical ≥5s 一次强回收（两段式，先收后等再收）；
+        /// 2) 对象池自动缩容：全局空闲超 PoolIdleTarget 即按桶缩容（每桶保留 PoolMinKeepPerBucket），≥10s 检查一次；
+        /// 3) 资源卸载：Critical 水位时 Resources.UnloadUnusedAssets（异步发起，≥30s 限频），回收 Mesh/Texture 残留。
+        /// 水位回落 Normal 后自动停止 GC/卸载，池缩容仍按空闲水位独立运行。
+        /// </summary>
+        private void AutoReclaim()
+        {
+            if (Instance == null) Instance = this;
+            bool high = Level >= MemLevel.High;
+            bool critical = Level >= MemLevel.Critical;
+            float now = Time.unscaledTime;
+
+            // 1) 分级自动 GC（仅 High/Critical 水位触发；限频避免 GC 抖动）
+            if (AutoCollectEnabled && (critical || high) &&
+                (now - LastCollectTime >= (critical ? CriticalCollectInterval : HighCollectInterval)))
+            {
+                LastCollectTime = now;
+                CollectCount++;
+                System.GC.Collect();
+                System.GC.WaitForPendingFinalizers();
+                System.GC.Collect();
+                if (critical)
+                    Debug.LogWarning("[MEM] 临界水位：强制 GC #" + CollectCount + " 托管=" + ManagedBytes + "B");
+            }
+
+            // 2) 对象池自动缩容（独立于水位：空闲实例堆积即回收，避免池膨胀占用内存）
+            if (now - _lastShrink >= ShrinkInterval)
+            {
+                _lastShrink = now;
+                if (GameObjectPool.TotalFreeCount() > PoolIdleTarget)
+                {
+                    int d = GameObjectPool.ShrinkIdle(PoolIdleTarget, PoolMinKeepPerBucket);
+                    if (d > 0)
+                    {
+                        PoolShrinkCount += d;
+                        Debug.Log("[MEM] 对象池自动缩容 " + d + " 个空闲实例 → 池=" + GameObjectPool.ReportText());
+                    }
+                }
+            }
+
+            // 3) 临界水位资源卸载（异步发起；限频避免每 5s 触发扫描开销）
+            if (critical && AutoCollectEnabled && now - _lastUnload >= UnloadInterval)
+            {
+                _lastUnload = now;
+                UnloadCount++;
+                Resources.UnloadUnusedAssets();
+                Debug.LogWarning("[MEM] 临界水位：发起资源卸载 #" + UnloadCount + "（Mesh/Texture 待回收）");
+            }
         }
 
         /// <summary>临界钳制告警（限频 30s，避免每 5s 刷屏）。</summary>
@@ -179,7 +248,7 @@ namespace PixelToCivilization.Core
             foreach (var kv in _sys) { kv.Value.TotalMs = 0f; kv.Value.MaxMs = 0f; }
         }
 
-        /// <summary>探针串（WebMemoryProbe 与 Debug 共用）：一行文本含水位/内存/钳制/网格纹理/池/慢系统。</summary>
+        /// <summary>探针串（WebMemoryProbe 与 Debug 共用）：一行文本含水位/内存/钳制/网格纹理/池/慢系统/自动回收。</summary>
         public string Probe()
         {
             return "lvl:" + Level
@@ -190,6 +259,7 @@ namespace PixelToCivilization.Core
                 + "|mesh:" + MeshCount + "/" + MeshBytes
                 + "|tex:" + TextureCount + "/" + TextureBytes
                 + "|pools:" + PoolReportText
+                + "|gc:" + CollectCount + "/" + UnloadCount + "/" + PoolShrinkCount
                 + "|top:" + TopSystems;
         }
     }

@@ -146,6 +146,48 @@ namespace PixelToCivilization.Core
         /// <summary>桶数量（MemoryBudgetManager 报告用）。</summary>
         public static int BucketCount() => _buckets.Count;
 
+        // ===== V9.8.7 内存自动回收：空闲实例全局缩容 =====
+
+        /// <summary>
+        /// 全局空闲缩容：池总空闲实例超过 targetFree 时，从各桶 Free 栈销毁多余实例（每桶至少保留 minKeepPerBucket）。
+        /// 返回销毁数量；0 表示无需缩容。由 MemoryBudgetManager 周期性自动调用（也可手动/测试调用）。
+        /// </summary>
+        public static int ShrinkIdle(int targetFree, int minKeepPerBucket = 8)
+        {
+            if (targetFree <= 0) return 0;
+            int totalFree = 0;
+            foreach (var kv in _buckets)
+            {
+                kv.Value.Rented.RemoveWhere(o => o == null);
+                totalFree += kv.Value.Free.Count;
+            }
+            if (totalFree <= targetFree) return 0;
+
+            int excess = totalFree - targetFree;
+            int destroyed = 0;
+            foreach (var kv in _buckets)
+            {
+                var bk = kv.Value;
+                int keep = Mathf.Max(0, minKeepPerBucket);
+                while (bk.Free.Count > keep && excess > 0)
+                {
+                    var go = bk.Free.Pop();
+                    if (go != null) { Object.Destroy(go); destroyed++; }
+                    excess--;
+                }
+                if (excess <= 0) break;
+            }
+            return destroyed;
+        }
+
+        /// <summary>当前全局空闲实例总数（缩容决策用）。</summary>
+        public static int TotalFreeCount()
+        {
+            int n = 0;
+            foreach (var kv in _buckets) { kv.Value.Rented.RemoveWhere(o => o == null); n += kv.Value.Free.Count; }
+            return n;
+        }
+
         /// <summary>一行文本报告：如 "wfx_explosion:r0/f12/c64,wfx_hit:r0/f8/c64,..."（超长截断 160 字符）。</summary>
         public static string ReportText()
         {

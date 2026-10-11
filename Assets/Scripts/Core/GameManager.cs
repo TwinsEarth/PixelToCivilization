@@ -1479,6 +1479,29 @@ namespace PixelToCivilization.Core
             Debug.Log(e);
             try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(e) + "');"); } catch (System.Exception ex) { Debug.Log("[WEB] eval fail "+ex.Message); }
         }
+        /// <summary>V9.8.7 内存自动回收回归：往测试桶塞 500 个空闲实例 → ShrinkIdle(400,8) → 应销毁 100 个、剩余 400。</summary>
+        [UnityEngine.Scripting.Preserve]
+        public void WebPoolShrinkProbe()
+        {
+            try
+            {
+                var list = new System.Collections.Generic.List<GameObject>(500);
+                var root = new GameObject("probeRoot").transform;
+                PixelToCivilization.Core.GameObjectPool.SetCapacity("probe_shrink", 500); // 先放大桶容量，确保 500 个全入空闲
+                for (int i = 0; i < 500; i++)
+                    list.Add(PixelToCivilization.Core.GameObjectPool.Rent("probe_shrink", root, () => new GameObject("ps")));
+                foreach (var go in list) PixelToCivilization.Core.GameObjectPool.Return("probe_shrink", go);
+                int free = PixelToCivilization.Core.GameObjectPool.TotalFreeCount();
+                int destroyed = PixelToCivilization.Core.GameObjectPool.ShrinkIdle(400, 8);
+                int after = PixelToCivilization.Core.GameObjectPool.TotalFreeCount();
+                PixelToCivilization.Core.GameObjectPool.SetCapacity("probe_shrink", 0);
+                UnityEngine.Object.Destroy(root.gameObject);
+                string s = "[WEB] poolshrink free=" + free + " destroyed=" + destroyed + " after=" + after + " (期望 destroyed=100 after=400)";
+                Debug.Log(s);
+                try { Application.ExternalEval("window.pxcProbe=decodeURIComponent('" + System.Uri.EscapeDataString(s) + "');"); } catch (System.Exception ex) { Debug.Log("[WEB] eval fail " + ex.Message); }
+            }
+            catch (System.Exception e) { Debug.Log("[WEB] poolshrink err " + e.Message); }
+        }
         /// <summary>V9.6.3 浏览器回归：两次调用测 Ours[0] 实际位移速度（格/秒，期望 Lv1≈0.01..Lv10≈0.10）</summary>
         static float _v963px,_v963pz,_v963pt;
         [UnityEngine.Scripting.Preserve]
