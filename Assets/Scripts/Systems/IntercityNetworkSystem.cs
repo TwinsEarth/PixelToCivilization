@@ -13,6 +13,7 @@ using UnityEngine;
 using PixelToCivilization.Core;
 using PixelToCivilization.World;
 using PixelToCivilization.Actors;
+using PixelToCivilization.Rendering;
 
 namespace PixelToCivilization.Systems
 {
@@ -864,7 +865,11 @@ namespace PixelToCivilization.Systems
             }
             var movers = Root.GetComponentsInChildren<CorridorMover>();
             _moverN = movers.Length;
-            foreach (var mv in movers) mv.Tick(dt, _terrain);
+            foreach (var mv in movers)
+            {
+                // V9.8.8 模拟LOD：远车/火车（>700格）决策降频（0.2-1s 一次）；沿线移动不跳变（CorridorMover 线性插值）
+                if(SimLOD.ShouldUpdate(mv.transform.position,150f,700f,dt)) mv.Tick(dt, _terrain);
+            }
         }
 
         // ============ 基础件 ============

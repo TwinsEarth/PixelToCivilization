@@ -486,3 +486,73 @@ Initializing Tuanjie extensions:
 [MODES] ModeService[none].Initialize
 [MODES] ModeService[none].LoadModes
 [MODES] Loading mode Default (0) for mode-current-id-从像素到文明 V9.8.7
+Unloading 29 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 102 unused Assets / (1.1 MB). Loaded Objects now: 3487.
+Memory consumption went from 134.1 MB to 133.0 MB.
+Total: 9.116800 ms (FindLiveObjects: 0.504200 ms CreateObjectMapping: 0.242700 ms MarkObjects: 7.087600 ms  DeleteObjects: 1.279400 ms)
+
+Asset Pipeline Refresh (id=2a70dd6383cb59c468ef33fa48a88e47): Total: 0.174 seconds - Initiated by RefreshV2(ForceUpdate)
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFdcQFz5IA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791722970
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791985689000,"matchedEntitlements":[{"entitlementId":"com.unity.editor","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFdcQFz5IFw5Sc5ogDcCQFVz"} at 1791722970
+[Licensing::Client] Attempt to check time stamp (startTime: 1791722970, endTime: 1791722970)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFdcQFz5IA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor.allow-mix-usage","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791722970
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791985689000,"matchedEntitlements":[{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFdcQFz5IFw5Sc5ogDcCQFVz"} at 1791722970
+[Licensing::Client] Attempt to check time stamp (startTime: 1791722970, endTime: 1791722970)
+[Licensing::Client] Successfully resolved entitlement details
+Start importing ProjectSettings/ProjectSettings.asset using Guid(00000000000000004000000000000000) Importer(Primary)  -> (artifact id: '84339bb43f770b858f19a309985ca4ac') in 0.020663 seconds
+Start importing Assets/Settings/PxC_URP_High.asset using Guid(14da0bca9c3b21e4ba492f235557c140) Importer(Primary)  -> (artifact id: 'a2a9a5dcee0d5e26b3c3c99c06c1e04c') in 0.028882 seconds
+Refreshing native plugins compatible for Editor in 22.20 ms, found 7 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=32cf07618b5fdfd4da752b31868f5e13): Total: 0.228 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+[Licensing::Client] Successfully send message: {"AuthorizationCheck":"Yq4zMFdcQFz5IA==","messageType":"EntitlementDetailsRequest","entitlementIds":["com.unity.editor","com.unity.editor.headless"],"packageEntitlementIds":[],"includeCustomData":false} at 1791722970
+[Licensing::Client] Successfully receive message: {"entitlementGroups":[{"entitlementGroupId":"F4-4ZTC-MWXR-KRZN-V5ZS-DZ2G","entitlementGroupIdHash":"cff28c1cbabb8812f3d59000721d176279cded46","productName":"Unity Personal","productType":"TuanjieEditor","licenseType":"ULF","expiration":1791985689000,"matchedEntitlements":[{"entitlementId":"com.unity.editor","isPackage":false,"count":1},{"entitlementId":"com.unity.editor.headless","isPackage":false,"count":1}]}],"allowedProjects":["com.DefaultCompany.TuanjieCivilization"],"responseCode":200,"responseStatus":"Found 1 entitlement groups and 0 free entitlements matching requested entitlement ids","messageType":"EntitlementDetailsResponse","authorizationCheck":"Yq4zMFdcQFz5IFw5Sc5ogDcCQFVy"} at 1791722971
+[Licensing::Client] Attempt to check time stamp (startTime: 1791722970, endTime: 1791722971)
+[Licensing::Client] Successfully resolved entitlement details
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 0.2525ms
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\bee_backend.exe --dont-print-to-structured-log --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aESkipCompile.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssembliesAndTypeDB
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+ExitCode: 0 Duration: 1s715ms
+[2/3        1s] BuildPlayerDataGenerator Library/BuildPlayerData/Editor/TypeDb-All.json
+*** Tundra build success (1.64 seconds), 1 items updated, 3 evaluated
+Asset Pipeline Refresh (id=9050f7bd3f55a004081e0a88116b9b99): Total: 0.034 seconds - Initiated by RefreshV2(NoUpdateAssetOptions)
+[ScriptCompilation] Requested script compilation because: Recompiling scripts for player build.
+BuildPlayer: start building target 20
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 0.2250ms
+Starting: C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\bee_backend.exe --dont-print-to-structured-log --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aP.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssembliesAndTypeDB
+WorkingDir: E:/DB/pixel_to_civilization_win/PxC982
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      ALC ILPP context 1 is unloading
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.runtime.interopservices.windowsruntime has duplicate hint path. Ignoring "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\TuanjieReferenceAssemblies\tuanjie-4.8-api\Facades\System.Runtime.InteropServices.WindowsRuntime.dll" in favor of "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\NetStandard\Extensions\2.0.0\System.Runtime.InteropServices.WindowsRuntime.dll"
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.componentmodel.composition has duplicate hint path. Ignoring "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\TuanjieReferenceAssemblies\tuanjie-4.8-api\System.ComponentModel.Composition.dll" in favor of "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Data\NetStandard\compat\2.1.0\shims\netfx\System.ComponentModel.Composition.dll"
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved Unity.Burst.Cecil, Version=0.11.6.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e with Library\PackageCache\com.unity.burst@1.8.30-t2\Unity.Burst.CodeGen\Unity.Burst.Cecil.dll
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors application/grpc - - 200 - application/grpc 457.0623ms
+Total cache size 267641406
+CreateDirectoryW failed to create C:\Users\fangw\AppData\Local\Tuanjie\Caches\bee\trash
+Total cache size after purge 267641406
+Total cache size 267641406
+Total cache size after purge 267641406

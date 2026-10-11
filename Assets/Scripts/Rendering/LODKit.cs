@@ -291,4 +291,28 @@ namespace PixelToCivilization.Rendering
         }
         public static float Interval=>Global==LodTier.Near?0f:Global==LodTier.Mid?0.1f:1f;
     }
+
+    /// <summary>
+    /// V9.8.8 AI/物理 模拟 LOD：远距离实体【决策侧】降频（几何 LOD 的孪生）。
+    /// 近 nearR 内：每帧完整决策（20-60Hz）；nearR~farR：每 0.2s 一次（10Hz）；farR 外：每 1s 一次（1Hz）。
+    /// · 相位按世界位置哈希抖动，避免全场实体同帧切换；
+    /// · 只改变决策频率，不改变模拟状态——切换前后状态一致（由全局状态库兜底，"记忆共享机制"）。
+    /// · 用途：军舰/民船编队、车辆/火车、飞鸟鱼群等高频实体在视野外降频，算力从 O(全图实体) 收敛为 O(视野内实体)。
+    /// </summary>
+    public static class SimLOD
+    {
+        /// <summary>距相机 &lt; nearR 全频；&lt; farR 每 0.2s；更远每 1s。返回 true 表示本轮应做完整决策。</summary>
+        public static bool ShouldUpdate(Vector3 pos,float nearR,float farR,float dt)
+        {
+            var cam=Camera.main; if(cam==null) return true;
+            float d=Vector3.Distance(cam.transform.position,pos);
+            if(d<nearR) return true;
+            float interval=d<farR?0.2f:1f;
+            // 位置相位抖动（世界坐标 0.5 格粒度取哈希），防同帧齐切
+            int phase=((int)(pos.x*0.5f))^((int)(pos.z*0.5f));
+            float t=Time.unscaledTime + (phase&0x7fff)*0.00005f;
+            float k=Mathf.Repeat(t,interval);
+            return k<dt || k>interval-dt*0.5f;   // 每周期一个 dt 窗口返回 true
+        }
+    }
 }

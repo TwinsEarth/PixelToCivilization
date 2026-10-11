@@ -587,6 +587,8 @@ namespace PixelToCivilization.Systems
                     catch(System.Exception ex){ Debug.LogError("[NAV:C6b ship"+si+"] "+ex.GetType().Name+": "+ex.Message); }
                     continue;
                 }
+                // V9.8.8 模拟LOD：远船（>600格）决策降频（0.2-1s 一次），硬约束（不登陆/坐滩）仍每帧
+                if(!SimLOD.ShouldUpdate(new Vector3(s.X,0f,s.Z),120f,600f,dt)) continue;
                 if (!s.Military)
                 {
                     try{
@@ -693,6 +695,8 @@ namespace PixelToCivilization.Systems
                 var e=EnemyShips[i];
                 try{ KeepAtSea(e); } // V6.8.3 敌舰同样永留外海
                 catch(System.Exception ex){ Debug.LogError("[NAV:D1 idx"+i+"] "+ex.GetType().Name+": "+ex.Message); }
+                // V9.8.8 模拟LOD：远敌舰决策降频（硬约束不登陆仍每帧）
+                if(!SimLOD.ShouldUpdate(new Vector3(e.X,0f,e.Z),120f,600f,dt)) continue;
                 CombatTarget ct=null;
                 try{ ct=GM.Combat.NearestHostile(e.X,e.Z, EnemyDetectRangeOf(e)*GameConstants.Tile, e.FactionId); }
                 catch(System.Exception ex){ Debug.LogError("[NAV:D2 idx"+i+"] "+ex.GetType().Name+": "+ex.Message); }
