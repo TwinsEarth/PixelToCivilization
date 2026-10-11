@@ -31,6 +31,8 @@ namespace PixelToCivilization.World
             public int Species;
             // 孤鸟游荡
             public bool Lone; public Vector3 LonePos, LoneDir; public float TurnCd;
+            // V9.8.9 按需加载：休眠/唤醒节流
+            public float SleepAt; public bool Sleeping;
         }
         class Flock
         {
@@ -42,6 +44,8 @@ namespace PixelToCivilization.World
             public Vector3 Corner; public float PingT,PingSpeed=0.06f; public bool PingForward=true;
             // 随机游荡
             public Vector3 RandCenter,RandTarget; public float RandCd;
+            // V9.8.9 按需加载：整群休眠/唤醒节流
+            public float SleepAt; public bool Sleeping;
         }
 
         public const int MaxBirds = 500;   // V6.2.2 上限上调到500（最近100只完全体，其余简化体控算力）
@@ -52,6 +56,7 @@ namespace PixelToCivilization.World
 
         readonly List<Flock> _flocks=new();
         readonly List<Bird> _all=new();
+        readonly List<Bird> _detachTmp=new();   // V9.8.9 GC优化：离群暂存列表字段复用，杜绝每帧 List 分配
         Transform _root;
         Vector3 _home;
         float _range=220f;   // 兜底活动半径
@@ -339,7 +344,7 @@ namespace PixelToCivilization.World
             if(_pathTimer>=PathSwitchSeconds){_pathTimer=0f;foreach(var f in _flocks)RollPath(f);}
 
             // 群鸟飞行：转圈 / 四周折返 / 全图随机
-            var detach=new List<Bird>();
+            _detachTmp.Clear();
             foreach(var fl in _flocks)
             {
                 Vector3 lead; float heading; // 群头位置与前进朝向（弧度）
@@ -372,6 +377,19 @@ namespace PixelToCivilization.World
                     lead=new(fl.RandCenter.x,fl.Height+Mathf.Sin(Time.unscaledTime*0.6f+fl.Phase)*1.0f,fl.RandCenter.z);
                 }
 
+                // V9.8.9 按需加载：群离相机超活跃半径 → 整群休眠（数据保留、视图卸载），进半径自动唤醒（1Hz 节流）
+                if(Time.unscaledTime>=fl.SleepAt)
+                {
+                    fl.SleepAt=Time.unscaledTime+1f;
+                    bool active=StreamingManager.IsActive(lead,StreamingManager.ActiveRadius);
+                    if(active!=!fl.Sleeping)
+                    {
+                        fl.Sleeping=!active;
+                        foreach(var b in fl.Birds) if(b.Root!=null) b.Root.gameObject.SetActive(!fl.Sleeping);
+                    }
+                }
+                if(fl.Sleeping) continue;   // 休眠：跳过整群更新（队形/拍翅/离群），数据层保留
+
                 // 目标队形随编队类型/数量刷新，并按群头朝向旋转局部偏移
                 float cosA=Mathf.Cos(heading),sinA=Mathf.Sin(heading),yaw=heading*Mathf.Rad2Deg;
                 for(int i=0;i<fl.Birds.Count;i++)
@@ -385,16 +403,28 @@ namespace PixelToCivilization.World
                     b.Root.rotation=Quaternion.Euler(0,yaw,0);
                     if(b.Lod==null||b.Lod.Tick(dt))Flap(b,dt);
                     // 离群概率（约每秒 0.8%），离群后全图游荡、仍可重新入群
-                    if(_rng.NextDouble()<dt*0.008) detach.Add(b);
+                    if(_rng.NextDouble()<dt*0.008) _detachTmp.Add(b);
                 }
-                foreach(var db in detach){ if(fl.Birds.Contains(db)) Detach(db,fl); }
-                detach.Clear();
+                foreach(var db in _detachTmp){ if(fl.Birds.Contains(db)) Detach(db,fl); }
+                _detachTmp.Clear();
             }
             // 孤鸟：游荡 + 视野内入群
             for(int i=_all.Count-1;i>=0;i--)
             {
                 var b=_all[i];
                 if(!b.Lone)continue;
+                // V9.8.9 按需加载：孤鸟离相机超活跃半径 → 休眠（1Hz），进半径自动唤醒
+                if(Time.unscaledTime>=b.SleepAt)
+                {
+                    b.SleepAt=Time.unscaledTime+1f;
+                    bool active=StreamingManager.IsActive(b.LonePos,StreamingManager.ActiveRadius);
+                    if(active!=!b.Sleeping)
+                    {
+                        b.Sleeping=!active;
+                        if(b.Root!=null) b.Root.gameObject.SetActive(!b.Sleeping);
+                    }
+                }
+                if(b.Sleeping) continue;   // 休眠：跳过游荡/入群，数据层保留
                 b.TurnCd-=dt;
                 if(b.TurnCd<=0){b.TurnCd=1.5f+Random.value*2f;b.LoneDir=Quaternion.Euler(0,Random.Range(-50f,50f),0)*b.LoneDir;}
                 b.LonePos+=b.LoneDir*dt*7f;

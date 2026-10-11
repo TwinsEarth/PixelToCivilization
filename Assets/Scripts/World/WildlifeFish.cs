@@ -30,6 +30,8 @@ namespace PixelToCivilization.World
             public Transform Root, Tail, Tail2; public Vector3 Form, FormTarget;
             public float Swim, Scale, LifeYears, BirthYear; public School School; public int Kind;
             public bool Lone; public Vector3 LonePos, LoneDir; public float TurnCd;
+            // V9.8.9 按需加载：休眠/唤醒节流
+            public float SleepAt; public bool Sleeping;
         }
         class School
         {
@@ -39,6 +41,8 @@ namespace PixelToCivilization.World
         public float YOff;   // V6.1.9(i) 相对水面的泳层偏移（随潮汐连续升降）
             public Vector3 Corner; public float PingT, PingSpeed=0.05f; public bool PingForward=true;
             public Vector3 RandCenter, RandTarget; public float RandCd;
+            // V9.8.9 按需加载：整群休眠/唤醒节流
+            public float SleepAt; public bool Sleeping;
         }
 
         public const int MaxFish = 300;    // V6.2.2 上限上调到300（最近30条完全体，其余简化体）
@@ -337,6 +341,19 @@ namespace PixelToCivilization.World
                     lead=new(s.RandCenter.x,s.Y,s.RandCenter.z);
                 }
 
+                // V9.8.9 按需加载：群离相机超活跃半径 → 整群休眠（数据保留、视图卸载），进半径自动唤醒（1Hz 节流）
+                if(Time.unscaledTime>=s.SleepAt)
+                {
+                    s.SleepAt=Time.unscaledTime+1f;
+                    bool active=StreamingManager.IsActive(lead,StreamingManager.ActiveRadius);
+                    if(active!=!s.Sleeping)
+                    {
+                        s.Sleeping=!active;
+                        foreach(var f in s.Fishes) if(f.Root!=null) f.Root.gameObject.SetActive(!s.Sleeping);
+                    }
+                }
+                if(s.Sleeping) continue;   // 休眠：跳过整群更新（队形/泳姿），数据层保留
+
                 float cosA=Mathf.Cos(heading),sinA=Mathf.Sin(heading),yaw=heading*Mathf.Rad2Deg;
                 for(int i=0;i<s.Fishes.Count;i++) s.Fishes[i].FormTarget=FormationOffset(s.Form,i,s.Fishes.Count);
                 foreach(var f in s.Fishes)
@@ -353,6 +370,18 @@ namespace PixelToCivilization.World
             for(int i=_all.Count-1;i>=0;i--)
             {
                 var f=_all[i]; if(!f.Lone)continue;
+                // V9.8.9 按需加载：孤鱼离相机超活跃半径 → 休眠（1Hz），进半径自动唤醒
+                if(Time.unscaledTime>=f.SleepAt)
+                {
+                    f.SleepAt=Time.unscaledTime+1f;
+                    bool active=StreamingManager.IsActive(f.LonePos,StreamingManager.ActiveRadius);
+                    if(active!=!f.Sleeping)
+                    {
+                        f.Sleeping=!active;
+                        if(f.Root!=null) f.Root.gameObject.SetActive(!f.Sleeping);
+                    }
+                }
+                if(f.Sleeping) continue;   // 休眠：跳过漫游/入群，数据层保留
                 f.TurnCd-=dt;
                 if(f.TurnCd<=0){f.TurnCd=1.5f+Random.value*2f;f.LoneDir=Quaternion.Euler(0,Random.Range(-50f,50f),0)*f.LoneDir;}
                 f.LonePos+=f.LoneDir*dt*4.5f;
