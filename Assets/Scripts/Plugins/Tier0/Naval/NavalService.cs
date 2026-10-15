@@ -92,6 +92,38 @@ namespace PxC.Plugins.Naval
             return id;
         }
 
+        /// <summary>
+        /// 付费建造船艇：在势力首府附近找水域，先上限/水域/经济校验，
+        /// 按 <see cref="BuildCost"/> 扣费，成功才在水域生成。
+        /// 无水域（内陆势力）/ 资源不足 / 达上限均拒绝并返回 Invalid（扣费前完成全部校验）。
+        /// 这是制造船艇的唯一入口（新游戏初始木筏除外）。
+        /// </summary>
+        public EntityId TryBuildUnit(
+            int faction, NavalModel model, float homeX, float homeZ,
+            float searchRadius = 40f)
+        {
+            if (Count >= HardCap)
+            {
+                _log?.Invoke($"[海军] 已达上限 {HardCap}，{model} 取消");
+                return EntityId.Invalid;
+            }
+            if (!FindWaterNear(homeX, homeZ, searchRadius, out var water))
+            {
+                _log?.Invoke($"[海军] 势力 {faction} 附近无水域，{model} 跳过（内陆势力不造船）");
+                return EntityId.Invalid;
+            }
+            if (_services.TryResolve<IEconomyService>(out var economy))
+            {
+                ResourceCost[] costs = BuildCost(model);
+                if (!economy.TrySpendBundle(faction, costs))
+                {
+                    _log?.Invoke($"[海军] 资源不足，{model} 取消");
+                    return EntityId.Invalid;
+                }
+            }
+            return Spawn(faction, model, water);
+        }
+
         /// <summary>海上集结：集结点必须为水域，否则安全失败。</summary>
         public int Rally(int faction, Vector3 point, float radius, bool includeAllFactions)
         {
