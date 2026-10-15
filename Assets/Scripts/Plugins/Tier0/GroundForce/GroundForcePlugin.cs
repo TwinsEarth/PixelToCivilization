@@ -49,7 +49,6 @@ namespace PxC.Plugins.GroundForce
         private GroundForceService _service;
         private GroundForceAi _ai;
         private IGeographyQuery _geo;
-        private ICombatService _combat;
 
         public void OnRegister(IPluginContext context)
         {
@@ -65,12 +64,13 @@ namespace PxC.Plugins.GroundForce
             _geo = _ctx.Services.Resolve<IGeographyQuery>();
             if (_geo == null) _geo = new PermissiveGeography();
 
-            // 战斗结算（可选）：combat 插件未接线时 AI 攻击仅记录（未验证）
-            _combat = _ctx.Services.Resolve<ICombatService>();
-
+            // 战斗结算（可选）：combat 插件依赖本插件、拓扑上在之后初始化，故 AI 用延迟解析，不在此强 Resolve。
             _state = new GroundForceState(_units.Capacity);
             _service = new GroundForceService(_units, _state, _geo, _ctx.Services, _ctx.Log);
-            _ai = new GroundForceAi(_units, _state, _geo, _combat, _ctx.Log);
+            _ai = new GroundForceAi(
+                _units, _state, _geo,
+                () => _ctx.Services.TryResolve<ICombatService>(out var c) ? c : null,
+                _ctx.Log);
 
             // 暴露给 UI / 集结令 / 征兵
             _ctx.Services.Register<GroundForceService>(_service);

@@ -148,11 +148,28 @@ namespace UnityEngine
             if (t == typeof(string)) { WriteString((string)value); return; }
             if (t == typeof(char)) { WriteString(((char)value).ToString()); return; }
             if (t == typeof(bool)) { _sb.Append(((bool)value) ? "true" : "false"); return; }
-            if (t.IsEnum) { _sb.Append(Convert.ToInt64(value).ToString(Inv)); return; }
-            if (JCommon.IsIntegerType(t)) { _sb.Append(Convert.ToInt64(value).ToString(Inv)); return; }
+            if (t.IsEnum) { WriteIntegerNumber(value); return; }
+            if (JCommon.IsIntegerType(t)) { WriteIntegerNumber(value); return; }
             if (JCommon.IsFloatType(t)) { WriteFloat(value); return; }
             if (value is IEnumerable) { WriteArray((IEnumerable)value, depth); return; }
             WriteObject(value, t, depth);
+        }
+
+        /// <summary>
+        /// 输出整数/枚举（无符号类型用 ToUInt64，避免 ulong 值 &gt; long.MaxValue 时
+        /// Convert.ToInt64 抛 OverflowException；对齐 Unity JsonUtility 对无符号字段的处理）。
+        /// </summary>
+        private void WriteIntegerNumber(object value)
+        {
+            Type t = value.GetType();
+            Type check = t.IsEnum ? Enum.GetUnderlyingType(t) : t;
+            bool unsigned =
+                check == typeof(ulong) || check == typeof(uint) ||
+                check == typeof(ushort) || check == typeof(byte);
+            if (unsigned)
+                _sb.Append(Convert.ToUInt64(value).ToString(Inv));
+            else
+                _sb.Append(Convert.ToInt64(value).ToString(Inv));
         }
 
         private void WriteFloat(object value)

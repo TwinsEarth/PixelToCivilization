@@ -32,6 +32,12 @@ namespace PxC.Core.Persistence
         public int Population;
         public int FactionCount;
 
+        /// <summary>
+        /// 势力完整快照（共享层 FactionRegistry，按 factionId 顺序）。
+        /// 仅 FactionCount 无法恢复名字/玩家/灭国/颜色，故随顶层保存。
+        /// </summary>
+        public List<FactionSnapshot> Factions = new List<FactionSnapshot>();
+
         // ---- 插件段 ----
         public List<PluginSegmentBlob> Segments = new List<PluginSegmentBlob>();
 

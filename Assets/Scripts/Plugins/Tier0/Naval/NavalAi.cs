@@ -17,17 +17,17 @@ namespace PxC.Plugins.Naval
         private readonly UnitRegistry _units;
         private readonly NavalState _state;
         private readonly IGeographyQuery _geo;
-        private readonly ICombatService _combat;
+        private readonly Func<ICombatService> _combatProvider;
         private readonly Action<string> _log;
         private readonly int[] _hits = new int[32];
 
         public NavalAi(UnitRegistry units, NavalState state, IGeographyQuery geo,
-            ICombatService combat, Action<string> log)
+            Func<ICombatService> combatProvider, Action<string> log)
         {
             _units = units;
             _state = state;
             _geo = geo;
-            _combat = combat;
+            _combatProvider = combatProvider;
             _log = log;
         }
 
@@ -128,11 +128,13 @@ namespace PxC.Plugins.Naval
             }
             if (_state.GetCooldown(slot) <= 0f)
             {
-                if (_combat != null)
+                // combat 依赖本插件，延迟解析（此时应已就绪）。
+                ICombatService combat = _combatProvider != null ? _combatProvider() : null;
+                if (combat != null)
                 {
                     var src = _units.GetEntityIdAt(slot);
                     var tgt = _units.GetEntityIdAt(ts);
-                    if (src.IsValid && tgt.IsValid) { _combat.ResolveAttack(src, tgt); }
+                    if (src.IsValid && tgt.IsValid) { combat.ResolveAttack(src, tgt); }
                 }
                 else _log?.Invoke($"[海军] 攻击 #{ts}（combat 未接线，未验证）");
                 _state.SetCooldown(slot, 1f / Mathf.Max(0.01f, p.FireRate));

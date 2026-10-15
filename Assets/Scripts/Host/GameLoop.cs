@@ -21,6 +21,7 @@ namespace PxC.Host
         private IFrameBudget _budget;
         private ISimScheduler _scheduler;
         private readonly List<Action<float>> _perFrame = new List<Action<float>>(8);
+        private readonly List<Action<int>> _yearHandlers = new List<Action<int>>(4);
         private readonly List<Action> _onQuit = new List<Action>(4);
         private bool _configured;
 
@@ -43,6 +44,12 @@ namespace PxC.Host
         public void AddPerFrame(Action<float> action)
         {
             if (action != null && !_perFrame.Contains(action)) _perFrame.Add(action);
+        }
+
+        /// <summary>注册每跨一个游戏年的回调（如自动存档判定），在 OnYear 中触发。</summary>
+        public void AddYearHandler(Action<int> handler)
+        {
+            if (handler != null && !_yearHandlers.Contains(handler)) _yearHandlers.Add(handler);
         }
 
         /// <summary>注册应用退出回调（如标记正常运行、最终存档）。</summary>
@@ -81,7 +88,13 @@ namespace PxC.Host
                 _perFrame[i](realDt);
         }
 
-        private void OnYear(int gameYear) => _runtime.TickYear(gameYear);
+        private void OnYear(int gameYear)
+        {
+            // 先结算该年（各插件 OnYear 推进人口/经济/聚落…），再触发年度钩子（自动存档存的是结算后状态）。
+            _runtime.TickYear(gameYear);
+            for (int i = 0; i < _yearHandlers.Count; i++)
+                _yearHandlers[i](gameYear);
+        }
 
         private void TickSim(float realDt)
         {

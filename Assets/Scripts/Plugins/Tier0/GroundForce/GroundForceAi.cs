@@ -20,7 +20,7 @@ namespace PxC.Plugins.GroundForce
         private readonly UnitRegistry _units;
         private readonly GroundForceState _state;
         private readonly IGeographyQuery _geo;
-        private readonly ICombatService _combat;
+        private readonly Func<ICombatService> _combatProvider;
         private readonly Action<string> _log;
 
         // 复用的敌人搜索缓冲（避免每帧分配）
@@ -30,13 +30,13 @@ namespace PxC.Plugins.GroundForce
             UnitRegistry units,
             GroundForceState state,
             IGeographyQuery geo,
-            ICombatService combat,
+            Func<ICombatService> combatProvider,
             Action<string> log)
         {
             _units = units;
             _state = state;
             _geo = geo;
-            _combat = combat;
+            _combatProvider = combatProvider;
             _log = log;
         }
 
@@ -182,13 +182,15 @@ namespace PxC.Plugins.GroundForce
         // ------------------------------------------------------------
         private void Fire(int sourceSlot, int targetSlot)
         {
-            if (_combat != null)
+            // combat 依赖 groundforce/naval，拓扑上在本插件之后初始化，故延迟解析（此时应已就绪）。
+            ICombatService combat = _combatProvider != null ? _combatProvider() : null;
+            if (combat != null)
             {
                 var source = _units.GetEntityIdAt(sourceSlot);
                 var target = _units.GetEntityIdAt(targetSlot);
                 if (source.IsValid && target.IsValid)
                 {
-                    _combat.ResolveAttack(source, target);
+                    combat.ResolveAttack(source, target);
                     return;
                 }
             }
