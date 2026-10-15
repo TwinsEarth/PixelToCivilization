@@ -5,6 +5,7 @@ using PxC.Core.World;
 using PxC.Gameplay.Entities;
 using PxC.Gameplay.Resources;
 using PxC.Gameplay.Services;
+using PxC.Gameplay.Tech;
 
 namespace PxC.Plugins.Naval
 {
@@ -214,6 +215,63 @@ namespace PxC.Plugins.Naval
             return levels;
         }
 
+        /// <summary>
+        /// 单船蒸汽铁甲换代：扣费（<see cref="UpgradeCost"/>）后直接改型号，
+        /// 保留等级 / 经验 / 位置，速度与耐久 / 攻防按新型号 Profile 重置。
+        /// 资源不足、型号非法或非船艇返回 false。
+        /// </summary>
+        public bool TryUpgradeModel(int slot, NavalModel newModel)
+        {
+            if (!_state.IsNaval(slot)) return false;
+            ref var r = ref _units.GetSlotRef(slot);
+            if (!r.Alive) return false;
+
+            var oldModel = (NavalModel)r.ModelId;
+            if (newModel == oldModel) return false;
+
+            ResourceCost[] costs = UpgradeCost(oldModel, newModel);
+            if (costs.Length == 0) return false;
+
+            if (_services.TryResolve<IEconomyService>(out var economy))
+            {
+                if (!economy.TrySpendBundle(r.Faction, costs))
+                {
+                    _log?.Invoke($"[海军换代] 资源不足，{oldModel}→{newModel} 取消");
+                    return false;
+                }
+            }
+
+            r.ModelId = (int)newModel;
+            var p = NavalProfile.Get(newModel);
+            r.Speed = p.Speed;
+            ApplyLevelToUnit(slot);
+            _log?.Invoke($"[海军换代] {oldModel}→{newModel}（slot {slot}，等级 {r.Level}）");
+            return true;
+        }
+
+        /// <summary>
+        /// 某势力的蒸汽铁甲换代步骤：遍历该势力所有船艇，把进入工业后过时的
+        /// 战船 / 帆船换代为蒸汽轮船；资源不足跳过（来年再试）。返回成功换代数量。
+        /// </summary>
+        public int UpgradeFactionStep(int faction, Era era)
+        {
+            int done = 0;
+            int cap = _units.Capacity;
+            for (int slot = 0; slot < cap; slot++)
+            {
+                if (!_state.IsNaval(slot)) continue;
+                ref var r = ref _units.GetSlotRef(slot);
+                if (!r.Alive || r.Faction != faction) continue;
+
+                var oldModel = (NavalModel)r.ModelId;
+                if (NavalGeneration.TryGetSteamUpgrade(oldModel, era, out var target))
+                {
+                    if (TryUpgradeModel(slot, target)) done++;
+                }
+            }
+            return done;
+        }
+
         /// <summary>在势力出生点附近寻找一片水域（供初始船只锚泊）。</summary>
         public bool FindWaterNear(float homeX, float homeZ, float searchRadius, out Vector3 water)
         {
@@ -293,6 +351,27 @@ namespace PxC.Plugins.Naval
                 default:
                     return Array.Empty<ResourceCost>();
             }
+        }
+
+        /// <summary>
+        /// 蒸汽铁甲换代成本：在老船体 / 船员基础上改造，比新建便宜（船体可复用）。
+        /// 战船 / 帆船 → 蒸汽轮船：Steel90 + Coal40（新建蒸汽轮船为 Steel120+Coal60）。
+        /// 未定义的映射返回空数组（调用方据此拒绝换代）。
+        /// </summary>
+        public static ResourceCost[] UpgradeCost(NavalModel oldModel, NavalModel newModel)
+        {
+            if (newModel == NavalModel.Steamship &&
+                (oldModel == NavalModel.Warship ||
+                 oldModel == NavalModel.SailingShip))
+            {
+                return new[]
+                {
+                    new ResourceCost(ResourceType.Steel, 90f),
+                    new ResourceCost(ResourceType.Coal, 40f),
+                };
+            }
+
+            return Array.Empty<ResourceCost>();
         }
     }
 }
