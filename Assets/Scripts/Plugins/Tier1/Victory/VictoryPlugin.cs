@@ -15,14 +15,16 @@ namespace PxC.Plugins.Victory
         public const string PluginIdValue = "pxc.victory";
 
         // 依赖全部结算类插件，确保 OnYear 拓扑中最后执行（读到当年最终状态）。
+        // warresolution：灭国先结算，胜利随后检测（当年灭国→当年触发征服胜利）。
         private static readonly IReadOnlyList<PluginDependency> _deps =
-            new List<PluginDependency>(5)
+            new List<PluginDependency>(6)
             {
                 new PluginDependency("pxc.economy"),
                 new PluginDependency("pxc.population"),
                 new PluginDependency("pxc.building"),
                 new PluginDependency("pxc.tech"),
                 new PluginDependency("pxc.culture"),
+                new PluginDependency("pxc.warresolution"),
             };
 
         private static readonly IReadOnlyList<CapabilityClaim> _caps =

@@ -41,6 +41,14 @@ namespace PxC.Core.Events
         public int DefenderFaction;
     }
 
+    /// <summary>势力被灭国：战争中一方作战单位被全部消灭（Faction=败者，ByFaction=胜者）。</summary>
+    public struct FactionEliminatedEvent
+    {
+        public int Faction;
+        public int ByFaction;
+        public int GameYear;
+    }
+
     public struct ProjectileFiredEvent
     {
         public int ProjectileType;
