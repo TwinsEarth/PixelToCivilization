@@ -116,6 +116,8 @@ namespace PxC.Infra.Save
                     Name = f.Name,
                     IsPlayer = f.IsPlayer,
                     Alive = f.Alive,
+                    Suzerain = f.Suzerain,
+                    BecameVassalYear = f.BecameVassalYear,
                     ColorIndex = f.ColorIndex,
                     HomeX = f.HomeX,
                     HomeZ = f.HomeZ,

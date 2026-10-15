@@ -129,6 +129,7 @@ namespace PxC.Plugins.AutoDiplomacy
                 FactionInfo attackerInfo = factions.Get(attacker);
                 if (!attackerInfo.Alive) continue;
                 if (attackerInfo.IsPlayer && !EnablePlayerAutomation) continue;
+                if (attackerInfo.IsVassal) continue; // 附庸外交受宗主约束，不主动宣战
 
                 // 战后冷却：上一场战争结束未满 PostWarCooldownYears → 休整，不再宣战
                 // （防止连续灭国滚雪球形成单极统治）。
