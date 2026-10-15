@@ -189,6 +189,7 @@ namespace PxC.Tests.EditMode
 
         // ----------------------------------------------------------------
         // 模拟 GameLoop 年度推进：clock.Restore 设年份 → runtime.TickYear 年结 →
+        // IEconomyYearFinalizer.FinalizeYear（粮食消耗/饥荒判定，在所有产出到账后）→
         // coordinator.OnYearAdvanced 自动存档钩子 → saves.Tick 刷异步写队列。
         // ----------------------------------------------------------------
         private static void AdvanceYears(GameWorld w, int fromYear, int years, bool driveAutoSave)
@@ -198,6 +199,8 @@ namespace PxC.Tests.EditMode
                 int y = fromYear + k;
                 w.Clock.Restore(y, 0f);
                 w.Runtime.TickYear(y);
+                if (w.Services.TryResolve<IEconomyYearFinalizer>(out var fin))
+                    fin.FinalizeYear(y);
                 if (driveAutoSave)
                 {
                     w.Coordinator.OnYearAdvanced(y);

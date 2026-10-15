@@ -28,7 +28,7 @@ namespace PxC.Bootstrap
         public const int HostVersion = 10;
 
         /// <summary>应用完整版本号（与 Git tag / Release 对齐）。</summary>
-        public const string AppVersion = "v10.4.1";
+        public const string AppVersion = "v10.4.2";
 
         /// <summary>启动后的测试上下文（PlayMode 冒烟测试使用；安全模式下为 null）。</summary>
         public static BootstrapTestContext TestContext { get; private set; }
@@ -181,6 +181,12 @@ namespace PxC.Bootstrap
             loop.Configure(_clock, _runtime, _events, frameBudget, scheduler);
             loop.AddPerFrame(_ => memory.Tick());
             loop.AddPerFrame(saves.Tick);
+            // 年度后置（必须在存档之前）：所有产出（劳力 + 农田等建筑产出）到账后，统一结算粮食消耗/饥荒。
+            loop.AddYearHandler(year =>
+            {
+                if (_services.TryResolve<IEconomyYearFinalizer>(out var fin))
+                    fin.FinalizeYear(year);
+            });
             loop.AddYearHandler(_saveCoordinator.OnYearAdvanced);
             loop.AddQuitHandler(() =>
             {

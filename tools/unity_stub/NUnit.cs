@@ -72,6 +72,29 @@ namespace NUnit.Framework
                     $"AreEqual 期望: <{expected ?? "null"}>，实际: <{actual ?? "null"}>"));
         }
 
+        // 浮点数容差重载（float 隐式提升为 double）。
+        public static void AreEqual(double expected, double actual, double delta)
+        {
+            if (!DoublesEqual(expected, actual, delta))
+                throw new AssertionException(
+                    $"AreEqual 期望: <{expected}>，实际: <{actual}>（容差 {delta}）");
+        }
+
+        public static void AreEqual(double expected, double actual, double delta, string message)
+        {
+            if (!DoublesEqual(expected, actual, delta))
+                throw new AssertionException(Msg(message,
+                    $"AreEqual 期望: <{expected}>，实际: <{actual}>（容差 {delta}）"));
+        }
+
+        private static bool DoublesEqual(double expected, double actual, double delta)
+        {
+            if (double.IsNaN(expected) && double.IsNaN(actual)) return true;
+            if (double.IsInfinity(expected) || double.IsInfinity(actual))
+                return expected == actual;
+            return System.Math.Abs(expected - actual) <= System.Math.Abs(delta);
+        }
+
         public static void AreSame(object expected, object actual)
         {
             if (!object.ReferenceEquals(expected, actual))
