@@ -9,6 +9,7 @@ using PxC.Gameplay.Services;
 using PxC.Gameplay.Tech;
 using PxC.Plugins.Building;
 using PxC.Plugins.GroundForce;
+using PxC.Plugins.Naval;
 
 namespace PxC.Plugins.AutoMilitary
 {
@@ -40,6 +41,10 @@ namespace PxC.Plugins.AutoMilitary
         /// <summary>战争时目标箭塔数。</summary>
         public const int TargetWarTowers = 2;
 
+        // ---- 船艇口径 ----
+        /// <summary>目标船艇总数（仅靠水势力；内陆势力始终为 0）。</summary>
+        public const int TargetNavalUnits = 3;
+
         // ---- 首府周边环布 ----
         private const float UnitInnerRadius = 6f;
         private const int UnitRingCount = 5;
@@ -48,12 +53,13 @@ namespace PxC.Plugins.AutoMilitary
         private const float GoldenAngle = 2.399963f;
 
         private static readonly IReadOnlyList<PluginDependency> _deps =
-            new List<PluginDependency>(6)
+            new List<PluginDependency>(7)
             {
                 new PluginDependency("pxc.economy", 1),
                 new PluginDependency("pxc.population", 1),
                 new PluginDependency("pxc.tech", 1),
                 new PluginDependency("pxc.groundforce", 1),
+                new PluginDependency("pxc.naval", 1),
                 new PluginDependency("pxc.military", 1),
                 new PluginDependency("pxc.building", 1),
             };
@@ -86,6 +92,8 @@ namespace PxC.Plugins.AutoMilitary
             if (!_ctx.Services.TryResolve<IPopulationService>(out var population)) return;
             if (!_ctx.Services.TryResolve<GroundForceService>(out var ground)) return;
             if (!_ctx.Services.TryResolve<ITechService>(out var tech)) return;
+            // 船艇服务可选（无海军插件时不造船）
+            _ctx.Services.TryResolve<NavalService>(out var naval);
             var factions = _ctx.Services.Resolve<FactionRegistry>();
 
             for (int f = 0; f < factions.Count; f++)
@@ -96,6 +104,7 @@ namespace PxC.Plugins.AutoMilitary
 
                 RecruitStep(f, military, population);
                 BuildGroundUnitStep(f, info, ground, tech, population);
+                if (naval != null) NavalStep(f, info, naval, tech);
                 DefenseTowerStep(f, info, military, factions);
             }
         }
@@ -155,6 +164,34 @@ namespace PxC.Plugins.AutoMilitary
             if (era >= (int)Era.IronAge) return GroundForceModel.Chariot;
             if (era >= (int)Era.BronzeAge) return GroundForceModel.Cavalry;
             return GroundForceModel.Formation;
+        }
+
+        // ============================================================
+        // ②b 付费建造船艇（仅靠水势力；内陆势力 TryBuildUnit 找水域失败而跳过）
+        // ============================================================
+        private void NavalStep(
+            int faction, FactionInfo info, NavalService naval, ITechService tech)
+        {
+            int existing = naval.CountByFaction(faction);
+            if (existing >= TargetNavalUnits) return;
+
+            int era = (int)tech.GetEra(faction);
+            NavalModel model = ChooseNavalModel(era);
+            // 找水域 + 扣费 + 生成均在 TryBuildUnit 内完成；内陆势力返回 Invalid。
+            var id = naval.TryBuildUnit(faction, model, info.HomeX, info.HomeZ);
+            if (id.IsValid)
+                _ctx.Log($"[自动军事] 势力 {faction} 建造 {model}（{id}）");
+        }
+
+        /// <summary>按时代选择船艇型号；达不到某型时代门槛时退回上一型。</summary>
+        private static NavalModel ChooseNavalModel(int era)
+        {
+            if (era >= (int)Era.Modern) return NavalModel.Submarine;
+            if (era >= (int)Era.Industrial) return NavalModel.Steamship;
+            if (era >= (int)Era.AgeOfSail) return NavalModel.SailingShip;
+            if (era >= (int)Era.IronAge) return NavalModel.Warship;
+            if (era >= (int)Era.BronzeAge) return NavalModel.FishingBoat;
+            return NavalModel.Raft;
         }
 
         // ============================================================
