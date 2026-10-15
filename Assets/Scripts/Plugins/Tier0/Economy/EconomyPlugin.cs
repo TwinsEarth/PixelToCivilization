@@ -6,6 +6,7 @@ using PxC.Core.Persistence;
 using PxC.Gameplay.Factions;
 using PxC.Gameplay.Resources;
 using PxC.Gameplay.Services;
+using PxC.Plugins.Naval;
 
 namespace PxC.Plugins.Economy
 {
@@ -33,6 +34,11 @@ namespace PxC.Plugins.Economy
         private const float ResearchPerScholar = 2.0f; // 每名学者年研究
         private const float CulturePerScholar = 1.6f;  // 每名学者年文化
         private const float GoldTaxPerCapita = 0.03f;  // 每人年基础人头税（金）
+
+        // 船艇经济产出（资源单位/年；Naval 为可选服务，缺失时按 0 计）
+        private const float FoodPerFishingBoat = 8f;   // 每条渔船年产鱼
+        private const float FoodPerRaft = 2f;          // 每条木筏年产少量食物
+        private const float GoldPerSailingShip = 5f;   // 每艘帆船贸易年产金
 
         // 新游戏初始库存
         private const float InitialFood = 100f;
@@ -164,8 +170,26 @@ namespace PxC.Plugins.Economy
             if (!_initialized) return;
             var factions = _ctx.Services.Resolve<FactionRegistry>();
 
+            // Naval 为可选服务（不声明依赖，避免拓扑环）；有则计入船艇经济产出。
+            _ctx.Services.TryResolve<NavalService>(out var naval);
+
             for (int f = 0; f < factions.Count; f++)
             {
+                if (factions.Get(f).Alive && naval != null)
+                {
+                    // 渔船/木筏产食物，帆船贸易产金币（在扣口粮前到账，可养活人口）。
+                    float fishFood =
+                        naval.CountByModel(f, NavalModel.FishingBoat) * FoodPerFishingBoat +
+                        naval.CountByModel(f, NavalModel.Raft) * FoodPerRaft;
+                    if (fishFood > 0f)
+                        _state.Add(f, ResourceType.Food, fishFood);
+
+                    float tradeGold =
+                        naval.CountByModel(f, NavalModel.SailingShip) * GoldPerSailingShip;
+                    if (tradeGold > 0f)
+                        _state.Add(f, ResourceType.Gold, tradeGold);
+                }
+
                 float demand = _pendingFoodDemand[f];
                 _pendingFoodDemand[f] = 0f;
 
