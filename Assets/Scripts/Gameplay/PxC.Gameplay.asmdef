@@ -1,0 +1,17 @@
+{
+  "name": "PxC.Gameplay",
+  "rootNamespace": "PxC.Gameplay",
+  "references": [
+    "PxC.Core",
+    "PxC.Host"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

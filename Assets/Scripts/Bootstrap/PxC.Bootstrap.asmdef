@@ -4,7 +4,8 @@
     "references": [
         "PxC.Core",
         "PxC.Host",
-        "PxC.Infra"
+        "PxC.Infra",
+        "PxC.Gameplay"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

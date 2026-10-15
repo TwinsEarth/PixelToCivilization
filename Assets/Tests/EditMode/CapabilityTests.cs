@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using PxC.Core.Capabilities;
+using PxC.Core.Contracts;
 using PxC.Host;
 
 namespace PxC.Tests.EditMode

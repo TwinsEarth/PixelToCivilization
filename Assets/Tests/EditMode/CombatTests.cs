@@ -1,0 +1,85 @@
+using NUnit.Framework;
+using UnityEngine;
+using PxC.Host;
+using PxC.Core.Events;
+using PxC.Gameplay.Entities;
+using PxC.Gameplay.Services;
+using PxC.Plugins.GroundForce;
+using PxC.Plugins.Naval;
+using PxC.Plugins.Combat;
+
+namespace PxC.Tests.EditMode
+{
+    public sealed class CombatTests
+    {
+        private UnitRegistry _units;
+        private GridGeography _geo;
+        private ServiceRegistry _services;
+        private StrongEventBus _events;
+        private GroundForceService _ground;
+        private NavalService _naval;
+        private CombatService _combat;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _units = new UnitRegistry();
+            _geo = new GridGeography();
+            _services = new ServiceRegistry();
+            _services.Register<UnitRegistry>(_units);
+            var groundState = new GroundForceState(_units.Capacity);
+            _ground = new GroundForceService(_units, groundState, _geo, _services, _ => { });
+            var navalState = new NavalState(_units.Capacity);
+            _naval = new NavalService(_units, navalState, _geo, _services, _ => { });
+            _events = new StrongEventBus();
+            _combat = new CombatService(_units, _ground, _naval, _events, _ => { });
+        }
+
+        [Test]
+        public void SameDomain_LandAttacksLand_DealsDamage()
+        {
+            var a = _ground.Spawn(0, GroundForceModel.Cavalry, new Vector3(0f, 0f, 0f));
+            var b = _ground.Spawn(1, GroundForceModel.Cavalry, new Vector3(3f, 0f, 0f));
+            float hpBefore = _units.GetRef(b).Hp;
+
+            _combat.ResolveAttack(a, b);
+            float hpAfter = _units.GetRef(b).Hp;
+
+            Assert.Less(hpAfter, hpBefore);
+        }
+
+        [Test]
+        public void CrossDomain_LandAttacksNaval_IsRejected()
+        {
+            var a = _ground.Spawn(0, GroundForceModel.Cavalry, new Vector3(0f, 0f, 0f));
+            _geo.SetWater(5, 0);
+            var b = _naval.Spawn(1, NavalModel.Raft, new Vector3(5f, 0f, 0f));
+            float hpBefore = _units.GetRef(b).Hp;
+
+            _combat.ResolveAttack(a, b);
+            float hpAfter = _units.GetRef(b).Hp;
+
+            Assert.AreEqual(hpBefore, hpAfter, "跨域攻击必须被拒绝");
+        }
+
+        [Test]
+        public void LethalDamage_KillsTarget()
+        {
+            var a = _ground.Spawn(0, GroundForceModel.Cavalry, new Vector3(0f, 0f, 0f));
+            var b = _ground.Spawn(1, GroundForceModel.Cavalry, new Vector3(3f, 0f, 0f));
+
+            _combat.DamageUnit(b, 100000f, DamageType.Blunt, a);
+            _events.DispatchPending();
+
+            Assert.IsFalse(_units.GetRef(b).Alive);
+        }
+
+        [Test]
+        public void AwardExperience_ToLand_LevelsUp()
+        {
+            var a = _ground.Spawn(0, GroundForceModel.Cavalry, new Vector3(0f, 0f, 0f));
+            _combat.AwardExperience(a, 100);
+            Assert.AreEqual(2, _units.GetRef(a).Level);
+        }
+    }
+}

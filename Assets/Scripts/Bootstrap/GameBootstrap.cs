@@ -11,6 +11,9 @@ using PxC.Infra.Memory;
 using PxC.Infra.Pool;
 using PxC.Infra.Save;
 using PxC.Infra.Time;
+using PxC.Gameplay.Factions;
+using PxC.Gameplay.Entities;
+using PxC.Gameplay.Services;
 
 namespace PxC.Bootstrap
 {
@@ -30,6 +33,9 @@ namespace PxC.Bootstrap
         private static ChunkedWorld _world;
         private static CapabilitySystem _capability;
         private static PluginRuntime _runtime;
+        private static FactionRegistry _factions;
+        private static UnitRegistry _units;
+        private static BuildingRegistry _buildings;
 
         // ------------------------------------------------------------
         // 阶段 1：最早安装崩溃守护
@@ -85,6 +91,11 @@ namespace PxC.Bootstrap
             var clockAdapter = new ClockAdapter(_clock);
             var crashReport = new LocalCrashReport(Log);
 
+            // 玩法层共享 registry（势力 / 可移动单位 / 建筑）
+            _factions = new FactionRegistry();
+            _units = new UnitRegistry();
+            _buildings = new BuildingRegistry();
+
             // 注册服务
             _services.Register<IClock>(clockAdapter);
             _services.Register<IObjectPool>(pool);
@@ -95,6 +106,11 @@ namespace PxC.Bootstrap
             _services.Register<ISaveService>(saves);
             _services.Register<IFrameBudget>(frameBudget);
             _services.Register<ISimScheduler>(scheduler);
+            _services.Register<FactionRegistry>(_factions);
+            _services.Register<UnitRegistry>(_units);
+            _services.Register<BuildingRegistry>(_buildings);
+            // 默认占位地理（全陆地）；真实地图插件在 OnInitialize 时替换为真实水陆查询
+            _services.Register<IGeographyQuery>(new PermissiveGeography());
 
             // 崩溃状态快照提供者
             _crashGuard.SetStateProvider(() => new CrashStateSnapshot
@@ -115,6 +131,10 @@ namespace PxC.Bootstrap
                 // 安全模式：玩法未启动，仅保留崩溃守护；UI 层后续提供恢复界面
                 return;
             }
+
+            // 新游戏初始世界（开局势力布局）；读档路径后续由存档恢复
+            if (!_services.Resolve<ISaveService>().HasSave(0))
+                NewGameSetup.PopulateNewWorld(_factions);
 
             _runtime.InitializeAll();
             _runtime.StartAll();

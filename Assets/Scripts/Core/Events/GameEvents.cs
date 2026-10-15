@@ -82,4 +82,21 @@ namespace PxC.Core.Events
     {
         public int Sequence;
     }
+
+    /// <summary>饥荒：粮食库存无法满足年度需求，Shortfall 为未满足粮食量（population 据此结算死亡）。</summary>
+    public struct FamineEvent
+    {
+        public int Faction;
+        public float Shortfall;
+        public int GameYear;
+    }
+
+    /// <summary>人口年度结算后：Births/Deaths 为当年出生/死亡数（含饥荒）。</summary>
+    public struct PopulationChangedEvent
+    {
+        public int Faction;
+        public int Births;
+        public int Deaths;
+        public int NewTotal;
+    }
 }
