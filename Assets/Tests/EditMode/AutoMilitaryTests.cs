@@ -529,6 +529,113 @@ namespace PxC.Tests.EditMode
                 "时代不足工业，防御建筑应保持 2 座");
         }
 
+        // ------------------------------------------------------------
+        // 21. 进入现代 → 老骑兵自动换代为装甲车（扣 Steel50+Oil25，数量不变）
+        // ------------------------------------------------------------
+        [Test]
+        public void Modern_Cavalry_UpgradesToArmor()
+        {
+            var h = BuildHarness(1, false);
+            h.Tech.EraValue = (int)Era.Modern;
+            h.Ground.Spawn(0, GroundForceModel.Cavalry, new Vector3(10, 0, 10));
+            h.EcoState.Set(0, ResourceType.Steel, 200f);
+            h.EcoState.Set(0, ResourceType.Oil, 100f);
+            // Capital 留 0：阻止同年 BuildGroundUnitStep 新建 Tank（需 Capital80），隔离换代。
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(1, h.Ground.CountByFaction(0), "换代不改变单位数量");
+            Assert.AreEqual(1, CountGroundByModel(h, 0, GroundForceModel.Armor), "骑兵应换代为装甲车");
+            Assert.AreEqual(0, CountGroundByModel(h, 0, GroundForceModel.Cavalry));
+            Assert.AreEqual(150f, h.EcoState.Get(0, ResourceType.Steel), 0.001f, "应扣 Steel50");
+            Assert.AreEqual(75f, h.EcoState.Get(0, ResourceType.Oil), 0.001f, "应扣 Oil25");
+        }
+
+        // ------------------------------------------------------------
+        // 22. 进入现代 → 老战车自动换代为坦克（扣 Steel90+Oil40）
+        // ------------------------------------------------------------
+        [Test]
+        public void Modern_Chariot_UpgradesToTank()
+        {
+            var h = BuildHarness(1, false);
+            h.Tech.EraValue = (int)Era.Modern;
+            h.Ground.Spawn(0, GroundForceModel.Chariot, new Vector3(10, 0, 10));
+            h.EcoState.Set(0, ResourceType.Steel, 200f);
+            h.EcoState.Set(0, ResourceType.Oil, 100f);
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(1, CountGroundByModel(h, 0, GroundForceModel.Tank), "战车应换代为坦克");
+            Assert.AreEqual(0, CountGroundByModel(h, 0, GroundForceModel.Chariot));
+            Assert.AreEqual(110f, h.EcoState.Get(0, ResourceType.Steel), 0.001f, "应扣 Steel90");
+            Assert.AreEqual(60f, h.EcoState.Get(0, ResourceType.Oil), 0.001f, "应扣 Oil40");
+        }
+
+        // ------------------------------------------------------------
+        // 23. 现代步兵（阵兵）不换代——步兵是永恒兵种
+        // ------------------------------------------------------------
+        [Test]
+        public void Modern_Formation_NotUpgraded()
+        {
+            var h = BuildHarness(1, false);
+            h.Tech.EraValue = (int)Era.Modern;
+            h.Ground.Spawn(0, GroundForceModel.Formation, new Vector3(10, 0, 10));
+            h.EcoState.Set(0, ResourceType.Steel, 200f);
+            h.EcoState.Set(0, ResourceType.Oil, 100f);
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(1, CountGroundByModel(h, 0, GroundForceModel.Formation), "步兵应保持");
+            Assert.AreEqual(200f, h.EcoState.Get(0, ResourceType.Steel), 0.001f, "不应扣换代资源");
+        }
+
+        // ------------------------------------------------------------
+        // 24. 资源不足 → 骑兵不换代（不扣费、保持骑兵）
+        // ------------------------------------------------------------
+        [Test]
+        public void Modern_Cavalry_NoResources_NoUpgrade()
+        {
+            var h = BuildHarness(1, false);
+            h.Tech.EraValue = (int)Era.Modern;
+            h.Ground.Spawn(0, GroundForceModel.Cavalry, new Vector3(10, 0, 10));
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(1, CountGroundByModel(h, 0, GroundForceModel.Cavalry), "资源不足应保持骑兵");
+            Assert.AreEqual(0, CountGroundByModel(h, 0, GroundForceModel.Armor));
+        }
+
+        // ------------------------------------------------------------
+        // 25. 时代不到现代 → 骑兵不换代
+        // ------------------------------------------------------------
+        [Test]
+        public void PreModern_Cavalry_NoUpgrade()
+        {
+            var h = BuildHarness(1, false);
+            h.Tech.EraValue = (int)Era.BronzeAge;
+            h.Ground.Spawn(0, GroundForceModel.Cavalry, new Vector3(10, 0, 10));
+            h.EcoState.Set(0, ResourceType.Steel, 200f);
+            h.EcoState.Set(0, ResourceType.Oil, 100f);
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(1, CountGroundByModel(h, 0, GroundForceModel.Cavalry), "未到现代应保持骑兵");
+            Assert.AreEqual(200f, h.EcoState.Get(0, ResourceType.Steel), 0.001f, "不应扣换代资源");
+        }
+
+        private static int CountGroundByModel(Harness h, int faction, GroundForceModel model)
+        {
+            int n = 0;
+            int cap = h.Units.Capacity;
+            for (int i = 0; i < cap; i++)
+            {
+                ref var r = ref h.Units.GetSlotRef(i);
+                if (r.Alive && r.Domain == EntityDomain.Land &&
+                    r.Faction == faction && r.ModelId == (int)model) n++;
+            }
+            return n;
+        }
+
         private static int TotalTowers(Harness h, int faction)
         {
             var b = h.Services.Resolve<IBuildingService>();

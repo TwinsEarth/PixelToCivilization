@@ -232,6 +232,65 @@ namespace PxC.Plugins.GroundForce
             return levels;
         }
 
+        /// <summary>
+        /// 单单位机械化换代：扣费（<see cref="UpgradeCost"/>）后直接改型号，
+        /// 保留等级 / 经验 / 位置 / 编队，速度与耐久/攻防按新型号 Profile 重置。
+        /// 资源不足、型号非法或非地面单位返回 false。
+        /// </summary>
+        public bool TryUpgradeModel(int slot, GroundForceModel newModel)
+        {
+            if (!_state.IsGround(slot)) return false;
+            ref var r = ref _units.GetSlotRef(slot);
+            if (!r.Alive) return false;
+
+            var oldModel = (GroundForceModel)r.ModelId;
+            if (newModel == oldModel) return false;
+
+            ResourceCost[] costs = UpgradeCost(oldModel, newModel);
+            if (costs.Length == 0) return false;   // 非法/未定义的换代映射
+
+            if (_services.TryResolve<IEconomyService>(out var economy))
+            {
+                if (!economy.TrySpendBundle(r.Faction, costs))
+                {
+                    _log?.Invoke($"[换代] 资源不足，{oldModel}→{newModel} 取消");
+                    return false;
+                }
+            }
+
+            // 换装：型号 + 速度 + 耐久/攻防（保留等级与经验，老兵延续战斗力）。
+            r.ModelId = (int)newModel;
+            var p = GroundForceProfile.Get(newModel);
+            r.Speed = p.Speed;
+            ApplyLevelToUnit(slot);   // 按新型号与当前等级重置 MaxHp/Hp
+            _log?.Invoke($"[换代] {oldModel}→{newModel}（slot {slot}，等级 {r.Level}）");
+            return true;
+        }
+
+        /// <summary>
+        /// 某势力的机械化换代步骤：遍历该势力所有地面单位，把进入现代后过时的
+        /// 骑兵 / 战车逐一代为装甲车 / 坦克；资源不足的跳过（来年再试）。
+        /// 返回成功换代数量。步兵（阵兵）与已机械化单位保持不变。
+        /// </summary>
+        public int UpgradeFactionStep(int faction, Era era)
+        {
+            int done = 0;
+            int cap = _units.Capacity;
+            for (int slot = 0; slot < cap; slot++)
+            {
+                if (!_state.IsGround(slot)) continue;
+                ref var r = ref _units.GetSlotRef(slot);
+                if (!r.Alive || r.Faction != faction) continue;
+
+                var oldModel = (GroundForceModel)r.ModelId;
+                if (GroundForceGeneration.TryGetMechanizedUpgrade(oldModel, era, out var target))
+                {
+                    if (TryUpgradeModel(slot, target)) done++;
+                }
+            }
+            return done;
+        }
+
         /// <summary>某型号的征兵/制造成本（按分代给资源）。</summary>
         public static ResourceCost[] RecruitCost(GroundForceModel model)
         {
@@ -280,6 +339,37 @@ namespace PxC.Plugins.GroundForce
                 default:
                     return Array.Empty<ResourceCost>();
             }
+        }
+
+        /// <summary>
+        /// 机械化换代成本：在老单位的底盘 / 人员 / 训练基础上改造，比新建便宜，
+        /// 且不重复征收 Capital（资本/编制已在老单位上投入过）。
+        /// 骑兵→装甲车（Steel50+Oil25）；战车→坦克（Steel90+Oil40）。
+        /// 未定义的映射返回空数组（调用方据此拒绝换代）。
+        /// </summary>
+        public static ResourceCost[] UpgradeCost(GroundForceModel oldModel, GroundForceModel newModel)
+        {
+            if (oldModel == GroundForceModel.Cavalry &&
+                newModel == GroundForceModel.Armor)
+            {
+                return new[]
+                {
+                    new ResourceCost(ResourceType.Steel, 50f),
+                    new ResourceCost(ResourceType.Oil, 25f),
+                };
+            }
+
+            if (oldModel == GroundForceModel.Chariot &&
+                newModel == GroundForceModel.Tank)
+            {
+                return new[]
+                {
+                    new ResourceCost(ResourceType.Steel, 90f),
+                    new ResourceCost(ResourceType.Oil, 40f),
+                };
+            }
+
+            return Array.Empty<ResourceCost>();
         }
     }
 }

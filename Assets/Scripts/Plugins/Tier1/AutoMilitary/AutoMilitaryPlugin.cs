@@ -16,6 +16,7 @@ namespace PxC.Plugins.AutoMilitary
     /// <summary>
     /// 自动军事建设（Tier-1）。年度对每个存活势力执行：
     /// ① 自动征兵，维持士兵占比（劳动力转士兵，保留基础劳力）；
+    /// ①b 机械化换代（进入现代后老骑兵/战车换代为装甲车/坦克）；
     /// ② 按时代付费建造陆军单位（骑兵/战车/坦克等，经 GroundForceService.TryBuildUnit 扣费）；
     /// ③ 战争时自动建造防御箭塔。
     /// 玩家势力默认跳过；<see cref="EnablePlayerAutomation"/> 可开启。
@@ -140,6 +141,7 @@ namespace PxC.Plugins.AutoMilitary
                 if (info.IsPlayer && !EnablePlayerAutomation) continue;
 
                 RecruitStep(f, military, population);
+                UpgradeStep(f, ground, tech);
                 BuildGroundUnitStep(f, info, ground, tech, population);
                 if (naval != null)
                 {
@@ -176,6 +178,17 @@ namespace PxC.Plugins.AutoMilitary
 
             if (military.TryRecruit(faction, n))
                 _ctx.Log($"[自动军事] 势力 {faction} 征兵 {n}（士兵 {soldiers}→{soldiers + n}）");
+        }
+
+        // ============================================================
+        // ①b 机械化换代（老骑兵/战车 → 装甲车/坦克）
+        // ============================================================
+        private void UpgradeStep(int faction, GroundForceService ground, ITechService tech)
+        {
+            Era era = tech.GetEra(faction);
+            int n = ground.UpgradeFactionStep(faction, era);
+            if (n > 0)
+                _ctx.Log($"[自动军事] 势力 {faction} 机械化换代 {n} 个单位（{era}）");
         }
 
         // ============================================================
