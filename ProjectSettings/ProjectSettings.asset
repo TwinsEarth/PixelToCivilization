@@ -14,7 +14,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: ToFuture
-  productName: "\u4ECE\u50CF\u7D20\u5230\u6587\u660E V9.9.0"
+  productName: "从像素到文明 V10.1.01"
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.12156863, g: 0.12156863, b: 0.1254902, a: 1}
@@ -170,7 +170,7 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 9.9.0
+  bundleVersion: 10.1.01
   preloadedAssets: []
   metroInputSource: 0
   wsaTransparentSwapchain: 0

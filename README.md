@@ -1,225 +1,241 @@
 # 从像素到文明 · Pixel to Civilization
 
-> 一款从三皇五帝到太空时代的 **Q 版低多边形 4X 文明模拟游戏**。开局一座海边村落，看着小人出生、成长、劳作、结婚、衰老；看王朝分合、群雄争霸、扬帆殖民、迈向海洋与星辰。九位“AI 神灵”共治，目标是让文明在无人干预下延续五千年乃至一万年。
+> 一款从三皇五帝到太空时代的 **Q 版低多边形 4X 文明模拟游戏**。开局一座海边村落，看小人出生、成长、劳作、衰老；看王朝分合、群雄争霸、扬帆殖民、迈向海洋与星辰。目标是让文明在无人干预下延续五千年乃至一万年。
 
 - **引擎**：团结引擎 Tuanjie 2022.3.61t13（基于 Unity 2022.3 LTS，Hub 版）
 - **平台**：HTML5 / WebGL（主交付），同一套 C# 可构建 Win / macOS / Android / iOS
-- **当前版本**：V9.8.4「三 BUG 真根治」——Pro 定位 / Lit 修复分工后治本闭环，浏览器实证通过：① **集结令**：真根因 = UGUI 动态 UI 网格顶点爆炸（`Mesh can not have more than 65000 vertices`，Chrome 渲染进程崩溃），治本 4 处（事件 80 字截断 / Ticker·Toast·Marker 三独立 Canvas / 编年史 40→25 / 日志 200→120），`WebRallyUiCycle(5)/(20)` + `WebRallyStress`（20 次随机插旗）console 零 65000 错误、页面存活；② **古典地面部队**（骑兵/阵兵/战车）：`NearestLand` 半径 48→240 格三档步进 + 困水脱困 2.0 + 去 continue，公元 1700 新局 `WebBuildClassicGround` 生成 phalanx/chariot 于真实坐标、stuck:0、inWater:0、敌方 3 阵营镜像；③ **塔防造型**：`BuildSpecial` 此前无塔分支（五型全走方盒）→ 新增 `BuildTower` 真实现（3-4 层收分塔身 + 五型专属顶部），`WebTowerBounds` 五塔 h/w=1.39-1.96（arrow 弩机 / fire 火口·火球 / cannon 旋转炮 / bunker 半球·四向机枪 / watchtower 木架大锅）。密钥 CLEAN（历史残留已脱敏）、Release v9.8.4
+- **当前版本**：**V10.1.01「全插件化架构重写」**——极薄宿主 + 插件契约，除核心模块外所有系统/功能/副本均以插件形式重写；数据导向（SoA）存储，分主次 / 分权限 / 分布式 / 分模块 / 分版本。
 - **协议**：[MIT](LICENSE)，第三方 CC0 资源见 [NOTICE](NOTICE)
 
 ---
 
-## ▶ 立即试玩（无需安装）
+## 一、架构总览（V10.1.01 全新）
 
-到右侧 **[Releases](../../releases)** 下载最新 `PixelToCivilization_V9.8.4_HTML5.zip`（约 54 MB；仓库不含 WebGL 构建二进制，如需自行构建见下方「从源码构建」一键出包），解压后：
+V10 是一次**从零开始的架构重写**。旧的单体 `GameManager + 一堆 System` 被替换为「**极薄宿主 + 契约 + 插件**」模型。
 
-- **Windows**：双击 `start_webserver.bat`，浏览器自动打开。
-- **macOS**：终端执行 `chmod +x start_webserver.command` 后双击 `start_webserver.command`
-  （若提示“无法打开/已损坏”，在“系统设置 → 隐私与安全性”里允许，或执行
-  `xattr -dr com.apple.quarantine start_webserver.command`）。
-- **任意系统（手动）**：在解压目录运行
-  `python3 -m http.server 8000`，浏览器访问 `http://127.0.0.1:8000/index.html`。
+### 分层依赖（自上而下，只允许上层依赖下层）
 
-> WebGL 出于安全策略不能直接双击 `index.html` 以 `file://` 打开，必须经本地 HTTP 服务访问。
-
----
-
-## ✨ 特性总览
-
-**世界生成与真实扩展**
-- 开局随机 1 个主大陆 + 1–5 个次大陆 + 不超过 5 个无人小岛，大陆之间以大海相隔、互不重叠接壤。
-- 山地只存在于无人小岛；主大陆才有沙漠、高原、一个随机形状的大湖泊与河流，次大陆为绿地/沙滩/小湖。
-- 海洋占比 ≥70%、纯陆地 ≥15%、山地 ≤5%；月相潮汐（1–15 涨潮 / 16–30 退潮）、洋流海风。
-- **真实地图扩展**：每 100 年实时随机长出新陆地（非一次性显现），每 1000 年增加主大陆、每 500 年增次大陆、每 100 年增岛屿；上限长 5 倍 × 宽 3 倍（面积 15 倍）。
-- 天气系统：晴 / 多云 / 雾 / 雨 / 雪 / 晚霞 / 雷电 / 龙卷风。
-
-**文明与历史**
-- 完整中国朝代年表：三皇五帝·夏商周 → 春秋战国秦汉 → 隋唐 → 宋元 → 明清 → 民国 → 新中国 → 地球联盟。
-- 1–3 个初始村落、2–5 方势力（不同旗帜/血条配色）；周期性“分裂期（3–7 国）↔ 大一统王朝”。
-- 人口、婚姻、生育、瘟疫、饥荒、灾荒、移民、民心、学派、科举、腐败、君主贤明等社会模拟。
-- 15 种资源、四级造价锚点（棚屋/小木车→富人宅院/马车→贵族宫殿/大马车→皇宫/宝船）、建筑随年代老化。
-
-**战争、航海与殖民**
-- 骑兵与塔防群雄：步兵/骑兵相克、箭塔/火塔/炮塔/碉堡、城墙阻挡、玩家出师讨伐与势力兼并。
-- 大航海时代（公元 1000 年）前各大陆只能独立发展、无法跨洋作战；之后可建贸易站→殖民地→领地、上贡与镇压独立。
-- 桥梁系统：木/石/钢铁/水泥材料随时代演进，自动在同阵营相邻陆地最短点架桥；普通桥/跨海大桥有跨距、数量、额度与寿命上限。
-- 海洋大开发与太空探索 9×9 迷雾副本：港口、渔场、海怪、风暴、月/火前哨、小行星、戴森球等节点。
-
-**统一跨阵营作战（V9.4.7）**
-- 新建统一战斗目录：军舰 / 军车 / 军人 / 塔防 / 骑兵五类单位全部接入同一套阵营判定（FactionKey），跨类型索敌最近敌对目标。
-- 敌对判定唯一规则：阵营键不同即敌对；我方与所有敌方阵营敌对，敌方各派之间也互相攻伐。
-- 除树木外所有建筑（含墙、房屋、设施）都可被攻击直至摧毁，摧毁不返还资源；塔的箭/火/炮投射物保留。
-- 1949 年起地面坦克、装甲车、导弹车等装甲部队参战；航母自动发射舰载机、直升机与喷气机。
-
-**上线硬化（V9.5.x）**
-- **资源栏紧凑格式**：数值不足 1 万显示完整整数；≥1 万自动以“万”、≥1 亿以“亿”显示（如 1000000 → “100万”）；配合顶部栏 item/icon/label 收紧，数字恒定落在预留宽度内、不再被图标居中劈开遮挡。
-- **LODGroup 假空修复**：Tuanjie 原生组件下 `GetComponent<LODGroup>()` 未命中时会返回 Unity 重写 `==` 判空但 CLR 引用非空的“假空对象”，`??` 无法识别、对其调用 `SetLODs` 会在原生边界抛 `MissingComponentException`；改为显式 `if (lg == null) lg = AddComponent<LODGroup>()`，并补诊断工具 LODDiag。
-- **构建/冒烟流水线**：命令行 WebGLBuilder 一键出包；新增 PlayMode 状态机冒烟 V601SmokeTest（开局/建造/逐时代跳年/渲染体检/UI 射线），覆盖 5100 年 8 个时代；长年代走 `DebugJumpTo` 逐年补结，避免全实时 Tick 卡死。
-- **存档界面加固（V9.5.3）**：存档模态置顶、宽度 380→700、补“导入存档”按钮、底部 Debug 密码解锁行；自动存档/多槽位/导出导入链路浏览器实锤可用。
-- **高架桥修复（V9.5.3）**：`BridgeSystem.DeckY[tier]` 数组仅 4 元素，高架档 tier=4 越界 → 桥面生成/读档中断 → 主地图错乱&闪烁；取高改为 `tier==4 ? ViaductDeckY : DeckY[tier]` 并去双柱重叠。
-- **基建分类（V9.5.3）**：建造面板 10→11 类新增“基建”（桥梁/高架柱/铁路/城际公路，机场/高铁站自动承接）。
-- **地面作战部队（V9.5.3）**：军事分类顶部“地面作战部队（1949 起）”：坦克/装甲车/导弹车，选中置 `ground:gid` 放置。
-- **武器特效（V9.5.3）**：新建 WeaponFxSystem——Muzzle/Hit/Explosion/Tracer/Sfx 五类特效，GameObjectPool 分桶租还、相机 85 单位外不生成、FxLifetime 到期回收、烟尘淡出上升自缩；军舰/地面/塔防开火与命中全链路接入。
-
-**战时广播 · 滚动信息条 · 远程投送（V9.6.1）**
-- **传令兵战时广播**：Broadcast/Command/Report/Loss 四级播报，战报/指令/双方战损实时写入编年史并语音播报（WebGL `pxcSpeak` → 浏览器 `speechSynthesis` zh-CN 实时 TTS，用户手势解锁音频后生效）。
-- **顶部滚动信息条**：编年史重要事件（战争/朝代/灾荒/殖民/太空/奇迹/集结/投送等 18 组关键词）自动单行滚动轮播，无重要事件自动隐藏；滚动速度 170px/s（真实时间）。
-- **远程投送**：绿旗/红旗集结目标超过 100 格时，地面部队&军人自动进入空运队列，由运输机（公元 1900 起）/直升机（公元 1949 起）一次 6 人远程投送；投送中单位悬浮于机体、不参与地面寻路。
-
-**紧急集结令与建筑真实化（V9.6.0）**
-- 底栏新增**集结令**插旗按钮（select→build→tree→npc→rally）：循环切换旗色（蓝=海军 / 绿=地面作战部队 / 红=军人），点击地图陆地插旗，**100 格内**对应军事单位自动向军旗集结、10 格内列阵；无旗时各军回防（海军巡航/地面驻防/军人回 Home）。
-- 旗随存档持久化（SaveData.RallyKind/X/Z，读档自动重建旗模型）；插旗时写编年史公告。
-- **建筑真实化**（历史建筑学家视角）：宫殿/大殿 3 倍墙高 + 三层汉白玉台基、重檐庑殿顶；寺庙歇山顶、草顶随时代；塔楼 3.2 倍、城台 2.2 倍、钱庄 1.4 倍、官署学馆 1.25 倍、市场茶馆驿站 1.1 倍、马厩 0.8 倍——按现实比例分档；47 条建筑属性说明全部补齐（属性面板可读）。
-
-**真实地球文明（V9.x，开局可选）**
-- 按现实地球地形/气候生成世界，公元 1700 年（美国建国前后）开局，现代风格建筑、大马路、铁路、飞机与城市公共设施（消防站/医院/警局/学校/公园/市场/小区）。
-- 14 个主权国、38 座城市按经纬度落位，每个地理文化分区至多 3 国；四大阵营配色；南极、北极为无人岛。
-- 铁路**只连接不同国家**（一线一列车），国内只修 4 车道公路且公路不跨国；五代机车随年代解锁：蒸汽 1800 / 内燃 1900 / 电力 1950 / 高铁 1990 / 磁悬浮 2010，载客 20→100。
-- 月球是「太空岛」：须进入太空时代并建成太空电梯（100%）才能建月球前哨，月球基地满后才能前往火星；任何铁路公路不可达。
-
-**智能体驱动 · 万物协作（V9.8.0）**
-- 一层非侵入的“身份”：每个物体 / 事件 / 系统都有简介与能力域，按自身设定自主决策、协调协同协作；**118 个身份**（系统 41 / 管理 4 / 建筑 23 / 船 8 / 车 9 / 地面 6 / 职业 12 / 自然 13 / 指挥官 2）。
-- 身份按原型共享（同种建筑共享一个身份，实例只持 AgentId），“自主行动”委托给现有系统已有方法，不重写玩法。
-- **消息总线**：Subscribe / Post / Broadcast / Help / Reply，环形缓冲 120 条；例：驱逐舰发 Help(combat) → 战斗仲裁系统 Reply“我来支援”。
-- **三种模式**：离线（本地规则 + 离线行为库）/ 在线大模型 / 混合（大模型决策 + 每次决策沉淀为本地离线行为动作库，越用越聪明）；无 Key 自动降级离线。
-- 自主调度 0.8s 现实秒节流，单帧一个身份 + 一批 pending；调度 / 消息回调 / LLM 协程全 try/catch，异常静默隔离不阻断主循环。
-
-**生命与画面**
-- Q 版大头敦实小人，人人持工具；随年龄（幼/壮/老）、时代、职业、阶层、个体颜色差异化成长与换装。
-- 飞鸟群（上限 500）与鱼群（上限 300）：混色/体型随机、寿命、自动合群、I/V/S/W 等队形、转圈/对角/随机洄游。
-- 树木分层（乔木/灌木/草本/地被）、大榕树、四季变色、三角形松树；LOD 远近三级按需渲染。
-- 明亮低多边形玩具风、金黑古风 UI 演进为现代极简 UI；小地图雷达跳转、建筑实景内视图与浮窗属性。
-
-**九智能体共治（AI Gods）**
-- 人口神、土地农神、技术工业神、时间事件神、资源神、教育文化神、组织神、军事外交神、性能神各司其职、自主决策。
-- 共用 Token 额度，可联网（火山方舟兼容接口）或纯离线；内置“存亡续绝”硬底线——允许大饥荒/灾难/动乱让文明倒退，但**保证不灭绝**。
-
----
-
-## 🛠 从源码构建
-
-1. 安装 **团结引擎 Tuanjie 2022.3.62t12**（或兼容的 Unity 2022.3 LTS）。
-2. 用 Hub “Add project from disk” 打开仓库根目录（含 `Assets`、`ProjectSettings`、`Packages`）。
-3. 等待首次导入完成。
-
-**命令行一键出 WebGL 包**（Windows 示例）：
-
-```powershell
-& "E:\Unity\2022.3.62t12\Editor\Tuanjie.exe" `
-  -batchmode -quit -buildTarget WebGL `
-  -projectPath "<本仓库路径>" `
-  -executeMethod PixelToCivilization.EditorTools.WebGLBuilder.BuildCLI `
-  -logFile build.log
+```
+┌───────────────────────────────────────────────────────────┐
+│  Plugins  插件层（Tier0 核心玩法 / Tier1 扩展 / Tier2 内容副本）│
+│   Economy · Population · Building · Tech · GroundForce ·    │
+│   Naval · Combat · Rally · Military · Smoke(样板) …         │
+├───────────────────────────────────────────────────────────┤
+│  Gameplay  共享玩法层（纯数据 + 服务接口 + 实体目录）          │
+│   Entities(UnitRegistry/BuildingRegistry) · Factions ·      │
+│   Resources · Tech · Services(各服务接口)                    │
+├───────────────────────────────────────────────────────────┤
+│  Host  宿主运行时（不含玩法）                                │
+│   GameLoop · PluginRuntime · PluginRegistry · ServiceRegistry│
+│   StrongEventBus · CapabilitySystem · PluginContext          │
+├───────────────────────────────────────────────────────────┤
+│  Core  内核契约（零 Unity 重型依赖，可独立编译）               │
+│   Contracts · Events · Services · Persistence · Capabilities │
+│   Time · World                                              │
+├───────────────────────────────────────────────────────────┤
+│  Infra  基础设施实现（可被宿主替换）                          │
+│   Assets(Addressables/Resources) · Budget · Crash · Memory · │
+│   Pool · Save · Time                                        │
+└───────────────────────────────────────────────────────────┘
 ```
 
-构建产物输出到工程下的 `BuildWebGL/`。也可在编辑器里 `File → Build Settings → WebGL → Build`。
+**关键设计**：
+- **契约在 Core，实现在 Infra/Plugin**：内核只定义接口（`IPlugin`、`IEventBus`、`ISaveService`、`IClock`…），宿主和插件面向接口编程。
+- **宿主零玩法**：`Host` 只负责装配、生命周期、服务定位、事件分发、能力闸门，不写任何文明规则。
+- **数据导向（SoA）**：人口 / 单位 / 建筑等大规模模拟数据存为并行数组（`StructArray`、`UnitRegistry`、`BuildingRegistry`），而非大量 `GameObject`，保证缓存命中与长跨度性能。
+- **能力闸门**：文件读写、网络、生成实体、UI、音频等敏感操作通过 `Capability` 声明，`CapabilitySystem` 统一授权，插件不能越权。
 
 ---
 
-## 🎮 操作
+## 二、插件契约
 
-| 操作 | 方式 |
-|---|---|
-| 移动视角 | 鼠标拖拽 / 边缘平移（WASD） |
-| 缩放 | 鼠标滚轮 |
-| 选择 / 建造 / 种树 / 招民 | 底部快捷栏切换工具后点击地面 |
-| 时间流速 | 底部暂停 / 倍速 / 滑条（Debug 档最高 1000×） |
-| 小地图 | 点击跳转、雷达显示势力与单位 |
-| 高级 Debug | 帮助界面输入密码解锁（本地单机功能） |
-| 存档 | 左下角存档/读档，自动存档 + 多槽位，读档精确恢复世界/人物年龄/副本 |
+每个插件实现 **`IPlugin`**（`Assets/Scripts/Core/Contracts/IPlugin.cs`）；需要参与模拟的再实现 **`ISimPlugin`**。
+
+```csharp
+public interface IPlugin {
+    string Id { get; }                       // 全局唯一，如 "pxc.groundforce"
+    string DisplayName { get; }
+    int Version { get; }                    // 插件自身版本（整数）
+    int MinHostVersion { get; }             // 所需宿主最低版本
+    Tier Tier { get; }                      // Core0 / System1 / Content2 / Community3
+    IReadOnlyList<PluginDependency> Dependencies { get; }   // 依赖的其他插件
+    IReadOnlyList<CapabilityClaim> RequiredCapabilities { get; }
+    void OnRegister(IPluginContext context);
+    void OnInitialize();
+    void OnShutdown();
+    ISaveSegment GetSaveSegment();
+    void RestoreSaveSegment(ISaveSegment segment, int globalSaveVersion);
+}
+
+public interface ISimPlugin : IPlugin {
+    SimulationLayer Layer { get; }          // P0Core / P1Tactical / P2Ambient
+    void OnTick(float simDt);               // 每模拟秒
+    void OnYear();                          // 每年结算
+    void OnEra(int newEra);                 // 跨时代
+    void OnDynasty(int dynastyId);          // 朝代更替
+}
+```
+
+**插件生命周期**：宿主 `Collect → BuildOrder（拓扑排序 + 依赖检查）→ PopulateNewWorld → RegisterAll → InitializeAll → StartAll`。依赖缺失 / 循环依赖 / 能力被拒时安全降级（进入安全模式），不会崩溃。
 
 ---
 
-## 📁 目录结构
+## 三、Tier0 核心插件清单
+
+| 插件 ID | 模块 | 职责 |
+|---|---|---|
+| `pxc.economy` | **Economy** | 15 种资源（双精度累加）、年度产出/消耗、研究点供给；SoA 年度结算 |
+| `pxc.population` | **Population** | 人口 SoA、出生/衰老/死亡、劳动力分配（劳动力/士兵）、饥荒与移民 |
+| `pxc.building` | **Building** | 建筑目录、建筑 SoA、建造/老化、多层塔形制规格（`TowerProfile` 收分 3–4 层） |
+| `pxc.tech` | **Tech** | 时代推进（进入时代 N 需 `100+current*50` 研究点，上限 Space=9）、跨时代事件 |
+| `pxc.groundforce` | **GroundForce** | 6 型地面部队（骑兵/阵兵/战车 + 坦克/装甲车/导弹车），**陆地校验生成、自主寻敌-追击-攻击-回撤、不掉湖**、经验升级 |
+| `pxc.naval` | **Naval** | 7 型舰船（木筏/渔船/战船/帆船/轮船/潜艇/航母），**水域内自主行动、不上岸**、集结、经验升级 |
+| `pxc.combat` | **Combat** | 统一伤害公式（减伤 `def/(def+100)`、穿甲减半、同域判定）、经验/击杀结算 |
+| `pxc.rally` | **Rally** | 集结令：订阅集结事件，按旗帜点水陆分流到海军/地面；**幂等序列、不瞬时搬运、不分配大数组（根治连插崩溃）** |
+| `pxc.military` | **Military** | 军事聚合（总兵力/火力 = 士兵人口 + 地面 + 海军）、征兵、战争矩阵（对称） |
+| `pxc.smoke` | Smoke（样板） | 最小插件示例，供新插件复制 |
+
+> 每个插件均包含完整「**五件套**」：`Plugin`（生命周期）+ `PluginRegister`（清单/依赖/能力）+ `State`（SoA 数据）+ `Service`（服务接口实现）+ `SaveSegment`（存档段）。
+
+---
+
+## 四、目录结构
 
 ```
 Assets/Scripts/
-├─ Core/        游戏管理、状态、存档、时间、实体定义
-├─ World/       地图生成、扩展、潮汐、天气、洋流、相机
-├─ Systems/     经济/人口/军事/海军/地面/战斗/殖民/探险/桥梁/AI 共治等各业务系统
-├─ Actors/      Q 版人物/载具/鸟兽鱼程序化模型工厂
-├─ Buildings/   建筑数据库与网格工厂（按功能·年代·时代差异化）
-├─ Data/        常量、朝代/时代/建筑数值
-├─ UI/          极简 UI、小地图、浮窗、Debug/存档/帮助面板
-├─ AI/          九神共治（在线 LLM + 离线规则兜底）
-│  └─ Agents/   V9.8.0 智能体驱动：AgentIdentity/MessageBus/Registry/BehaviorLibrary/Catalog(118)/Director
-├─ Rendering/   材质/LOD/天空等渲染
-└─ Editor/      WebGLBuilder、PlayMode 冒烟、LOD 诊断等命令行入口
-Assets/Resources/Models3D/   Quaternius / Kenney 的 CC0 可选写实模型
+├─ Bootstrap/      GameBootstrap（唯一组合根，启动装配）、NewGameSetup（初始势力）
+├─ Core/           内核契约
+│   ├─ Contracts/   IPlugin / ISimPlugin / IPluginContext / IViewPlugin / IContentPlugin
+│   │               PluginDeclarations（依赖、能力声明）、Enums（Tier/SimulationLayer）
+│   ├─ Events/      IEventBus、GameEvents（各 struct 事件）
+│   ├─ Services/    IServiceLocator / IClock / ISaveService / IObjectPool / IAssetLoader
+│   │               IMemoryMonitor / ICrashServices / IScheduling
+│   ├─ Persistence/ SaveData、ISaveSegment
+│   ├─ Capabilities/ Capability（能力枚举）
+│   ├─ Time/        GameClock
+│   └─ World/       Chunk / ChunkedWorld / EntityId / StructArray
+├─ Host/           宿主运行时（零玩法）
+│   ├─ GameLoop / PluginRuntime / PluginRegistry / PluginContext
+│   ├─ ServiceRegistry / StrongEventBus / CapabilitySystem
+├─ Infra/          基础设施实现
+│   ├─ Assets/      AddressablesAssetLoader / ResourcesAssetLoader
+│   ├─ Budget/      FrameBudget / SimScheduler
+│   ├─ Crash/       CrashGuard / LocalCrashReport
+│   ├─ Memory/      MemoryMonitor
+│   ├─ Pool/        ObjectPool
+│   ├─ Save/        SaveSystem / FnvChecksum
+│   └─ Time/        ClockAdapter
+├─ Gameplay/       共享玩法层
+│   ├─ Entities/    UnitRegistry（统一可移动单位 SoA）/ BuildingRegistry
+│   ├─ Factions/    FactionRegistry（上限 8）
+│   ├─ Resources/   ResourceType（含 None=-1 哨兵，15 种资源）
+│   ├─ Tech/        Era（10 个时代）
+│   └─ Services/    各服务接口 + IGeographyQuery（陆地/水域查询，真实地图可替换）
+└─ Plugins/
+    ├─ Tier0/      Economy · Population · Building · Tech · GroundForce
+    │              Naval · Combat · Rally · Military · SmokePlugin
+    ├─ Tier1/      （扩展插件，规划中）
+    └─ Tier2/      （内容副本插件，规划中）
+Assets/Tests/EditMode/   13 个 EditMode 测试 + 测试替身
+Assets/Editor/           编辑器/构建脚本
+Assets/Legacy_v990~/     旧 v9 脚本归档（~ 结尾，Unity 不导入、不进仓库）
 ```
+
+---
+
+## 五、快速开始
+
+### 编辑器运行
+1. 安装 **团结引擎 Tuanjie 2022.3.61t13**（或兼容 Unity 2022.3 LTS）。
+2. Hub「Add project from disk」打开仓库根目录。
+3. 等待首次导入，打开入口场景，点击 Play。
+
+### 命令行一键出 WebGL 包（Windows）
+
+```powershell
+& "C:\Program Files\Tuanjie\Hub\Editor\2022.3.61t13\Editor\Tuanjie.exe" `
+  -batchmode -quit -buildTarget WebGL `
+  -projectPath "E:\DB\PixelToCivilization" `
+  -executeMethod PxC.Editor.BuildScript.BuildWebGL `
+  -logFile build.log
+```
+
+构建产物输出到工程下的 `BuildWebGL/`。发布到本地 HTTP 服务（WebGL 不能 `file://` 直接打开）：
+
+```powershell
+cd BuildWebGL
+python -m http.server 8000
+# 浏览器访问 http://127.0.0.1:8000/index.html
+```
+
+### 运行测试
+- 编辑器：`Window → General → Test Runner → EditMode → Run All`
+- 命令行：`-runTests -testPlatform EditMode -testResults results.xml`
+
+---
+
+## 六、验证状态（务必阅读）
+
+| 验证项 | 方式 | 状态 |
+|---|---|---|
+| **C# 编译（Desktop 配置）** | Roslyn 4.8 + UnityEngine stub，定义 `UNITY_EDITOR/UNITY_STANDALONE` | ✅ 0 错误（`PxC.Game.dll`） |
+| **C# 编译（WebGL 配置）** | Roslyn 4.8 + UnityEngine stub，定义 `UNITY_WEBGL` | ✅ 0 错误（`PxC.Game.WebGL.dll`） |
+| **测试代码编译** | Roslyn 编译 13 个测试文件 | ✅ 0 错误（`PxC.Tests.dll`） |
+| **真实 Unity 编辑器编译** | 团结编辑器导入并编译 | ⚠️ **未验证**（当前开发机无有效许可） |
+| **EditMode 测试断言执行** | 在真实 NUnit 中运行 | ⚠️ **未验证**（当前仅编译；NUnit 断言为空实现 stub） |
+| **PlayMode 冒烟** | 启动 / 存档读档 / 模拟循环 | ⚠️ **未验证**（PlayMode 测试尚未编写） |
+| **IL2CPP / WebGL 打包** | 真实出包 | ⚠️ **未验证** |
+| **三大历史 Bug 行为回归** | 集结令崩溃 / 骑兵困湖 / 塔防造型 | ⚠️ 架构层已针对性重写（见下），**浏览器实测未验证** |
+| **原生平台构建** | Win / macOS / Android / iOS | ⚠️ **未验证**（同一套 C# 理论可构建） |
+
+### 三大历史 Bug 在 V10 中的架构级处理
+> 以下为代码层面的针对性设计，**浏览器实际行为回归未验证**（需真实 Unity 出包）。
+1. **集结令连续插旗崩溃**：`RallyCommandPlugin` 用 `Sequence` 幂等（丢弃旧命令），只改单位的命令字段、**不瞬时搬运、不创建/销毁单位、不分配大数组**；从源头消除累积性崩溃。
+2. **古典地面部队被拉到湖里**：生成时 `IGeographyQuery.IsWater` 校验拒绝水域、贴地、记录 `HomePosition` 锚点；AI 移动每一步对下一位置做水域校验，**是水则停（永不进入水域）**；不再与船舶共用牵引逻辑（`EntityDomain.Land` 与 `Naval` 分离）。
+3. **塔防做成方型楼**：`TowerProfile` 明确多层收分形制（3–4 层、每层收窄约 18%、出檐外扩），与普通建筑分档。
+
+---
+
+## 七、回滚方案
+
+- **Git 回滚**：V10 重写为线性提交（`24ece35(v9.9.0) → 274b68c(框架) → f0b4ed4(插件)`）。如需回退到上一稳定版：
+  ```powershell
+  git checkout main
+  git reset --hard 24ece35        # 回到 V9.9.0
+  git push --force-with-lease origin main
+  ```
+- **存档回滚**：存档保留 5 手动槽 + 3 回滚槽，写入走 `.tmp → 正式 → .bak`，FNV-1a 校验；新存档加载失败可回退 `.bak`。
+- **插件级回滚**：插件可独立开关，Tier0 之外的插件不影响核心启动；初始化失败的插件被跳过并进入安全模式。
+
+---
+
+## 八、下一步（待开发 / 待裁决）
+
+1. **Tier1 扩展插件**：地图（真实水陆 `IGeographyQuery` 实现替换占位）、天气、朝代/事件、交通、桥、科技扩展。
+2. **Tier2 内容副本插件**：塔防五型视图接线、海洋/太空副本、行为动作库。
+3. **PlayMode 测试**：启动、存档/读档、AI 防掉湖/不上岸、模拟循环、崩溃恢复。
+4. **真实 Unity 环境**：安装团结 Hub + 编辑器并由用户 GUI 激活许可，完成真实编译 / IL2CPP / 打包 / 浏览器回归（当前为授权闸门）。
+5. 玩法侧待裁决项：开局年代、势力上限、胜利方式、在线模式默认值（详见《开发计划 2.0》）。
+
+---
+
+## 九、版本历程（摘）
+
+| 版本 | 主题 |
+|---|---|
+| V9.x | 单体架构：内存/崩溃/存档/LOD/按需加载/算力分层工程底座，智能体驱动 |
+| **V10.0.2** | 极薄宿主 + 插件契约 + Roslyn 无 Unity 编译验证通道 |
+| **V10.1.01** | **全插件化重写**：9 个 Tier0 核心插件（经济/人口/建筑/科技/地面/海军/战斗/集结/军事），13 个 EditMode 测试，Roslyn 双配置编译 0 错误 |
 
 ---
 
 ## 🔐 关于 AI 联网密钥
 
-开源版本**不含任何密钥**。九神共治默认离线即可完整运行；如需接入在线大模型：
-
-```bash
-# Windows
-setx PXC_ARK_API_KEY "你的方舟(Volcengine Ark)兼容接口 Key"
-# macOS / Linux
-export PXC_ARK_API_KEY="你的 Key"
-```
-
-也可在游戏内帮助 / Debug / 九神面板点击按钮弹窗填写 Key（不随包分发）。**请勿把密钥提交进仓库。**
-
----
-
-## 🧭 版本历程（摘）
-
-| 版本 | 主题 |
-|---|---|
-| V6.1.x | 骑兵塔防群雄争霸、海战殖民、海洋/太空副本、九智能体共治、多大陆真实扩展 |
-| V6.2–V6.7 | LOD 按需渲染、UI 全面重做、月度潮汐/天气/洋流、桥梁系统、车辆船只 Lv3 精细模型、开源 CC0 模型接入 |
-| V7.0–V7.1 | Q 版大头工人五维差异化；声音系统（不同鸟鸣、船只、车辆音效） |
-| V8.0 | 乐高积木像素化美术风格 |
-| V9.0 | 现代风格重构，开局公元 1700 年：工厂/兵营/飞机/大马路/水泥地，城市公共设施，五代铁路机车 |
-| V9.1 | 真实地球地图与四大阵营，一地理文化分区至多 3 国、14 国 38 城精确落位、太空电梯双门控 |
-| V9.2 | 人口周期律（恢复→繁荣→过剩→崩溃，崩溃只减人口不灭文明）；交通神 & 建筑神 AI 自治 |
-| V9.3 | 船只系统大升级：1949 前木船、之后轮船/邮轮/油轮/驱逐舰/导弹舰/航母/潜艇/舰载机，等级决定载员/耐久/攻击/雷达与满编战斗力；现代车辆与航母舰载机 |
-| V9.4 | 界面多轮收紧、资源栏对齐、玩家手动建路/桥/铁路（自动连网）、敌船镜像与雷达追击、体积碰撞、1949 地面装甲、高架桥柱连片 |
-| V9.4.7 | 统一跨阵营作战：五类单位统一战斗目录、跨类型索敌、敌方各派互攻、建筑（除树木）可破坏 |
-| V9.5.0 | 上线五阶段硬化：项目审计、版本号统一、命令行构建、浏览器端到端回归 |
-| V9.5.2 | 资源栏“万/亿”紧凑格式彻底解决图标遮挡；LODGroup 假空 MissingComponentException 修复；PlayMode 冒烟与万年存续压测 |
-| V9.5.3 | 存档界面加固（置顶/加宽/导入/Debug 解锁行）；高架桥 tier4 越界修复（地图错乱&闪烁）；建造栏新增“基建”分类；军事栏补地面作战部队（坦克/装甲车/导弹车，1949 解锁）；武器特效声光 + 统一粒子与内存回收（WeaponFxSystem） |
-
-| V9.6.0 | 紧急集结令（蓝/绿/红三军插旗、100 格集结列阵、存档持久化）；建筑真实化（屋顶等级/三层台基/分档高度/47 条属性说明） |
-| V9.6.1 | 战时广播（传令兵语音：战报/指令/战损，TTS 桥接）；顶部滚动信息条（编年史重要事件轮播、无则隐藏）；超 100 格集结改由运输机/直升机远程投送 |
-| V9.6.2 | 投送链修复：机队回巢复用（不再一次性销毁）、空投落地贴地归队、Lifted 卡死兜底复位；三旗集结链贯通；旧缓存崩溃处置 |
-| V9.6.3 | 地面部队速度钳制（0.01-0.10 格/秒随等级成长、射程/耐久/攻击同步成长）；车辆自由行驶不再强制拉路；系统零自动建路（城际/环线/AI 神全禁，仅玩家手动） |
-| V9.6.3 热修 | Debug AI 密钥栏缩至 1/3
-| V9.6.4 | 内存架构：预算水位（1.1GB/1.5GB）/5s GC 增量采样/全局生成门控（敌船·鸟·鱼钳制）/逐系统 Tick Top5/WebMemoryProbe 浏览器探针；GameObjectPool 预热统计；存档摘要化（旧档兼容回退）；塔防五型按史实重建（矮墩台 h/w 1.29-1.65，非楼）：箭塔弩机巨箭、火塔喷火龙落地燃烧 1s、炮塔旋转炮塔炮弹、碉堡四面机枪、烽火台木架大锅常燃烽火；投射物分型特效 |
-| V9.6.5 | 崩溃架构：全局异常捕获（logMessageReceived 钩子 + WebGL JS onerror 桥）/崩溃标记（PxC_Crash_State/Last/Good）/环形日志 200 条/安全模式（阴影关·LOD 0.5·粒子预算16·自动保存 20s）/崩溃自动恢复（auto→回滚槽0/1/2）/模拟崩溃测试入口（WebCrashSimulate 0/1/2 + WebCrashProbe + WebSafeMode + WebJsError，[Preserve] 浏览器可调）|；集结令连插不卡死（旗模型复用+NaN/水上拒绝）；爆炸改随机大小蘑菇云（黑泡缩 1/3）；船只攻击半径减半、最高海军 ≤100 格/地面 ≤50 格；地面部队生成于出生地、主动巡航寻敌组队战斗；塔防五型分型建模与分型投射物（箭/火/炮/机枪）光烟特效 |
-| V9.6.6 | 存档架构：ISaveable 注册表/SaveVersionMigrator 迁移链（schema 0→3 + MigrationChain）/SaveEnvelope FNV-1a64 校验（NaN/Infinity 拒写）/原子写入（临时键→正式键→清理）/手动槽写前备份 PxC_Bak_* + RestoreBackup/异步存档（主线程快照+队列原子提交，WebGL 修复 Task.Run 不调度）/多槽位 1..5 + 自动槽 + 槽摘要列表/WebSaveProbe 浏览器实测（slot:110000|schema:3|tmp:0）/EditMode 契约测试 6/6 PASS |
-| V9.6.7 | 部署与运行：多平台 BuildPipelineCLI（WebGL/Win64/Android/macOS/iOS 命令行一键构建 + BuildReport 摘要）/PlayerSettings 部署硬化（IL2CPP Release/.NET Standard/Android ARM64/iOS 12+/WebGL 单线程免压缩关 dataCaching）/Addressables 就绪评估（保持单包 Resources 不启用，附接入清单骨架）/日志路径表 + 常见错误排查表/DeploymentGuide_V9.6.7.md 部署文档；WebGL 实测 BUILD_SUCCESS errors=0 + 浏览器冒烟 + 存档探针 |
-| V9.6.8 | 检查修复完善：P0 时间帧预算（GameTime.MaxYearsPerFrame=60 单帧年结上限，根治高倍速/切后台"时间冻结卡死"）/P1 资源双精度（Res float→double 治本"几百万变几千"舍入丢失，AddRes 审计警告 + SaveData.ResVals double[] 旧档无损）/P2 契约测试（ResDoublePrecision + OldSchemaResCompat）+ WebGL 探针（budget=60 / 双精度精确累加 / schema=3 存档闭环）；实测 BUILD_SUCCESS errors=0 + 高倍速推进 |
-| V9.7.0 | 内存·崩溃·存档三大架构端到端升级：对象池+内存预算+Addressables 适配层（无包降级）+SoA 人口聚合；全局异常捕获+崩溃上下文快照+安全模式+回滚恢复；DTO/校验/版本迁移/原子写/备份/回滚链/多槽位+脏标记自动存档节流；契约测试（⑩⑪）+run_tests.ps1+CI 模板；版本点 13 处统一；BUILD_SUCCESS+四新探针全回归+zip 密钥 CLEAN+Release v9.7.0 |
-| V9.7.1 | 混合存档（IndexedDB 正文 PxC_SaveBody + PlayerPrefs 摘要，自动迁移旧档）；高倍速自适应分段（帧预算 6ms/10ms、硬上限 120）；实体生成门控（八类上限，逼近 90% 暂停）；高架桥地图错乱根治（老化同步清桥面格+SyncPiers 清废弃柱，生命周期实测 PASS）；建造「基建」分类；地面部队古典/现代六型分代；武器粒子池化漂移修复；浏览器实证全通过、密钥 CLEAN、Release v9.7.1 |
-| V9.7.2 | 地面部队十维参数与速度链路根治：重写 GroundWarfareSystem（速度/耐久/攻击/防御/射程/射速/载人/体积/军衔/智能十维，6 型差异化）；EffectiveSpeed 移动与面板口径唯一；GraceT 20s 列装驻留原地（修复生成位置被拉走）；巡航半径收窄、方阵 3 人并排、防御减伤；新建 EntitySpeedProfiles 全移动实体参数总表；探针实证驻留/追击/战斗升级/速度差异化，BUILD_SUCCESS、密钥 CLEAN、Release v9.7.2 |
-| V9.7.3 | 历史 Bug 全量回归复测：45 项/9 类矩阵实测 PASS 43/未验证 2；存档系统五项修复（link.xml Assembly-CSharp 防裁剪、版本号 9.7.3、jslib 双 gate 预加载、checksum canonicalization 固定点、槽5 UI 裁剪），QuickSave/IDB直查/reload预加载/QuickLoad/六行槽全显浏览器实锤；其余 8 类无回归，BUILD_SUCCESS、密钥 CLEAN、Release v9.7.3 |
-| V9.8.0 | 智能体驱动·万物协作：非侵入身份层（118 身份按原型共享）、消息总线 Help/Reply/Broadcast、三种模式（离线/在线/混合）、离线行为动作库随决策沉淀；6 新文件（AI/Agents），异常全隔离、不重写玩法；面板布局修复（Head/top/filt/sr）、12 核心用例全 PASS、wasm 33.6MB、密钥 CLEAN、Release v9.8.0 |
-| V9.8.1 | 三 BUG 加固（基于 9.8.0）：①集结令崩溃根治（旗模型只创建一次，连插 20 次不崩 ok=20/children=4/nanRejected）+新增 CountResponders 响应统计广播「📣 100 格内响应：X 地面部队，Y 艘军舰，Z 名军人听令向军旗列阵」；②古典地面部队（骑兵/阵兵/战车）出生坐标广播（自动编组·雷达索敌·组阵巡航），实测自主移动 phalanx(8.8,-103.7)→(19.4,-95.8)、真实参战阵亡；③塔防再压矮（wallH 0.95），arrow_tower h/w=1.46→1.24 矮墩塔含弩机零件；9 文件改动+6 文档、BUILD_SUCCESS、密钥 CLEAN、Release v9.8.1 |
-| V9.8.2 | 三 BUG 真实路径根因：用户 Chrome 连插 5 次必崩（V9.8.2-005604 日志）→ 广播风暴 + speechSynthesis 高频 cancel/speak（Chrome 渲染进程崩溃源）双节流；古典部队困湖 → 出生坐标广播 + 索敌/组队/战斗接线；塔防方型楼 → 多层收分塔（wallH 2.4 < 楼 3.2）。61t13 兼容 AddComponent 改写（4 处 CS1061）+ 本地包 14.1.0 入库，20 轮构建排障后 BUILD_SUCCESS（Hub 版编辑器），浏览器真实 UI 回归（集结令连点 5 次存活 / 机动部队列阵 / 防御 65），Release v9.8.2 |
-| V9.8.3 | 三 BUG 根治（用户第 5 次投诉后真闭环）：①集结令——WebGL 默认静音（VoiceEnabled=false）+ SilentCommand 插旗链路完全隔离 speechSynthesis + JS 2.5s 节流/140 字截断，`WebRallyUiCycle(10)`（10 次循环 > 用户 5 次）无异常、语音桥零调用、console 非 AudioContext 错误 0；②古典部队——NearestLand（半径 2→48 逐环螺旋找陆地）+ 每帧水域强制上岸 + MoveToward 五档转向兜底 + 三处生成点贴水校正，`WebBuildClassicGround` made=3（公元 1712 古典）、敌方 3 阵营响应、战报「击败敌 346 单位」、位移采样 8s 移动 7.52（不困湖）；③塔防——塔墙高 2.4 + 五型多层收分塔（箭三层弩机/火四层喷火口+火球/炮三层旋转炮台/碉堡三层环墙+圆顶+四向机枪/烽火台木架大锅），`WebTowerBounds` 5 塔 h/w=2.38、专属部件在册。v983c BUILD_SUCCESS（22 文件）、密钥 CLEAN、Release v9.8.3 |
-| V9.8.4 | 三 BUG 真根治（Pro 定位 / Lit 修复分工，用户第 6 次投诉后治本闭环）：①集结令——**真根因 UGUI 动态 UI 网格顶点爆炸**（console 实证 `Mesh can not have more than 65000 vertices`），治本 4 处（GameManager.AddEvent 事件 80 字截断 / UIManager.Build 拆 Ticker·Toast·Marker 三独立 Canvas / 编年史 40→25 / 日志面板 200→120），`WebRallyUiCycle(5)/(20)` + `WebRallyStress`（20 次随机插旗）console 零 65000 错误、页面存活；②古典部队——NearestLand 半径 **48→240 格**三档步进（r≤10 八方向 / r≤48 十六方向步进2 / r>48 二十四方向步进4）+ 困水脱困速度 2.0 + **去 continue**（不再跳过索敌），公元 1700 新局 `WebBuildClassicGround` 生成 phalanx(-62.5,-91.6)spd1.20 + chariot×2 spd2.80 于真实坐标、`stuck:0 inWater:0`、敌方 3 阵营镜像；③塔防——`BuildSpecial` switch **此前无塔分支**（五型全走方盒）→ 新增 `BuildTower` 真实现（3-4 层收分塔身：底层 3.0、层高 1.45、逐层收窄 18%、出檐外扩 14%+0.12、塔门 + 五型专属顶部：箭弩机 Deck+BowBod/BowL/BowR/BowStr、火黑口 Mouth+Fireball、炮 TurretBase+Turret+Barrel、碉堡半球 Dome+Gun×4、烽火台 Cradle×2+Cauldron+Flame），`WebTowerBounds` 五塔 h/w=**1.39-1.96**（arrow 1.46 / fire 1.96 / cannon 1.41 / bunker 1.39 / watchtower 1.55）。v984b BUILD_SUCCESS（22 文件）、历史文档残留 key 已脱敏、复扫 CLEAN、Release v9.8.4 |
-
-## 📋 项目审计摘要（V9.7.3）
-
-| 模块 | 现状 | 风险 | 处置 |
-|---|---|---|---|
-| 存档反射方法被裁剪 | IL2CPP High stripping 裁掉仅 SendMessage 反射的 Web* 方法 | P0 | link.xml Assembly-CSharp preserve="all" |
-| 存档版本号 | 默认值硬编码 "7.0.2"、Snapshot 不设 Version | P0 | RuntimeVersion 常量 + Snapshot 设值 |
-| IndexedDB 预加载 | keys/vals 两请求回调竞态 | P1 | 双 gate，均回来才填缓存 + 超时降级 |
-| checksum 往返 | 双精度 ToJson/FromJson 在 WebGL 不稳定 | P0 | canonicalization 固定点串，写入/校验同口径 |
-| 存档 UI 槽 5 | preferredHeight 与 row minHeight 矛盾裁剪 | P1 | 4 处布局修正，6 行槽全显 |
-| 其余 8 类系统 | 时间/地图/资源/地面/海军/集结/塔防/道路/天气 | — | 回归无 PASS，无回归 |
-| 1000× Debug / 长跨度比例 | 深度/长时项 | P2 | 普通档 100× 与初始比例已验证，深度项未验证 |
-| 原生平台 | 仅 WebGL 实测 | P2 | C# 同套可构建，原生构建标注未验证 |
+开源版本**不含任何密钥**，离线即可完整运行。在线大模型 Key 通过环境变量 `PXC_ARK_API_KEY` 或游戏内面板填写，**不随包分发、不提交进仓库**。
 
 ## 🤝 贡献
 
-欢迎 Issue / PR：新建筑与朝代美术、平衡数值、性能优化、多语言、更多平台适配等。
-提交前请确认不含个人凭证、不引入非 CC0/开源协议冲突的资源。
+欢迎 Issue / PR：新插件、新建筑与朝代美术、平衡数值、性能优化、多平台适配。提交前请确认不含凭证、不引入非 CC0/开源协议冲突的资源。
 
 ## 📜 License
 
