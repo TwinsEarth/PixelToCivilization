@@ -70,5 +70,31 @@ namespace PxC.Plugins.GroundForce
         /// <summary>基础组阵规模（同型号多少个单位编为一组，阵兵=3）。</summary>
         public static int SquadSize(GroundForceModel model) =>
             model == GroundForceModel.Formation ? 3 : 1;
+
+        /// <summary>
+        /// 机械化换代目标：进入现代（<paramref name="currentEra"/> ≥ <see cref="Era.Modern"/>）后，
+        /// 老畜力/冷兵器单位的换装目标。
+        /// 骑兵→装甲车（延续机动/侦察/投送角色），战车→坦克（延续冲击主力角色）；
+        /// 步兵（阵兵）是永恒兵种，现代仍有步兵，不机械化换代。
+        /// 返回 true 表示需要换代，<paramref name="upgrade"/> 为目标型号；false 表示保持。
+        /// </summary>
+        public static bool TryGetMechanizedUpgrade(
+            GroundForceModel current, Era currentEra, out GroundForceModel upgrade)
+        {
+            upgrade = current;
+            if (currentEra < Era.Modern) return false;
+            switch (current)
+            {
+                case GroundForceModel.Cavalry:
+                    upgrade = GroundForceModel.Armor;
+                    return true;
+                case GroundForceModel.Chariot:
+                    upgrade = GroundForceModel.Tank;
+                    return true;
+                default:
+                    // 步兵（Formation）永恒保留；已机械化单位（Tank/Armor/MissileVehicle）不换代。
+                    return false;
+            }
+        }
     }
 }
