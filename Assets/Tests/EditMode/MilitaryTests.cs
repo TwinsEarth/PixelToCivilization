@@ -72,6 +72,14 @@ namespace PxC.Tests.EditMode
             }
             return count - remaining;
         }
+
+        public bool Emigrate(int faction, int count)
+        {
+            int idx = (int)PopulationLayer.Laborer;
+            if (_pop[faction, idx] < count) return false;
+            _pop[faction, idx] -= count;
+            return true;
+        }
     }
 
     public sealed class MilitaryTests

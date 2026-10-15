@@ -54,5 +54,11 @@ namespace PxC.Gameplay.Services
         /// 供 disaster 插件调用（瘟疫/寒潮），不影响正常出生/死亡口径。
         /// </summary>
         int ApplyExcessDeaths(int faction, int count);
+
+        /// <summary>
+        /// 派遣移民（殖民/扩张）：从劳力人口中派出 count 人，成功则扣减并返回 true。
+        /// 供 colonization 插件建立新聚落时调用；劳力不足返回 false（不改数据）。
+        /// </summary>
+        bool Emigrate(int faction, int count);
     }
 }

@@ -54,5 +54,12 @@ namespace PxC.Plugins.Population
             int removed = _state.RemoveInOrder(faction, count, DisasterOrder);
             return removed;
         }
+
+        public bool Emigrate(int faction, int count)
+        {
+            if (count <= 0) return false;
+            // 移民从劳力人口中派出（不足则不能成行）。
+            return _state.TryRemove(faction, PopulationLayer.Laborer, count);
+        }
     }
 }

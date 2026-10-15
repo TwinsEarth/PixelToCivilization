@@ -27,7 +27,7 @@ namespace PxC.Bootstrap
         public const int HostVersion = 10;
 
         /// <summary>应用完整版本号（与 Git tag / Release 对齐）。</summary>
-        public const string AppVersion = "v10.2.0";
+        public const string AppVersion = "v10.3.0";
 
         /// <summary>启动后的测试上下文（PlayMode 冒烟测试使用；安全模式下为 null）。</summary>
         public static BootstrapTestContext TestContext { get; private set; }
@@ -42,6 +42,7 @@ namespace PxC.Bootstrap
         private static FactionRegistry _factions;
         private static UnitRegistry _units;
         private static BuildingRegistry _buildings;
+        private static SettlementRegistry _settlements;
 
         // ------------------------------------------------------------
         // 阶段 1：最早安装崩溃守护
@@ -97,10 +98,11 @@ namespace PxC.Bootstrap
             var clockAdapter = new ClockAdapter(_clock);
             var crashReport = new LocalCrashReport(Log);
 
-            // 玩法层共享 registry（势力 / 可移动单位 / 建筑）
+            // 玩法层共享 registry（势力 / 可移动单位 / 建筑 / 聚落）
             _factions = new FactionRegistry();
             _units = new UnitRegistry();
             _buildings = new BuildingRegistry();
+            _settlements = new SettlementRegistry();
 
             // 注册服务
             _services.Register<IClock>(clockAdapter);
@@ -115,6 +117,7 @@ namespace PxC.Bootstrap
             _services.Register<FactionRegistry>(_factions);
             _services.Register<UnitRegistry>(_units);
             _services.Register<BuildingRegistry>(_buildings);
+            _services.Register<SettlementRegistry>(_settlements);
             // 默认占位地理（全陆地）；真实地图插件在 OnInitialize 时替换为真实水陆查询
             _services.Register<IGeographyQuery>(new PermissiveGeography());
 

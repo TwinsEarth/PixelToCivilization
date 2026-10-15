@@ -23,6 +23,8 @@
     "PxC.Plugin.Culture",
     "PxC.Plugin.History",
     "PxC.Plugin.Victory",
+    "PxC.Plugin.Settlement",
+    "PxC.Plugin.Colonization",
     "PxC.Content.Dynasties",
     "PxC.Content.Events",
     "PxC.Content.Towers",

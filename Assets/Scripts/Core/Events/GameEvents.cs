@@ -1,3 +1,4 @@
+using UnityEngine;
 using PxC.Core.World;
 
 namespace PxC.Core.Events
@@ -155,5 +156,15 @@ namespace PxC.Core.Events
         public int Kind;
         public string EventName;
         public string Description;
+    }
+
+    /// <summary>新聚落建立（殖民/扩张/自动扩张）：Kind=SettlementKind，含位置与聚落名。</summary>
+    public struct SettlementFoundedEvent
+    {
+        public int Faction;
+        public int Kind;
+        public int GameYear;
+        public Vector3 Position;
+        public string SettlementName;
     }
 }
