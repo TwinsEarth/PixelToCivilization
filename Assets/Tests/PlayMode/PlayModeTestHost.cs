@@ -40,13 +40,13 @@ namespace PxC.Tests.PlayMode
         /// </summary>
         public void Step(float realDt)
         {
-            // 1. 时钟推进（年结在本步内同步广播 OnYear）
-            _ctx.Clock.Advance(realDt, y => _ctx.Runtime.TickYear(y));
+            // 1. 时钟推进（年结在本步内同步广播 OnYear），取本帧推进的模拟时间
+            _ctx.Clock.Advance(realDt, y => _ctx.Runtime.TickYear(y), out float simDt);
 
-            // 2. 模拟（测试中全量 tick，绕过算力分层与帧预算）
+            // 2. 模拟（测试中全量 tick，绕过算力分层与帧预算），用模拟时间
             var sims = _ctx.Runtime.SimPlugins;
             for (int i = 0; i < sims.Count; i++)
-                _ctx.Runtime.TickSim(sims[i], realDt);
+                _ctx.Runtime.TickSim(sims[i], simDt);
 
             // 3. 视图
             _ctx.Runtime.TickView(realDt);

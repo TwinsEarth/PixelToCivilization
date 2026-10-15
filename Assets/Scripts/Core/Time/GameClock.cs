@@ -41,12 +41,18 @@ namespace PxC.Core.Time
         /// <summary>
         /// 推进时间；每跨一个游戏年调用一次 onYear(新游戏年)。
         /// 按自适应工作量预算在帧预算内停止。
+        /// <paramref name="simDtConsumed"/> 输出本帧实际推进的"模拟秒"
+        /// （= 推进游戏日 / DaySeconds，已含速度倍率、且与年结预算同步），
+        /// 各模拟系统必须用它而不是 realDt，单位移动才会随游戏年/快进正确推进。
         /// </summary>
-        public void Advance(float realDt, Action<int> onYear)
+        public void Advance(float realDt, Action<int> onYear, out float simDtConsumed)
         {
             LastFrameTicks = 0;
+            simDtConsumed = 0f;
             if (!Running || Paused) return;
 
+            float dayBefore = Day;
+            int yearBefore = Year;
             Day += realDt * EffectiveSpeed * DaySeconds;
             float frameStart = RealtimeProvider();
             int did = 0;
@@ -64,6 +70,11 @@ namespace PxC.Core.Time
                 AvgYearTickMs = AvgYearTickMs <= 0f ? oneMs : AvgYearTickMs * 0.85f + oneMs * 0.15f;
                 LastFrameTicks = did;
             }
+
+            // 实际推进的游戏日（整数年 + 零碎日），转回模拟秒。
+            float advancedDays = (Year - yearBefore) * YearDays + (Day - dayBefore);
+            if (advancedDays < 0f) advancedDays = 0f;
+            simDtConsumed = advancedDays / DaySeconds;
         }
 
         /// <summary>开局静默对齐到公元 1700（游戏年 4700），不触发任何年结事件。</summary>

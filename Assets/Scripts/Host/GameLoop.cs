@@ -71,11 +71,11 @@ namespace PxC.Host
 
             _budget?.BeginFrame();
 
-            // 1. 时钟推进（年结回调在本帧内同步广播 OnYear）
-            _clock.Advance(realDt, OnYear);
+            // 1. 时钟推进（年结回调在本帧内同步广播 OnYear），输出本帧实际推进的模拟时间。
+            _clock.Advance(realDt, OnYear, out float simDt);
 
-            // 2. 模拟（算力分层 + 帧预算）
-            TickSim(realDt);
+            // 2. 模拟（算力分层 + 帧预算），用模拟时间（随游戏年/快进，而非 realDt）。
+            TickSim(simDt);
 
             // 3. 视图（真实时间）
             _runtime.TickView(realDt);
@@ -96,18 +96,18 @@ namespace PxC.Host
                 _yearHandlers[i](gameYear);
         }
 
-        private void TickSim(float realDt)
+        private void TickSim(float simDt)
         {
             var sims = _runtime.SimPlugins;
             for (int i = 0; i < sims.Count; i++)
             {
                 var p = sims[i];
                 float hz = _scheduler.EffectiveHz(p.Layer);
-                if (!_scheduler.ShouldTick(p.Layer, realDt, hz)) continue;
+                if (!_scheduler.ShouldTick(p.Layer, simDt, hz, out float stepDt)) continue;
                 if (_budget != null && !_budget.HasBudget(0.1f)) break;
 
                 float t0 = Time.realtimeSinceStartup;
-                _runtime.TickSim(p, realDt);
+                _runtime.TickSim(p, stepDt);
                 float used = (Time.realtimeSinceStartup - t0) * 1000f;
                 _budget?.Consume(used);
             }

@@ -14,10 +14,16 @@ namespace PxC.Infra.Budget
 
     /// <summary>
     /// 算力调度器：P0Core 不节流；P1Tactical 按 1Hz（Low 0.5Hz）；
-    /// P2Ambient 按 4/2/1Hz（Ultra/High/Low）。时间分片累计，到点执行并保留余量。
+    /// P2Ambient 按 4/2/1Hz（Ultra/High/Low）。时间分片累计"模拟时间"，
+    /// 到点执行并通过 stepDt 传回自上次 tick 以来累计的模拟时间（保留余量）。
+    /// 铁律：单步最大模拟时间 <see cref="MaxStepSeconds"/>，超出部分结转下帧
+    /// （快进/卡顿下防止单位单步跳过目标），属于自适应降级。
     /// </summary>
     public sealed class SimScheduler : ISimScheduler
     {
+        /// <summary>单步最大模拟时间（秒），超出结转，防止跳变。</summary>
+        public const float MaxStepSeconds = 2f;
+
         private readonly Dictionary<SimulationLayer, float> _acc;
         private QualityTier _quality;
 
@@ -29,15 +35,30 @@ namespace PxC.Infra.Budget
 
         public void SetQuality(QualityTier quality) => _quality = quality;
 
-        public bool ShouldTick(SimulationLayer layer, float realDt, float hz)
+        public bool ShouldTick(SimulationLayer layer, float simDt, float hz, out float stepDt)
         {
-            if (layer == SimulationLayer.P0Core) return true;
+            stepDt = 0f;
+
+            if (layer == SimulationLayer.P0Core)
+            {
+                // 不节流：消费本帧全部模拟时间（极端情况仍受 MaxStep 限制，余量结转）。
+                stepDt = simDt <= MaxStepSeconds ? simDt : MaxStepSeconds;
+                if (simDt > MaxStepSeconds)
+                {
+                    _acc.TryGetValue(layer, out float a0);
+                    _acc[layer] = a0 + (simDt - MaxStepSeconds);
+                }
+                return true;
+            }
+
             _acc.TryGetValue(layer, out float a);
-            a += realDt;
+            a += simDt;
             float interval = 1f / hz;
             if (a >= interval)
             {
-                _acc[layer] = a % interval;
+                // 传回"自上次 tick 累计的模拟时间"（封顶 MaxStep），扣减后保留余量。
+                stepDt = a <= MaxStepSeconds ? a : MaxStepSeconds;
+                _acc[layer] = a - stepDt;
                 return true;
             }
             _acc[layer] = a;

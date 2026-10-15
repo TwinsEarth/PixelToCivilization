@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using UnityEngine;
 using PxC.Host;
@@ -16,6 +17,7 @@ namespace PxC.Tests.EditMode
         private GridGeography _geo;
         private ServiceRegistry _services;
         private StrongEventBus _events;
+        private GroundForceState _groundState;
         private GroundForceService _ground;
         private NavalService _naval;
         private CombatService _combat;
@@ -27,8 +29,8 @@ namespace PxC.Tests.EditMode
             _geo = new GridGeography();
             _services = new ServiceRegistry();
             _services.Register<UnitRegistry>(_units);
-            var groundState = new GroundForceState(_units.Capacity);
-            _ground = new GroundForceService(_units, groundState, _geo, _services, _ => { });
+            _groundState = new GroundForceState(_units.Capacity);
+            _ground = new GroundForceService(_units, _groundState, _geo, _services, _ => { });
             var navalState = new NavalState(_units.Capacity);
             _naval = new NavalService(_units, navalState, _geo, _services, _ => { });
             _events = new StrongEventBus();
@@ -80,6 +82,42 @@ namespace PxC.Tests.EditMode
             var a = _ground.Spawn(0, GroundForceModel.Cavalry, new Vector3(0f, 0f, 0f));
             _combat.AwardExperience(a, 100);
             Assert.AreEqual(2, _units.GetRef(a).Level);
+        }
+
+        [Test]
+        public void Isolated1v1_AutonomousAi_TheyCloseAndFight()
+        {
+            // 隔离 1v1：两个同型 Formation，相距 5（感知内、攻击范围外）。
+            // 由 GroundForceAi 自主驱动：应互相接近、进入攻击、减员，直到一方死亡。
+            var a = _ground.Spawn(0, GroundForceModel.Formation, new Vector3(0f, 0f, 0f));
+            var b = _ground.Spawn(1, GroundForceModel.Formation, new Vector3(5f, 0f, 0f));
+            var ai = new GroundForceAi(
+                _units, _groundState, _geo,
+                () => _combat, null, null, _ => { });
+
+            int frames = 600;
+            float dt = 0.1f;
+            for (int f = 0; f < frames; f++)
+            {
+                ai.Tick(dt);
+                _events.DispatchPending();
+                if (f % 20 == 0 || f == frames - 1)
+                {
+                    bool aAlive = _units.GetRef(a).Alive;
+                    bool bAlive = _units.GetRef(b).Alive;
+                    Console.Out.WriteLine(
+                        $"  f{f} aHP={_units.GetSafe(a).Hp:F0}({_units.GetSafe(a).State}) " +
+                        $"bHP={_units.GetSafe(b).Hp:F0}({_units.GetSafe(b).State}) " +
+                        $"aPos=({_units.GetSafe(a).Position.x:F1}) bPos=({_units.GetSafe(b).Position.x:F1})");
+                    if (!aAlive || !bAlive) break;
+                }
+            }
+
+            bool aDied = !_units.GetRef(a).Alive;
+            bool bDied = !_units.GetRef(b).Alive;
+            Console.Out.WriteLine($"结果 aDied={aDied} bDied={bDied}");
+            Assert.IsTrue(aDied || bDied,
+                "1v1 自主战斗应在 600 帧内分出胜负（一方死亡）");
         }
     }
 }

@@ -59,7 +59,7 @@ namespace PxC.Plugins.GroundForce
 
             t[(int)GroundForceModel.Cavalry] = new GroundForceProfile
             {
-                Speed = 0.06f, Durability = 120f, Attack = 18f, Defense = 8f,
+                Speed = 1.8f, Durability = 120f, Attack = 18f, Defense = 8f,
                 AttackRange = 1.6f, FireRate = 0.8f, CarryCapacity = 1,
                 Size = 2, Rank = 2, Intelligence = 3,
                 PerceptionRadius = 12f, Damage = DamageType.Slashing, LevelGrowth = 0.12f,
@@ -67,7 +67,7 @@ namespace PxC.Plugins.GroundForce
 
             t[(int)GroundForceModel.Formation] = new GroundForceProfile
             {
-                Speed = 0.03f, Durability = 150f, Attack = 14f, Defense = 14f,
+                Speed = 1.0f, Durability = 150f, Attack = 14f, Defense = 14f,
                 AttackRange = 1.8f, FireRate = 1.0f, CarryCapacity = 3,
                 Size = 2, Rank = 2, Intelligence = 3,
                 PerceptionRadius = 8f, Damage = DamageType.Piercing, LevelGrowth = 0.10f,
@@ -75,7 +75,7 @@ namespace PxC.Plugins.GroundForce
 
             t[(int)GroundForceModel.Chariot] = new GroundForceProfile
             {
-                Speed = 0.05f, Durability = 200f, Attack = 22f, Defense = 10f,
+                Speed = 1.5f, Durability = 200f, Attack = 22f, Defense = 10f,
                 AttackRange = 2.2f, FireRate = 0.7f, CarryCapacity = 3,
                 Size = 3, Rank = 3, Intelligence = 3,
                 PerceptionRadius = 10f, Damage = DamageType.Slashing, LevelGrowth = 0.12f,
@@ -83,7 +83,7 @@ namespace PxC.Plugins.GroundForce
 
             t[(int)GroundForceModel.Tank] = new GroundForceProfile
             {
-                Speed = 0.10f, Durability = 600f, Attack = 60f, Defense = 40f,
+                Speed = 2.5f, Durability = 600f, Attack = 60f, Defense = 40f,
                 AttackRange = 18f, FireRate = 0.4f, CarryCapacity = 4,
                 Size = 4, Rank = 5, Intelligence = 6,
                 PerceptionRadius = 25f, Damage = DamageType.ArmorPiercing, LevelGrowth = 0.08f,
@@ -91,7 +91,7 @@ namespace PxC.Plugins.GroundForce
 
             t[(int)GroundForceModel.Armor] = new GroundForceProfile
             {
-                Speed = 0.12f, Durability = 350f, Attack = 30f, Defense = 22f,
+                Speed = 3.0f, Durability = 350f, Attack = 30f, Defense = 22f,
                 AttackRange = 12f, FireRate = 1.2f, CarryCapacity = 8,
                 Size = 3, Rank = 4, Intelligence = 6,
                 PerceptionRadius = 20f, Damage = DamageType.Piercing, LevelGrowth = 0.08f,
@@ -99,7 +99,7 @@ namespace PxC.Plugins.GroundForce
 
             t[(int)GroundForceModel.MissileVehicle] = new GroundForceProfile
             {
-                Speed = 0.08f, Durability = 280f, Attack = 80f, Defense = 16f,
+                Speed = 2.0f, Durability = 280f, Attack = 80f, Defense = 16f,
                 AttackRange = 35f, FireRate = 0.2f, CarryCapacity = 3,
                 Size = 3, Rank = 5, Intelligence = 7,
                 PerceptionRadius = 40f, Damage = DamageType.Explosive, LevelGrowth = 0.07f,

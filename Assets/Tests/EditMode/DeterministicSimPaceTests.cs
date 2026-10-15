@@ -73,6 +73,8 @@ namespace PxC.Tests.EditMode
             public BuildingRegistry Buildings;
             public SettlementRegistry Settlements;
             public PluginRuntime Runtime;
+            public AutoGovernorPlugin AutoGovernor;
+            public AutoMilitaryPlugin AutoMilitary;
         }
 
         private sealed class Counters
@@ -156,8 +158,12 @@ namespace PxC.Tests.EditMode
             w.Runtime.Discover(new PolicyPlugin());
             w.Runtime.Discover(new WeatherPlugin());
             w.Runtime.Discover(new DisasterPlugin());
-            w.Runtime.Discover(new AutoGovernorPlugin());
-            w.Runtime.Discover(new AutoMilitaryPlugin());
+            var autoGovernor = new AutoGovernorPlugin();
+            var autoMilitary = new AutoMilitaryPlugin();
+            w.AutoGovernor = autoGovernor;
+            w.AutoMilitary = autoMilitary;
+            w.Runtime.Discover(autoGovernor);
+            w.Runtime.Discover(autoMilitary);
             w.Runtime.Discover(new AutoDiplomacyPlugin());
             w.Runtime.Discover(new WarResolutionPlugin());
             w.Runtime.Discover(new ConquestPlugin());
@@ -171,8 +177,10 @@ namespace PxC.Tests.EditMode
             return w;
         }
 
-        /// <summary>推进 N 年：每年先年结（经济/建造/征兵/宣战/战争结算），再跑该年帧模拟（单位移动/战斗）。</summary>
-        private static void Run(GameWorld w, int years, Counters c, StringBuilder trace)
+        /// <summary>推进 N 年：每年先年结（经济/建造/征兵/宣战/战争结算），再跑该年帧模拟（单位移动/战斗）。
+        /// onYear(k,year) 在年结后、帧模拟前执行（用于测试场景注入：增兵/制造战争）。</summary>
+        private static void Run(GameWorld w, int years, Counters c, StringBuilder trace,
+            Action<int, int> onYear)
         {
             var pop = w.Services.Resolve<IPopulationService>();
             int startYear = w.Clock.Year;
@@ -186,6 +194,9 @@ namespace PxC.Tests.EditMode
                 w.Runtime.TickYear(year);
                 if (w.Services.TryResolve<IEconomyYearFinalizer>(out var fin))
                     fin.FinalizeYear(year);
+
+                // 测试场景注入（年结后、帧模拟前）
+                onYear?.Invoke(k, year);
 
                 // 该年帧模拟：驱动地面/海军 AI（行军/追击/攻击）
                 var sims = w.Runtime.SimPlugins;
@@ -216,7 +227,12 @@ namespace PxC.Tests.EditMode
         private static void Subscribe(GameWorld w, Counters c)
         {
             w.Events.Subscribe<WarDeclaredEvent>(_ => c.Wars++);
-            w.Events.Subscribe<FactionEliminatedEvent>(_ => c.Eliminations++);
+            w.Events.Subscribe<FactionEliminatedEvent>(e =>
+            {
+                c.Eliminations++;
+                Console.Out.WriteLine(
+                    $"  [灭国] 势力 {e.Faction} 被势力 {e.ByFaction} 所灭（年 {e.GameYear}）");
+            });
             w.Events.Subscribe<TerritoryConqueredEvent>(_ => c.Conquests++);
             w.Events.Subscribe<PeaceTreatyEvent>(_ => c.WhitePeace++);
             w.Events.Subscribe<CoercedPeaceEvent>(_ => c.CoercedPeace++);
@@ -224,7 +240,8 @@ namespace PxC.Tests.EditMode
         }
 
         // ----------------------------------------------------------------
-        // 用例：120 年自动节奏冒烟——世界必须发展、战争必须能打响、模拟无异常/无 NaN。
+        // 用例：120 年自动节奏冒烟——世界必须发展；人工制造一场军力不均衡的战争，
+        // 验证"宣战 → 行军接敌 → 战斗减员 → 灭国/占领"完整战争链能走完。
         // ----------------------------------------------------------------
         [Test]
         public void AutoRun_120Years_WorldDevelopsAndWarsResolve()
@@ -234,6 +251,10 @@ namespace PxC.Tests.EditMode
             var trace = new StringBuilder();
             var w = AssembleWorld(tmp.Path, m => logs.Add(m));
             var counters = new Counters();
+
+            // 世界发展部分：开启玩家自动（本测试不模拟玩家操作，让世界整体发展）。
+            w.AutoGovernor.EnablePlayerAutomation = true;
+            w.AutoMilitary.EnablePlayerAutomation = true;
 
             Assert.IsTrue(w.Runtime.BuildOrder(out var errors),
                 "装配失败: " + string.Join(" | ", errors));
@@ -245,7 +266,74 @@ namespace PxC.Tests.EditMode
             int startSettlements = w.Settlements.Count;
             int startBuildings = w.Buildings.Count;
 
-            Run(w, SimYears, counters, trace);
+            // 战争链注入：在第 InjectYearK 年，给 attacker 增援 Formation（制造军力优势），
+            // 并对 defender 宣战；战争发生在两个 AI 之间，玩家（faction 0）不被卷入。
+            // 增援数校准：增援后 attacker 约 10、defender 5，比值 ≈2（>1.5 不触发 AutoPeace、
+            // 又 ≤3 不触发 CoercedPeace 提前割地），从而迫使部队真正行军、接敌、战斗、灭国。
+            const int attacker = 1;   // 东夷 (60,10)
+            const int defender = 3;   // 南蛮 (10,60)，距 attacker 约 70.7
+            const int injectYearK = 10;
+            const int reinforcements = 5;
+
+            Action<int, int> onYear = (k, year) =>
+            {
+                if (k == injectYearK)
+                {
+                    var ground = w.Services.Resolve<GroundForceService>();
+                    var military = (MilitaryService)w.Services.Resolve<IMilitaryService>();
+                    var att = w.Factions.Get(attacker);
+
+                    // 在 attacker 首府附近环布增援（陆地），随后 Idle→战略行军。
+                    const float goldenAngle = 2.399963f;
+                    for (int i = 0; i < reinforcements; i++)
+                    {
+                        float ang = i * goldenAngle;
+                        var pos = new Vector3(
+                            att.HomeX + Mathf.Cos(ang) * 4f,
+                            0f,
+                            att.HomeZ + Mathf.Sin(ang) * 4f);
+                        ground.Spawn(attacker, GroundForceModel.Formation, pos, attacker * 10 + 2);
+                    }
+                    // 立即置战争矩阵（使本年帧模拟即可行军），并补发事件（计数器/接线）。
+                    military.DeclareWar(attacker, defender, year);
+                    w.Events.PublishDeferred(new WarDeclaredEvent
+                    {
+                        AttackerFaction = attacker,
+                        DefenderFaction = defender,
+                    });
+                    Console.Out.WriteLine(
+                        $"[注入] 第{year}年：势力 {attacker} 增援 {reinforcements} 并对势力 {defender} 宣战");
+                }
+
+                // 每年追踪行军：注入后打印 attacker/defender 单位数与位置（看是否接敌/减员）。
+                if (k >= injectYearK && (k % 2 == 0 || k < injectYearK + 4))
+                {
+                    var units = w.Services.Resolve<UnitRegistry>();
+                    int nAtt = 0, nDef = 0;
+                    var attPos = new StringBuilder();
+                    var defPos = new StringBuilder();
+                    int cap = units.Capacity;
+                    for (int s = 0; s < cap; s++)
+                    {
+                        ref var u = ref units.GetSlotRef(s);
+                        if (!u.Alive || u.Domain != EntityDomain.Land) continue;
+                        if (u.Faction == attacker)
+                        {
+                            nAtt++;
+                            if (nAtt <= 3) attPos.Append($"#{s}({u.Position.x:F0},{u.Position.z:F0},{u.State}) ");
+                        }
+                        else if (u.Faction == defender)
+                        {
+                            nDef++;
+                            if (nDef <= 3) defPos.Append($"#{s}({u.Position.x:F0},{u.Position.z:F0},{u.State}) ");
+                        }
+                    }
+                    Console.Out.WriteLine(
+                        $"  k{k} att={nAtt} def={nDef} | attPos {attPos}| defPos {defPos}");
+                }
+            };
+
+            Run(w, SimYears, counters, trace, onYear);
 
             Console.Out.WriteLine(trace.ToString());
             Console.Out.WriteLine(
@@ -258,19 +346,18 @@ namespace PxC.Tests.EditMode
             Assert.Greater(w.Buildings.Count, startBuildings,
                 "120 年内应自动建造建筑");
 
-            // 战争必须能发起：AI 会按军力优势宣战
+            // 战争必须能发起（人工注入的宣战，计数器仍记录）
             Assert.Greater(counters.Wars, 0, "120 年内应至少发生 1 次宣战");
 
-            // 战争结束（灭国/割地/和约）依赖"行军接敌"——本版本（v10.7.1）只打通
-            // 经济生产链（高级资源→自动建造→征兵→宣战），部队不会长途行军到敌方，
-            // 故 resolutions 预期为 0，仅诊断输出、不做硬断言。行军接敌在 v10.7.2 补齐，
-            // 届时恢复本断言（必须 > 0）。
+            // 战争必须能分出结果：行军接敌后战斗减员，触发灭国/占领/割地/和约。
             int resolutions = counters.Eliminations + counters.CoercedPeace + counters.WhitePeace;
-            Console.Out.WriteLine(
-                $"[v10.7.1 范围] 战争结束数 resolutions={resolutions}（0=待 v10.7.2 行军接敌，未验证）");
+            Console.Out.WriteLine($"战争结束数 resolutions={resolutions}");
+            Assert.Greater(resolutions, 0,
+                "战争应能结束（灭国/割地/和约），不应只宣战而永不接触");
 
-            // 玩家华夏（faction 0）始终存活，且世界不被灭到只剩 0 方
-            Assert.IsTrue(w.Factions.Get(0).Alive, "玩家势力不应被灭（默认 AI 跳过玩家主动操作）");
+            // 玩家华夏（faction 0）始终存活（战争在 AI 之间），世界不被灭到只剩 0 方
+            Assert.IsTrue(w.Factions.Get(0).Alive,
+                "玩家势力不应被灭（战争注入发生在两个 AI 之间）");
             int aliveCount = 0;
             for (int f = 0; f < w.Factions.Count; f++)
                 if (w.Factions.Get(f).Alive) aliveCount++;
