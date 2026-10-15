@@ -106,13 +106,26 @@ namespace PxC.Plugins.Colonization
                 return false;
             }
 
-            // 移民劳力
+            // 移民劳力：移民从首都劳力出发（聚落间转移，总量守恒）。
             var population = Resolve<IPopulationService>();
             int migrants = ColonizationProfile.Migrants(kind);
-            if (population != null && population.ByLayer(faction, PopulationLayer.Laborer) < migrants)
+            if (population != null)
             {
-                reason = $"劳力人口不足（需要 {migrants} 名劳力）";
-                return false;
+                int capital = _settlements.FindCapital(faction);
+                int availableLabor;
+                if (capital >= 0)
+                {
+                    availableLabor = population.SettlementByLayer(capital, PopulationLayer.Laborer);
+                }
+                else
+                {
+                    availableLabor = population.ByLayer(faction, PopulationLayer.Laborer);
+                }
+                if (availableLabor < migrants)
+                {
+                    reason = $"首都劳力不足（需要 {migrants} 名劳力，现有 {availableLabor}）";
+                    return false;
+                }
             }
 
             return true;
@@ -141,29 +154,41 @@ namespace PxC.Plugins.Colonization
                 return false;
             }
 
-            // 再派遣移民（若失败，补偿回滚资源）
-            if (population != null && !population.Emigrate(faction, migrants))
-            {
-                _log?.Invoke("[殖民] 移民派遣失败，回滚资源");
-                if (economy != null)
-                {
-                    for (int i = 0; i < costs.Length; i++)
-                        economy.Add(faction, costs[i].Type, costs[i].Amount);
-                }
-                return false;
-            }
-
             int year = ResolveGameYear();
             string finalName = string.IsNullOrEmpty(name)
                 ? $"{ResolveFactionName(faction)}聚落"
                 : name;
 
-            int slot = _settlements.Found(faction, kind, finalName, position, year, migrants);
+            // 先建立新聚落（空槽位，不凭空人口）
+            int slot = _settlements.Found(faction, kind, finalName, position, year);
             ref var r = ref _settlements.GetSlotRef(slot);
 
             // 贴地
             var geo = Resolve<IGeographyQuery>();
             if (geo != null) r.Position.y = geo.TerrainHeight(r.Position.x, r.Position.z);
+
+            // 移民聚落间转移：首都 labor → 新聚落 labor（势力总人口不变、总量守恒）。
+            if (population != null)
+            {
+                int capital = _settlements.FindCapital(faction);
+                bool sent = false;
+                if (capital >= 0)
+                    sent = population.SendMigrants(capital, slot, PopulationLayer.Laborer, migrants);
+
+                if (!sent)
+                {
+                    // 转移失败：废弃新聚落、清空其人口、回滚资源。
+                    _log?.Invoke("[殖民] 移民转移失败，回滚聚落与资源");
+                    population.ClearSettlement(slot);
+                    _settlements.Kill(slot);
+                    if (economy != null)
+                    {
+                        for (int i = 0; i < costs.Length; i++)
+                            economy.Add(faction, costs[i].Type, costs[i].Amount);
+                    }
+                    return false;
+                }
+            }
 
             if (_events != null)
             {
