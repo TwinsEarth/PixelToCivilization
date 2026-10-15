@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using PxC.Core.Contracts;
 using PxC.Core.Events;
 using PxC.Core.Persistence;
+using PxC.Core.Services;
 using PxC.Gameplay.Services;
 using PxC.Plugins.GroundForce;
 using PxC.Plugins.Naval;
@@ -10,7 +11,7 @@ namespace PxC.Plugins.Military
 {
     /// <summary>
     /// 军事总控插件（Tier-0）。聚合兵力/火力、征兵、战争状态，注册 IMilitaryService。
-    /// 订阅 WarDeclaredEvent 维护战争矩阵。依赖 groundforce/naval/population。
+    /// 订阅 WarDeclaredEvent 维护战争矩阵（记录开始年份）。依赖 groundforce/naval/population。
     /// </summary>
     public sealed class MilitaryPlugin : IPlugin
     {
@@ -54,7 +55,19 @@ namespace PxC.Plugins.Military
 
         private void OnWarDeclared(WarDeclaredEvent evt)
         {
-            _service?.DeclareWar(evt.AttackerFaction, evt.DefenderFaction);
+            int year = CurrentYear();
+            _service?.DeclareWar(evt.AttackerFaction, evt.DefenderFaction, year);
+        }
+
+        private int CurrentYear()
+        {
+            try
+            {
+                var clock = _ctx.Services.Resolve<IClock>();
+                if (clock != null) return clock.GameYear;
+            }
+            catch { /* 测试/无时钟环境：年份从 1 起 */ }
+            return 1;
         }
 
         public void OnShutdown()
@@ -65,20 +78,22 @@ namespace PxC.Plugins.Military
 
         public ISaveSegment GetSaveSegment()
         {
-            var pairs = _service.GetWarPairs();
+            int[] years;
+            int[] pairs = _service.GetWarPairs(out years);
             return new MilitarySaveSegment
             {
                 PluginId = PluginIdValue,
                 SegmentVersion = 1,
                 PairCount = pairs.Length / 2,
                 WarPairs = pairs,
+                StartYears = years,
             };
         }
 
         public void RestoreSaveSegment(ISaveSegment segment, int globalSaveVersion)
         {
             if (!(segment is MilitarySaveSegment s)) return;
-            _service.RestoreWarPairs(s.WarPairs);
+            _service.RestoreWarPairs(s.WarPairs, s.StartYears);
         }
     }
 }

@@ -170,7 +170,7 @@ namespace PxC.Tests.EditMode
         public void DeclareWar_SetsAtWarState()
         {
             Assert.IsFalse(_military.IsAtWar(0, 1));
-            _military.DeclareWar(0, 1);
+            _military.DeclareWar(0, 1, 1);
             Assert.IsTrue(_military.IsAtWar(0, 1));
             Assert.IsTrue(_military.IsAtWar(1, 0));
         }
@@ -178,13 +178,14 @@ namespace PxC.Tests.EditMode
         [Test]
         public void WarPairs_RoundTrip()
         {
-            _military.DeclareWar(0, 1);
-            _military.DeclareWar(2, 3);
-            var pairs = _military.GetWarPairs();
+            _military.DeclareWar(0, 1, 1);
+            _military.DeclareWar(2, 3, 1);
+            var pairs = _military.GetWarPairs(out int[] years);
             Assert.AreEqual(4, pairs.Length);
+            Assert.AreEqual(2, years.Length);
 
             var rebuilt = new MilitaryService(_ground, _naval, _pop);
-            rebuilt.RestoreWarPairs(pairs);
+            rebuilt.RestoreWarPairs(pairs, years);
             Assert.IsTrue(rebuilt.IsAtWar(0, 1));
             Assert.IsTrue(rebuilt.IsAtWar(2, 3));
         }

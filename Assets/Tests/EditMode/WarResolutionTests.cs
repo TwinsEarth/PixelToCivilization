@@ -42,6 +42,8 @@ namespace PxC.Tests.EditMode
             public bool TryRecruit(int faction, int count) => true;
             public bool IsAtWar(int faction, int otherFaction) =>
                 _atWar[faction, otherFaction];
+            public int GetWarStartYear(int faction, int otherFaction) => 1;
+            public void MakePeace(int faction, int otherFaction) { }
         }
 
         private sealed class Harness

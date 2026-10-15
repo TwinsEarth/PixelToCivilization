@@ -17,5 +17,11 @@ namespace PxC.Gameplay.Services
 
         /// <summary>两势力是否处于交战状态。</summary>
         bool IsAtWar(int faction, int otherFaction);
+
+        /// <summary>战争开始的游戏年份（未交战返回 0）。</summary>
+        int GetWarStartYear(int faction, int otherFaction);
+
+        /// <summary>结束战争（和约/停战）：清除交战关系。</summary>
+        void MakePeace(int faction, int otherFaction);
     }
 }

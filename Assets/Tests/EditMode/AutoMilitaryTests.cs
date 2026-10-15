@@ -187,7 +187,7 @@ namespace PxC.Tests.EditMode
                 h.EcoState.Set(f, ResourceType.Food, 200f);
                 h.EcoState.Set(f, ResourceType.Bronze, 200f);
             }
-            h.Military.DeclareWar(0, 1);
+            h.Military.DeclareWar(0, 1, 1);
 
             h.Plugin.OnYear(1);
 
