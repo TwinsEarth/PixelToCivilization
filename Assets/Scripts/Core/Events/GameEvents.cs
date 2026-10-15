@@ -68,6 +68,23 @@ namespace PxC.Core.Events
         public int GameYear;
     }
 
+    /// <summary>
+    /// 压制性和约：实力悬殊但未灭国，强者强制弱者割让若干聚落并停战。
+    /// </summary>
+    public struct CoercedPeaceEvent
+    {
+        /// <summary>强势方（获得割地）。</summary>
+        public int Stronger;
+        /// <summary>弱势方（割地求和）。</summary>
+        public int Weaker;
+        /// <summary>被割让的聚落数。</summary>
+        public int SettlementsCeded;
+        /// <summary>战争开始的游戏年份。</summary>
+        public int WarStartYear;
+        /// <summary>当前游戏年份。</summary>
+        public int GameYear;
+    }
+
     public struct ProjectileFiredEvent
     {
         public int ProjectileType;
