@@ -474,5 +474,70 @@ namespace PxC.Tests.EditMode
             Assert.AreEqual(0, h.Naval.CountByModel(0, NavalModel.AircraftCarrier),
                 "基础舰队不足 3 艘，不应建航母");
         }
+
+        // ------------------------------------------------------------
+        // 19. 工业时代、连续 3 年战时 → 1 箭塔 + 1 炮塔 + 1 碉堡
+        // ------------------------------------------------------------
+        [Test]
+        public void Industrial_ThreeWarYears_ArrowCannonThenBunker()
+        {
+            var h = BuildHarness(2, false);
+            h.Tech.EraValue = (int)Era.Industrial;
+            for (int f = 0; f < 2; f++)
+            {
+                h.EcoState.Set(f, ResourceType.Wood, 800f);
+                h.EcoState.Set(f, ResourceType.Stone, 800f);
+                h.EcoState.Set(f, ResourceType.Bronze, 800f);
+                h.EcoState.Set(f, ResourceType.Steel, 800f);
+            }
+            h.Military.DeclareWar(0, 1, 1);
+
+            for (int y = 1; y <= 3; y++)
+                h.Plugin.OnYear(y);
+
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.ArrowTower));
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.CannonTower));
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.Bunker),
+                "工业时代第 3 座应建碉堡");
+            Assert.AreEqual(0, h.Buildings.CountByType(0, (int)BuildingType.FireTower));
+        }
+
+        // ------------------------------------------------------------
+        // 20. 铁器时代（非工业）、连续 3 年战时 → 仅 1 箭塔 + 1 炮塔，无碉堡
+        // ------------------------------------------------------------
+        [Test]
+        public void IronEra_ThreeWarYears_NoBunker()
+        {
+            var h = BuildHarness(2, false);
+            h.Tech.EraValue = (int)Era.IronAge;
+            for (int f = 0; f < 2; f++)
+            {
+                h.EcoState.Set(f, ResourceType.Wood, 800f);
+                h.EcoState.Set(f, ResourceType.Stone, 800f);
+                h.EcoState.Set(f, ResourceType.Bronze, 800f);
+            }
+            h.Military.DeclareWar(0, 1, 1);
+
+            for (int y = 1; y <= 3; y++)
+                h.Plugin.OnYear(y);
+
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.ArrowTower));
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.CannonTower));
+            Assert.AreEqual(0, h.Buildings.CountByType(0, (int)BuildingType.Bunker),
+                "时代不足工业，不应建碉堡");
+            Assert.AreEqual(2, TotalTowers(h, 0),
+                "时代不足工业，防御建筑应保持 2 座");
+        }
+
+        private static int TotalTowers(Harness h, int faction)
+        {
+            var b = h.Services.Resolve<IBuildingService>();
+            int n = 0;
+            n += b.CountByType(faction, (int)BuildingType.ArrowTower);
+            n += b.CountByType(faction, (int)BuildingType.FireTower);
+            n += b.CountByType(faction, (int)BuildingType.CannonTower);
+            n += b.CountByType(faction, (int)BuildingType.Bunker);
+            return n;
+        }
     }
 }
