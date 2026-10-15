@@ -53,6 +53,21 @@ namespace PxC.Plugins.Naval
         public int CountByFaction(int faction) =>
             _units.CountByFaction(faction, EntityDomain.Naval);
 
+        /// <summary>某势力某船型的存活数量（经济/军事统计口径）。</summary>
+        public int CountByModel(int faction, NavalModel model)
+        {
+            int n = 0;
+            int cap = _units.Capacity;
+            for (int slot = 0; slot < cap; slot++)
+            {
+                if (!_state.IsNaval(slot)) continue;
+                ref var r = ref _units.GetSlotRef(slot);
+                if (r.Alive && r.Faction == faction && r.ModelId == (int)model)
+                    n++;
+            }
+            return n;
+        }
+
         /// <summary>某势力全部船艇当前攻击力之和（火力评分口径）。</summary>
         public float TotalFirepower(int faction)
         {
