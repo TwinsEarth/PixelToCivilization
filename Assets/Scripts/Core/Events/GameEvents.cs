@@ -85,6 +85,19 @@ namespace PxC.Core.Events
         public int GameYear;
     }
 
+    /// <summary>势力附庸化：弱者向强者称臣，成为附庸（每年纳贡，外交受约束）。</summary>
+    public struct VassalizedEvent
+    {
+        /// <summary>宗主（强势方）。</summary>
+        public int Suzerain;
+        /// <summary>附庸（弱势方，称臣）。</summary>
+        public int Vassal;
+        /// <summary>战争开始的游戏年份。</summary>
+        public int WarStartYear;
+        /// <summary>附庸化的游戏年份。</summary>
+        public int GameYear;
+    }
+
     public struct ProjectileFiredEvent
     {
         public int ProjectileType;

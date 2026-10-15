@@ -45,6 +45,7 @@ using PxC.Plugins.WarResolution;
 using PxC.Plugins.Conquest;
 using PxC.Plugins.AutoPeace;
 using PxC.Plugins.CoercedPeace;
+using PxC.Plugins.Vassalization;
 using PxC.Content.Towers;
 using PxC.Content.Events;
 using PxC.Content.Dynasties;
@@ -169,6 +170,7 @@ namespace PxC.Tests.EditMode
             w.Runtime.Discover(new ConquestPlugin());
             w.Runtime.Discover(new AutoPeacePlugin());
             w.Runtime.Discover(new CoercedPeacePlugin());
+            w.Runtime.Discover(new VassalizationPlugin());
             w.Runtime.Discover(new VictoryPlugin());
             w.Runtime.Discover(new TowersPack());
             w.Runtime.Discover(new EventsPack());

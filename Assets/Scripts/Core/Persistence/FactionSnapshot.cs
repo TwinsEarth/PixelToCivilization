@@ -18,6 +18,12 @@ namespace PxC.Core.Persistence
         /// <summary>是否存续（被灭国后 false）。</summary>
         public bool Alive = true;
 
+        /// <summary>宗主势力 id（-1 = 独立；≥0 表示附庸）。</summary>
+        public int Suzerain = -1;
+
+        /// <summary>成为附庸的游戏年。</summary>
+        public int BecameVassalYear;
+
         /// <summary>文明颜色（视图用，索引到调色板）。</summary>
         public int ColorIndex;
 

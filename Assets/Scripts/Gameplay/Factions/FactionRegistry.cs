@@ -17,6 +17,17 @@ namespace PxC.Gameplay.Factions
         /// <summary>是否存续（被灭国后 false，停止结算）。</summary>
         public bool Alive = true;
 
+        /// <summary>
+        /// 宗主势力 id（-1 = 独立；≥0 表示本势力为该宗主的附庸，需纳贡且外交受约束）。
+        /// </summary>
+        public int Suzerain = -1;
+
+        /// <summary>成为附庸的游戏年（0 表示从未成为附庸）。</summary>
+        public int BecameVassalYear;
+
+        /// <summary>是否为附庸（有宗主）。</summary>
+        public bool IsVassal => Suzerain >= 0;
+
         /// <summary>文明颜色（视图用，索引到调色板）。</summary>
         public int ColorIndex;
 
