@@ -45,6 +45,10 @@ namespace PxC.Plugins.AutoMilitary
         /// <summary>目标船艇总数（仅靠水势力；内陆势力始终为 0）。</summary>
         public const int TargetNavalUnits = 3;
 
+        // ---- 航母口径 ----
+        /// <summary>目标航母数（现代、已有基础舰队后才尝试建造；成本极高）。</summary>
+        public const int TargetAircraftCarriers = 1;
+
         // ---- 首府周边环布 ----
         private const float UnitInnerRadius = 6f;
         private const int UnitRingCount = 5;
@@ -104,8 +108,12 @@ namespace PxC.Plugins.AutoMilitary
 
                 RecruitStep(f, military, population);
                 BuildGroundUnitStep(f, info, ground, tech, population);
-                if (naval != null) NavalStep(f, info, naval, tech);
-                DefenseTowerStep(f, info, military, factions);
+                if (naval != null)
+                {
+                    NavalStep(f, info, naval, tech);
+                    AircraftCarrierStep(f, info, naval, tech);
+                }
+                DefenseTowerStep(f, info, military, factions, tech);
             }
         }
 
@@ -195,23 +203,57 @@ namespace PxC.Plugins.AutoMilitary
         }
 
         // ============================================================
-        // ③ 战争时自动建防御箭塔
+        // ②c 航母（现代、已有基础舰队后才尝试；成本极高，资源不足安全失败）
+        // ============================================================
+        private void AircraftCarrierStep(
+            int faction, FactionInfo info, NavalService naval, ITechService tech)
+        {
+            int era = (int)tech.GetEra(faction);
+            if (era < (int)Era.Modern) return;
+            if (naval.CountByFaction(faction) < TargetNavalUnits) return;
+            if (naval.CountByModel(faction, NavalModel.AircraftCarrier) >= TargetAircraftCarriers)
+                return;
+
+            var id = naval.TryBuildUnit(
+                faction, NavalModel.AircraftCarrier, info.HomeX, info.HomeZ);
+            if (id.IsValid)
+                _ctx.Log($"[自动军事] 势力 {faction} 建造航空母舰（{id}）");
+        }
+
+        // ============================================================
+        // ③ 战争时自动建防御塔（首座箭塔，进阶按时代升级火塔/炮塔）
         // ============================================================
         private void DefenseTowerStep(
             int faction, FactionInfo info,
-            IMilitaryService military, FactionRegistry factions)
+            IMilitaryService military, FactionRegistry factions, ITechService tech)
         {
             if (!IsAtWarWithAnyone(faction, military, factions)) return;
             if (!_ctx.Services.TryResolve<IBuildingService>(out var buildings)) return;
 
             int towers = CountTowers(faction, buildings);
             if (towers >= TargetWarTowers) return;
-            if (!buildings.CanBuild(faction, (int)BuildingType.ArrowTower)) return;
+
+            int era = (int)tech.GetEra(faction);
+            BuildingType towerType = ChooseTowerType(towers, era);
+            if (!buildings.CanBuild(faction, (int)towerType)) return;
 
             Vector3 position = NextTowerPosition(info, towers);
-            int slot = buildings.TryBuild(faction, (int)BuildingType.ArrowTower, position);
+            int slot = buildings.TryBuild(faction, (int)towerType, position);
             if (slot >= 0)
-                _ctx.Log($"[自动军事] 势力 {faction} 战时建箭塔（slot {slot}）");
+                _ctx.Log($"[自动军事] 势力 {faction} 战时建{towerType}（slot {slot}）");
+        }
+
+        /// <summary>
+        /// 按已建塔数与时代选塔型：第 1 座为基础箭塔；
+        /// 第 2 座起，铁器时代→炮塔（CannonTower），青铜时代→火塔（FireTower），
+        /// 否则继续箭塔。
+        /// </summary>
+        private static BuildingType ChooseTowerType(int existingTowers, int era)
+        {
+            if (existingTowers <= 0) return BuildingType.ArrowTower;
+            if (era >= (int)Era.IronAge) return BuildingType.CannonTower;
+            if (era >= (int)Era.BronzeAge) return BuildingType.FireTower;
+            return BuildingType.ArrowTower;
         }
 
         private static bool IsAtWarWithAnyone(

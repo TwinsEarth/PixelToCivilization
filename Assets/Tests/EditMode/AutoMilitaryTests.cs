@@ -344,5 +344,135 @@ namespace PxC.Tests.EditMode
             Assert.AreEqual(3, h.Naval.CountByFaction(0),
                 "已达目标 3 艘，当年不应再建");
         }
+
+        // ------------------------------------------------------------
+        // 14. 铁器时代、连续 2 年战时 → 1 箭塔 + 1 炮塔
+        // ------------------------------------------------------------
+        [Test]
+        public void IronEra_TwoWarYears_ArrowThenCannonTower()
+        {
+            var h = BuildHarness(2, false);
+            h.Tech.EraValue = (int)Era.IronAge;
+            for (int f = 0; f < 2; f++)
+            {
+                h.EcoState.Set(f, ResourceType.Wood, 500f);
+                h.EcoState.Set(f, ResourceType.Stone, 500f);
+                h.EcoState.Set(f, ResourceType.Bronze, 500f);
+            }
+            h.Military.DeclareWar(0, 1, 1);
+
+            h.Plugin.OnYear(1);
+            h.Plugin.OnYear(2);
+
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.ArrowTower),
+                "第 1 座为基础箭塔");
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.CannonTower),
+                "铁器时代第 2 座应升级为炮塔");
+            Assert.AreEqual(0, h.Buildings.CountByType(0, (int)BuildingType.FireTower));
+        }
+
+        // ------------------------------------------------------------
+        // 15. 青铜时代、连续 2 年战时 → 1 箭塔 + 1 火塔
+        // ------------------------------------------------------------
+        [Test]
+        public void BronzeEra_TwoWarYears_ArrowThenFireTower()
+        {
+            var h = BuildHarness(2, false);
+            h.Tech.EraValue = (int)Era.BronzeAge;
+            for (int f = 0; f < 2; f++)
+            {
+                h.EcoState.Set(f, ResourceType.Wood, 500f);
+                h.EcoState.Set(f, ResourceType.Stone, 500f);
+            }
+            h.Military.DeclareWar(0, 1, 1);
+
+            h.Plugin.OnYear(1);
+            h.Plugin.OnYear(2);
+
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.ArrowTower),
+                "第 1 座为基础箭塔");
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.FireTower),
+                "青铜时代第 2 座应升级为火塔");
+            Assert.AreEqual(0, h.Buildings.CountByType(0, (int)BuildingType.CannonTower));
+        }
+
+        // ------------------------------------------------------------
+        // 16. 现代、有基础舰队（3 潜艇）+ 资源充足 → 建航母
+        // ------------------------------------------------------------
+        [Test]
+        public void Modern_FleetReady_Affordable_BuildsCarrier()
+        {
+            var h = BuildHarness(1, false, labor: 200, soldiers: 0);
+            h.Tech.EraValue = (int)Era.Modern;
+            h.Geo.SetWaterRect(5, 5, 25, 25);
+            // 预先填满陆军（5 坦克，陆地，位于水域外），隔离 BuildGroundUnitStep。
+            for (int k = 0; k < 5; k++)
+            {
+                var gp = new Vector3(-10f + k * 2f, 0f, -10f);
+                var gid = h.Ground.Spawn(0, GroundForceModel.Tank, gp);
+                Assert.IsTrue(gid.IsValid);
+            }
+            // 基础舰队 3 潜艇（水域）。
+            for (int k = 0; k < 3; k++)
+            {
+                var pos = new Vector3(6f + k * 2f, 0f, 6f);
+                var id = h.Naval.Spawn(0, NavalModel.Submarine, pos);
+                Assert.IsTrue(id.IsValid);
+            }
+            // 航母成本：Steel300 + Oil150 + Capital200
+            h.EcoState.Set(0, ResourceType.Steel, 500f);
+            h.EcoState.Set(0, ResourceType.Oil, 500f);
+            h.EcoState.Set(0, ResourceType.Capital, 500f);
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(1, h.Naval.CountByModel(0, NavalModel.AircraftCarrier),
+                "现代、有基础舰队、资源充足应建 1 艘航母");
+            Assert.AreEqual(200f, h.EcoState.Get(0, ResourceType.Steel), 0.001f);
+            Assert.AreEqual(350f, h.EcoState.Get(0, ResourceType.Oil), 0.001f);
+            Assert.AreEqual(300f, h.EcoState.Get(0, ResourceType.Capital), 0.001f);
+        }
+
+        // ------------------------------------------------------------
+        // 17. 现代、有舰队但航母资源不足 → 不建航母（安全失败、不扣费）
+        // ------------------------------------------------------------
+        [Test]
+        public void Modern_FleetReady_CannotAfford_NoCarrier()
+        {
+            var h = BuildHarness(1, false, labor: 200, soldiers: 0);
+            h.Tech.EraValue = (int)Era.Modern;
+            h.Geo.SetWaterRect(5, 5, 25, 25);
+            for (int k = 0; k < 3; k++)
+            {
+                var pos = new Vector3(6f + k * 2f, 0f, 6f);
+                var id = h.Naval.Spawn(0, NavalModel.Submarine, pos);
+                Assert.IsTrue(id.IsValid);
+            }
+            // 不设 Steel/Oil/Capital
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(0, h.Naval.CountByModel(0, NavalModel.AircraftCarrier),
+                "航母资源不足应安全失败，不建航母");
+        }
+
+        // ------------------------------------------------------------
+        // 18. 现代但无基础舰队 → 不建航母
+        // ------------------------------------------------------------
+        [Test]
+        public void Modern_NoFleet_NoCarrier()
+        {
+            var h = BuildHarness(1, false, labor: 200, soldiers: 0);
+            h.Tech.EraValue = (int)Era.Modern;
+            h.Geo.SetWaterRect(5, 5, 25, 25);
+            h.EcoState.Set(0, ResourceType.Steel, 500f);
+            h.EcoState.Set(0, ResourceType.Oil, 500f);
+            h.EcoState.Set(0, ResourceType.Capital, 500f);
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(0, h.Naval.CountByModel(0, NavalModel.AircraftCarrier),
+                "基础舰队不足 3 艘，不应建航母");
+        }
     }
 }
