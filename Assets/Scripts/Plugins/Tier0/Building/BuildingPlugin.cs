@@ -72,6 +72,9 @@ namespace PxC.Plugins.Building
             if (!_initialized) return;
             if (!_ctx.Services.TryResolve<IEconomyService>(out var economy)) return;
 
+            // 科技为可选服务（用于判定建筑副产出时代是否解锁）；缺失时副产出不产出（保守）。
+            _ctx.Services.TryResolve<ITechService>(out var tech);
+
             // 遍历全部存活建筑，按类型产出（等级提升产出）
             int cap = _registry.Capacity;
             for (int slot = 0; slot < cap; slot++)
@@ -80,11 +83,24 @@ namespace PxC.Plugins.Building
                 if (!rec.Alive) continue;
 
                 var entry = BuildingCatalog.Get((BuildingType)rec.TypeId);
+                float levelScale = 1f + 0.25f * (rec.Level - 1);
+
                 if (entry.Produces != PxC.Gameplay.Resources.ResourceType.None
                     && entry.ProducePerYear > 0f)
                 {
-                    float amount = entry.ProducePerYear * (1f + 0.25f * (rec.Level - 1));
-                    economy.Add(rec.Faction, entry.Produces, amount);
+                    economy.Add(rec.Faction, entry.Produces,
+                        entry.ProducePerYear * levelScale);
+                }
+
+                // 按时代解锁的副产出（青铜/铁/煤/油/钢/电/数据/资本）
+                if (entry.EraOutputs != null && tech != null)
+                {
+                    for (int i = 0; i < entry.EraOutputs.Length; i++)
+                    {
+                        var eo = entry.EraOutputs[i];
+                        if (tech.HasEra(rec.Faction, eo.MinEra))
+                            economy.Add(rec.Faction, eo.Resource, eo.Amount * levelScale);
+                    }
                 }
             }
         }

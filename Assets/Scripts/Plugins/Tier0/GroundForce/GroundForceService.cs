@@ -244,10 +244,11 @@ namespace PxC.Plugins.GroundForce
                         new ResourceCost(ResourceType.Bronze, 8f),
                     };
                 case GroundForceModel.Formation:
+                    // 原始时代步兵阵型：木矛/棍棒（原始可得），不使用铁器时代才有的 Iron。
                     return new[]
                     {
                         new ResourceCost(ResourceType.Food, 30f),
-                        new ResourceCost(ResourceType.Iron, 10f),
+                        new ResourceCost(ResourceType.Wood, 10f),
                     };
                 case GroundForceModel.Chariot:
                     return new[]
