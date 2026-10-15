@@ -39,6 +39,7 @@ using PxC.Plugins.AutoGovernor;
 using PxC.Plugins.AutoMilitary;
 using PxC.Plugins.AutoDiplomacy;
 using PxC.Plugins.WarResolution;
+using PxC.Plugins.Conquest;
 using PxC.Content.Towers;
 using PxC.Content.Events;
 using PxC.Content.Dynasties;
@@ -161,8 +162,9 @@ namespace PxC.Tests.EditMode
             runtime.Discover(new DisasterPlugin());
             runtime.Discover(new AutoGovernorPlugin());
             runtime.Discover(new AutoMilitaryPlugin());
-            runtime.Discover(new AutoDiplomacyPlugin());
+                        runtime.Discover(new AutoDiplomacyPlugin());
             runtime.Discover(new WarResolutionPlugin());
+            runtime.Discover(new ConquestPlugin());
             runtime.Discover(new VictoryPlugin());
             runtime.Discover(new TowersPack());
             runtime.Discover(new EventsPack());
