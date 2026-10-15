@@ -1,129 +1,161 @@
-using System.Collections;
+using System;
 using UnityEngine;
-using PixelToCivilization.Core;
-using PixelToCivilization.World;
-using PixelToCivilization.Buildings;
-using PixelToCivilization.UI;
-using PixelToCivilization.Rendering;
-using PixelToCivilization.Audio;
-using PixelToCivilization.Platform;
+using PxC.Core.Services;
+using PxC.Core.Time;
+using PxC.Core.World;
+using PxC.Host;
+using PxC.Infra.Assets;
+using PxC.Infra.Budget;
+using PxC.Infra.Crash;
+using PxC.Infra.Memory;
+using PxC.Infra.Pool;
+using PxC.Infra.Save;
+using PxC.Infra.Time;
 
-namespace PixelToCivilization.Bootstrap
+namespace PxC.Bootstrap
 {
     /// <summary>
-    /// 游戏启动器 —— 运行时代码搭建全部场景：管理器、地形、相机、光照、建筑工厂、输入、UI。
-    /// 用法：新建空场景，创建空物体挂载本脚本，点Play即可；或菜单「像素到文明 → 一键搭建场景」。
-    /// V9.7.1：Boot 协程化 —— WebGL 需等待 IndexedDB 正文库预载就绪并完成旧档迁移，再继续搭建。
+    /// 唯一接线层（Composition Root）。负责把宿主内核与内置框架服务组装并启动。
+    /// 不在此写任何业务规则。
+    /// 时序：BeforeSceneLoad 安装崩溃守护 → AfterSceneLoad 收集插件并启动（插件注册在 BeforeSceneLoad 完成）。
     /// </summary>
-    [DefaultExecutionOrder(-100)]
-    public class GameBootstrap : MonoBehaviour
+    public static class GameBootstrap
     {
-        [Header("地形种子（相同种子=相同地图）")]
-        public int TerrainSeed = 20260829;
-        public bool AutoBootOnStart = true;
+        public const int HostVersion = 10;
 
-        /// <summary>打开工程直接 Play 即自动搭建，无需在场景里手动挂脚本/拖引用</summary>
+        private static CrashGuard _crashGuard;
+        private static GameClock _clock;
+        private static StrongEventBus _events;
+        private static ServiceRegistry _services;
+        private static ChunkedWorld _world;
+        private static CapabilitySystem _capability;
+        private static PluginRuntime _runtime;
+
+        // ------------------------------------------------------------
+        // 阶段 1：最早安装崩溃守护
+        // ------------------------------------------------------------
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void Early()
+        {
+            _crashGuard = new CrashGuard(Debug.Log);
+            _crashGuard.Install();
+        }
+
+        // ------------------------------------------------------------
+        // 阶段 2：组装并启动
+        // ------------------------------------------------------------
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void AutoBoot()
+        private static void Boot()
         {
-            if (GameManager.Instance != null) return;
-            if (FindObjectOfType<GameBootstrap>() != null) return; // 场景已手动挂载则交给其Start
-            var go = new GameObject("=== 从像素到文明 V9.8.2 智能体驱动 (Auto) ===");
-            var bs = go.AddComponent<GameBootstrap>();
-            bs.StartCoroutine(bs.BootCoroutine());
-        }
-
-        private void Start()
-        {
-            if (AutoBootOnStart && GameManager.Instance == null) StartCoroutine(BootCoroutine());
-        }
-
-        public void Boot() => StartCoroutine(BootCoroutine());
-
-        public IEnumerator BootCoroutine()
-        {
-            // V9.6.5 崩溃架构：启动最早阶段判定安全模式（上次 crashed 且未 clean → SafeMode），随后写 booting 标记
-            PixelToCivilization.Core.CrashGuardSystem.DetectOnBoot();
-
-            // 0. V6.1.1 画质自适应：手机/WebGL 或内存≤3.5GB 走性能档（贴图128、关景深/颗粒/色散）
-            bool highEnd = Application.platform != RuntimePlatform.WebGLPlayer && SystemInfo.systemMemorySize > 3500;
-            if (!highEnd) PixelToCivilization.Art.ProceduralTextures.Res = 128;
-
-            // 1. 游戏管理器（Awake加载数据库；显式再调一次以兼容 Edit 模式/冒烟测试，幂等）
-            var gmGo = new GameObject("GameManager");
-            var gm = gmGo.AddComponent<GameManager>();
-            gm.EnsureAwake();
-
-            // 1.1 V9.7.1 混合存档：WebGL 打开 IndexedDB 正文库并全量预载，等待就绪后迁移旧档
-            PxcStorage.BeginInit();
-            float storageWait = 0f;
-            while (!PxcStorage.Ready)
+            Action<string> Log = m =>
             {
-                storageWait += Time.unscaledDeltaTime;
-                if (storageWait > 6f) { Debug.LogWarning("[GameBootstrap] 存储层等待超时，按当前就绪状态继续"); break; }
-                yield return null;
-            }
-            PxcStorage.MarkReady();
-            PxcStorage.MigrateLegacyFromPlayerPrefs();
+                Debug.Log(m);
+                _crashGuard?.Log(m);
+            };
 
-            // 2. 世界地形
-            var worldGo = new GameObject("World");
-            var terrain = worldGo.AddComponent<WorldGenerator>();
-            terrain.GenerateBalanced(TerrainSeed);
-            // V6.1.1 程序化植被（树/草静态合并）
-            var veg = worldGo.AddComponent<VegetationSystem>();
-            veg.Populate(terrain, TerrainSeed);
+            // 核心
+            _events = new StrongEventBus();
+            _services = new ServiceRegistry();
+            _world = new ChunkedWorld();
+            _capability = new CapabilitySystem();
+            _capability.SetLogger(Log);
 
-            // 3. 建筑网格工厂（BuildingSystem.Init 时查找）
-            var factoryGo = new GameObject("BuildingMeshFactory");
-            var factory = factoryGo.AddComponent<BuildingMeshFactory>();
+            _clock = new GameClock();
+            _clock.SnapToStart();
 
-            // 4. 装配全部游戏子系统
-            gm.InstallSystems();
-            // 建筑点击→弹出信息
-            factory.ClickHandler = b => FindObjectOfType<UIManager>()?.ShowBuilding(b);
+            // 帧预算 / 算力
+            float budgetMs =
+#if UNITY_WEBGL && !UNITY_EDITOR
+                6f;
+#else
+                10f;
+#endif
+            var frameBudget = new FrameBudget(budgetMs);
+            var scheduler = new SimScheduler(DetectQuality());
 
-            // 5. 相机 + 轨道控制
-            var camGo = new GameObject("MainCamera");
-            camGo.tag = "MainCamera";
-            var cam = camGo.AddComponent<Camera>();
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.55f, 0.7f, 0.85f);
-            cam.nearClipPlane = 0.3f; cam.farClipPlane = 2000f;
-            camGo.AddComponent<AudioListener>();
-            var rig = camGo.AddComponent<CameraRig>();
-            var target = new GameObject("CameraTarget"); target.transform.position = new Vector3(terrain.SettlementCenter.x, terrain.SettlementCenter.y, 0);
-            rig.Target = target.transform; rig.Distance = 108f;
+            // 资源 / 池 / 内存 / 存档
+            IAssetLoader assets = SelectAssetLoader();
 
-            // 5.1 V6.1.1 环境光照（天空盒/主光/三波段环境光/雾）+ 电影级后处理
-            // V9.0.8fix 物体名必须唯一：EnvironmentSystem 已占用 "Environment" 作为天气实体根，
-            // 重名会让 WebGL SendMessage('Environment',...) 命中错误物体（无 receiver），导演物体改名为 EnvironmentDirector。
-            var envGo = new GameObject("EnvironmentDirector");
-            envGo.AddComponent<EnvironmentDirector>();
-            PostProcessDirector.Ensure(cam).SetQuality(highEnd);
+            var poolRoot = new GameObject("PxC_PoolRoot");
+            UnityEngine.Object.DontDestroyOnLoad(poolRoot);
+            var pool = new ObjectPool(poolRoot.transform);
 
-            // 5.2 V7.0.3 自适应每帧预算（性能神：掉帧自动降阴影/粒子/全显名额）
-            new GameObject("FrameBudget").AddComponent<PixelToCivilization.Rendering.FrameBudget>();
+            var memory = new MemoryMonitor(1100f, 1500f, Log);
+            var saves = new SaveSystem();
+            var clockAdapter = new ClockAdapter(_clock);
+            var crashReport = new LocalCrashReport(Log);
 
-            // 5.3 V7.1.0 环境实体声音系统（鸟鸣/船/车，3D 空间化 + 声轨预算 + WebGL 手势解锁）
-            new GameObject("AudioManager").AddComponent<PixelToCivilization.Audio.AudioManager>();
+            // 注册服务
+            _services.Register<IClock>(clockAdapter);
+            _services.Register<IObjectPool>(pool);
+            _services.Register<IAssetLoader>(assets);
+            _services.Register<IMemoryMonitor>(memory);
+            _services.Register<ICrashGuard>(_crashGuard);
+            _services.Register<ICrashReport>(crashReport);
+            _services.Register<ISaveService>(saves);
+            _services.Register<IFrameBudget>(frameBudget);
+            _services.Register<ISimScheduler>(scheduler);
 
-            // 6. 输入控制
-            gmGo.AddComponent<GameInputController>();
-
-            // 7. UI
-            var uiGo = new GameObject("UIRoot");
-            var ui = uiGo.AddComponent<UIManager>();
-            ui.Boot(gm);
-
-            // V9.6.5 崩溃架构：安全模式降级 + 自动恢复（UI 就绪后，AddEvent/Toast 可见）
-            if (PixelToCivilization.Core.CrashGuardSystem.SafeMode)
+            // 崩溃状态快照提供者
+            _crashGuard.SetStateProvider(() => new CrashStateSnapshot
             {
-                PixelToCivilization.Core.CrashGuardSystem.ApplySafeMode();
-                gm.TryCrashRecovery();
+                GameYear = _clock.Year
+            });
+
+            // 插件运行时
+            _runtime = new PluginRuntime(_events, _services, _world, _capability, HostVersion, Log);
+            var plugins = PluginRegistry.Collect();
+            for (int i = 0; i < plugins.Count; i++)
+                _runtime.Discover(plugins[i]);
+
+            if (!_runtime.BuildOrder(out var errors))
+            {
+                for (int i = 0; i < errors.Count; i++)
+                    Debug.LogError($"[Bootstrap] 装配错误: {errors[i]}");
+                // 安全模式：玩法未启动，仅保留崩溃守护；UI 层后续提供恢复界面
+                return;
             }
 
-            Debug.Log("[GameBootstrap] 场景搭建完成，点击「开始」进入游戏（混合存档=" + PxcStorage.HybridMode + "）");
+            _runtime.InitializeAll();
+            _runtime.StartAll();
+
+            // 主循环
+            var loopGo = new GameObject("PxC_GameLoop");
+            UnityEngine.Object.DontDestroyOnLoad(loopGo);
+            var loop = loopGo.AddComponent<GameLoop>();
+            loop.Configure(_clock, _runtime, _events, frameBudget, scheduler);
+            loop.AddPerFrame(_ => memory.Tick());
+            loop.AddPerFrame(saves.Tick);
+            loop.AddQuitHandler(() => _crashGuard.MarkCleanRun());
+
+            if (_crashGuard.CrashedLastRun)
+                Log("检测到上次异常退出；可在安全模式中选择恢复上次进度（UI 恢复界面为后续版本）");
+
+            _crashGuard.MarkCleanRun();
+            Log($"宿主 v{HostVersion} 启动完成，插件数 {_runtime.PluginCount}，资源后端 {assets.BackendName}");
+        }
+
+        // ------------------------------------------------------------
+        // 探测
+        // ------------------------------------------------------------
+        private static QualityTier DetectQuality()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return QualityTier.Low;
+#else
+            if (SystemInfo.systemMemorySize > 0 && SystemInfo.systemMemorySize < 8192)
+                return QualityTier.Low;
+            return QualityTier.High;
+#endif
+        }
+
+        private static IAssetLoader SelectAssetLoader()
+        {
+#if UNITY_ADDRESSABLES
+            return new AddressablesAssetLoader();
+#else
+            return new ResourcesAssetLoader();
+#endif
         }
     }
 }

@@ -1,0 +1,16 @@
+{
+    "name": "PxC.Host",
+    "rootNamespace": "PxC.Host",
+    "references": [
+        "PxC.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
