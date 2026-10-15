@@ -74,9 +74,9 @@ namespace PxC.Plugins.WarResolution
                     int bUnits = CountUnits(b, ground, naval);
 
                     if (aUnits == 0 && bUnits > 0)
-                        Eliminate(a, b, gameYear);
+                        Eliminate(a, b, gameYear, military);
                     else if (bUnits == 0 && aUnits > 0)
-                        Eliminate(b, a, gameYear);
+                        Eliminate(b, a, gameYear, military);
                     // 双方均为 0 → 平局，不处理；双方均 > 0 → 战斗继续。
                 }
             }
@@ -98,11 +98,15 @@ namespace PxC.Plugins.WarResolution
             return n;
         }
 
-        private void Eliminate(int loser, int winner, int gameYear)
+        private void Eliminate(int loser, int winner, int gameYear, IMilitaryService military)
         {
             FactionInfo loserInfo = _ctx.Services.Resolve<FactionRegistry>().Get(loser);
             if (!loserInfo.Alive) return;
             loserInfo.Alive = false;
+
+            // 清理胜者与败者的战争矩阵：否则败者已亡，胜者仍被"与已灭亡国家的战争"
+            // 计入 MaxConcurrentWars，导致胜者此后永远无法再宣战（卡死扩张）。
+            military.MakePeace(winner, loser);
 
             _ctx.Events.Publish(new FactionEliminatedEvent
             {

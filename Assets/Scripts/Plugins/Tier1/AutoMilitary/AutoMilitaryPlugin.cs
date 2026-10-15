@@ -34,20 +34,53 @@ namespace PxC.Plugins.AutoMilitary
         public const int ReserveLabor = 20;
 
         // ---- 陆军单位口径 ----
-        /// <summary>目标陆军单位总数（含初始编队）。</summary>
-        public const int TargetGroundUnits = 5;
+        // 目标陆军单位数随时代增长（见 TargetGroundUnitsForEra），
+        // 原始时代只保留少量初始编队，工业/现代才维持大规模常备军。
 
         // ---- 防御塔口径 ----
         /// <summary>战争时目标防御建筑数（1 基础箭塔 + 1 进阶火塔/炮塔 + 1 工业时代碉堡）。</summary>
         public const int TargetWarTowers = 3;
 
         // ---- 船艇口径 ----
-        /// <summary>目标船艇总数（仅靠水势力；内陆势力始终为 0）。</summary>
-        public const int TargetNavalUnits = 3;
+        // 目标船艇数随时代增长（见 TargetNavalUnitsForEra），内陆势力始终为 0。
 
         // ---- 航母口径 ----
         /// <summary>目标航母数（现代、已有基础舰队后才尝试建造；成本极高）。</summary>
         public const int TargetAircraftCarriers = 1;
+
+        /// <summary>
+        /// 按时代返回目标陆军单位数（含初始编队）：
+        /// 早期兵少、少战；工业/现代/信息时代逐步维持更大规模常备军。
+        /// </summary>
+        public static int TargetGroundUnitsForEra(int era)
+        {
+            if (era >= (int)Era.Space) return 18;
+            if (era >= (int)Era.Information) return 15;
+            if (era >= (int)Era.Modern) return 12;
+            if (era >= (int)Era.Industrial) return 9;
+            if (era >= (int)Era.AgeOfSail) return 7;
+            if (era >= (int)Era.HighMiddle) return 6;
+            if (era >= (int)Era.Medieval) return 6;
+            if (era >= (int)Era.IronAge) return 5;
+            if (era >= (int)Era.BronzeAge) return 4;
+            return 3;
+        }
+
+        /// <summary>
+        /// 按时代返回目标船艇数：早期只有少量渔船/木筏，
+        /// 大航海后逐步扩大，现代/信息时代维持较大舰队。
+        /// </summary>
+        public static int TargetNavalUnitsForEra(int era)
+        {
+            if (era >= (int)Era.Space) return 10;
+            if (era >= (int)Era.Information) return 8;
+            if (era >= (int)Era.Modern) return 6;
+            if (era >= (int)Era.Industrial) return 4;
+            if (era >= (int)Era.AgeOfSail) return 3;
+            if (era >= (int)Era.IronAge) return 2;
+            if (era >= (int)Era.BronzeAge) return 1;
+            return 0;
+        }
 
         // ---- 首府周边环布 ----
         private const float UnitInnerRadius = 6f;
@@ -153,9 +186,10 @@ namespace PxC.Plugins.AutoMilitary
             ITechService tech, IPopulationService population)
         {
             int existing = ground.CountByFaction(faction);
-            if (existing >= TargetGroundUnits) return;
-
             int era = (int)tech.GetEra(faction);
+            int target = TargetGroundUnitsForEra(era);
+            if (existing >= target) return;
+
             GroundForceModel model = ChooseGroundModel(era);
             // 位置环布（含初始编队：用现有单位总数作索引，避免与初始阵兵重叠）
             Vector3 position = NextUnitPosition(info, existing);
@@ -181,9 +215,10 @@ namespace PxC.Plugins.AutoMilitary
             int faction, FactionInfo info, NavalService naval, ITechService tech)
         {
             int existing = naval.CountByFaction(faction);
-            if (existing >= TargetNavalUnits) return;
-
             int era = (int)tech.GetEra(faction);
+            int target = TargetNavalUnitsForEra(era);
+            if (existing >= target) return;
+
             NavalModel model = ChooseNavalModel(era);
             // 找水域 + 扣费 + 生成均在 TryBuildUnit 内完成；内陆势力返回 Invalid。
             var id = naval.TryBuildUnit(faction, model, info.HomeX, info.HomeZ);
@@ -210,7 +245,7 @@ namespace PxC.Plugins.AutoMilitary
         {
             int era = (int)tech.GetEra(faction);
             if (era < (int)Era.Modern) return;
-            if (naval.CountByFaction(faction) < TargetNavalUnits) return;
+            if (naval.CountByFaction(faction) < TargetNavalUnitsForEra(era)) return;
             if (naval.CountByModel(faction, NavalModel.AircraftCarrier) >= TargetAircraftCarriers)
                 return;
 

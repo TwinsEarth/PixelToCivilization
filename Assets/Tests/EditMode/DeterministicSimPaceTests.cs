@@ -183,6 +183,7 @@ namespace PxC.Tests.EditMode
             Action<int, int> onYear)
         {
             var pop = w.Services.Resolve<IPopulationService>();
+            var tech = w.Services.Resolve<ITechService>();
             int startYear = w.Clock.Year;
 
             for (int k = 1; k <= years; k++)
@@ -215,27 +216,83 @@ namespace PxC.Tests.EditMode
                     int totalPop = 0;
                     for (int f = 0; f < w.Factions.Count; f++)
                         totalPop += pop.Total(f);
+                    var eras = new StringBuilder();
+                    for (int f = 0; f < w.Factions.Count; f++)
+                    {
+                        if (w.Factions.Get(f).Alive)
+                            eras.Append($"f{f}={(int)tech.GetEra(f)} ");
+                    }
                     trace.AppendLine(
                         $"y{k:D3} year{year} alive={alive} settlements={w.Settlements.Count} " +
                         $"buildings={w.Buildings.Count} ground={w.Units.Count} pop={totalPop} " +
                         $"wars={c.Wars} elim={c.Eliminations} conquer={c.Conquests} " +
                         $"whitePeace={c.WhitePeace} coerced={c.CoercedPeace} founded={c.SettlementsFounded}");
+                    trace.AppendLine($"        eras: {eras}");
+
+                    // 强时代势力（f1）工业资源 & 单位型号诊断（看为何建不起先进单位）。
+                    if (w.Factions.Get(1).Alive)
+                    {
+                        var ec = w.Services.Resolve<IEconomyService>();
+                        var bld = w.Services.Resolve<BuildingRegistry>();
+                        var btypes = new StringBuilder();
+                        for (int t = 0; t < BuildingCatalog.Count; t++)
+                        {
+                            int n = bld.CountByType(1, t);
+                            if (n > 0) btypes.Append($"{BuildingCatalog.Get((BuildingType)t).DisplayName}={n} ");
+                        }
+                        trace.AppendLine($"        f1 bld: {btypes}");
+                        var units = w.Services.Resolve<UnitRegistry>();
+                        var mc = new int[GroundForceModels.Count];
+                        for (int s = 0; s < units.Capacity; s++)
+                        {
+                            ref var u = ref units.GetSlotRef(s);
+                            if (!u.Alive || u.Faction != 1 || u.Domain != EntityDomain.Land) continue;
+                            if (u.ModelId >= 0 && u.ModelId < mc.Length) mc[u.ModelId]++;
+                        }
+                        var models = new StringBuilder();
+                        for (int m = 0; m < mc.Length; m++)
+                            if (mc[m] > 0) models.Append($"{(GroundForceModel)m}={mc[m]} ");
+                        trace.AppendLine(
+                            $"        f1 res: Steel={ec.Get(1, ResourceType.Steel):F0} " +
+                            $"Oil={ec.Get(1, ResourceType.Oil):F0} Coal={ec.Get(1, ResourceType.Coal):F0} " +
+                            $"Capital={ec.Get(1, ResourceType.Capital):F0} | units: {models}");
+                    }
                 }
             }
         }
 
-        private static void Subscribe(GameWorld w, Counters c)
+        private void Subscribe(GameWorld w, Counters c)
         {
-            w.Events.Subscribe<WarDeclaredEvent>(_ => c.Wars++);
+            w.Events.Subscribe<WarDeclaredEvent>(e =>
+            {
+                c.Wars++;
+                Console.Out.WriteLine(
+                    $"  [宣战] 势力 {e.AttackerFaction} -> 势力 {e.DefenderFaction}（年 {w.Clock.Year}）");
+            });
             w.Events.Subscribe<FactionEliminatedEvent>(e =>
             {
                 c.Eliminations++;
                 Console.Out.WriteLine(
                     $"  [灭国] 势力 {e.Faction} 被势力 {e.ByFaction} 所灭（年 {e.GameYear}）");
             });
-            w.Events.Subscribe<TerritoryConqueredEvent>(_ => c.Conquests++);
-            w.Events.Subscribe<PeaceTreatyEvent>(_ => c.WhitePeace++);
-            w.Events.Subscribe<CoercedPeaceEvent>(_ => c.CoercedPeace++);
+            w.Events.Subscribe<TerritoryConqueredEvent>(e =>
+            {
+                c.Conquests++;
+                Console.Out.WriteLine(
+                    $"  [占领] 势力 {e.Winner} 占领势力 {e.Loser} {e.Settlements} 聚落（年 {e.GameYear}）");
+            });
+            w.Events.Subscribe<PeaceTreatyEvent>(e =>
+            {
+                c.WhitePeace++;
+                Console.Out.WriteLine(
+                    $"  [和约] 势力 {e.FactionA} 与势力 {e.FactionB} 议和（年 {e.GameYear}）");
+            });
+            w.Events.Subscribe<CoercedPeaceEvent>(e =>
+            {
+                c.CoercedPeace++;
+                Console.Out.WriteLine(
+                    $"  [割地] 势力 {e.Stronger} 逼迫势力 {e.Weaker} 割 {e.SettlementsCeded} 聚落（年 {e.GameYear}）");
+            });
             w.Events.Subscribe<SettlementFoundedEvent>(_ => c.SettlementsFounded++);
         }
 
@@ -274,14 +331,27 @@ namespace PxC.Tests.EditMode
             const int defender = 3;   // 南蛮 (10,60)，距 attacker 约 70.7
             const int injectYearK = 10;
             const int reinforcements = 5;
+            const int defenderReinforcements = 5;   // 守方对等增援：势均力敌，战争以和约结束而非灭国雪球
 
             Action<int, int> onYear = (k, year) =>
             {
+                // 节奏诊断：前 15 年每年打印各势力军力（看是否收敛、为何不自然宣战）。
+                if (k <= 15)
+                {
+                    var gsvc = w.Services.Resolve<GroundForceService>();
+                    var ms = w.Services.Resolve<IMilitaryService>();
+                    var gd = new StringBuilder();
+                    for (int f = 0; f < w.Factions.Count; f++)
+                        gd.Append($"f{f}={gsvc.CountByFaction(f)}(fp{ms.Firepower(f)}) ");
+                    Console.Out.WriteLine($"  k{k} 军力: {gd}");
+                }
+
                 if (k == injectYearK)
                 {
                     var ground = w.Services.Resolve<GroundForceService>();
                     var military = (MilitaryService)w.Services.Resolve<IMilitaryService>();
                     var att = w.Factions.Get(attacker);
+                    var def = w.Factions.Get(defender);
 
                     // 在 attacker 首府附近环布增援（陆地），随后 Idle→战略行军。
                     const float goldenAngle = 2.399963f;
@@ -294,6 +364,16 @@ namespace PxC.Tests.EditMode
                             att.HomeZ + Mathf.Sin(ang) * 4f);
                         ground.Spawn(attacker, GroundForceModel.Formation, pos, attacker * 10 + 2);
                     }
+                    // 守方对等增援（环布于守方首府），形成势均力敌，避免单方灭国雪球。
+                    for (int i = 0; i < defenderReinforcements; i++)
+                    {
+                        float ang = i * goldenAngle + 1.1f;
+                        var pos = new Vector3(
+                            def.HomeX + Mathf.Cos(ang) * 4f,
+                            0f,
+                            def.HomeZ + Mathf.Sin(ang) * 4f);
+                        ground.Spawn(defender, GroundForceModel.Formation, pos, defender * 10 + 2);
+                    }
                     // 立即置战争矩阵（使本年帧模拟即可行军），并补发事件（计数器/接线）。
                     military.DeclareWar(attacker, defender, year);
                     w.Events.PublishDeferred(new WarDeclaredEvent
@@ -302,7 +382,8 @@ namespace PxC.Tests.EditMode
                         DefenderFaction = defender,
                     });
                     Console.Out.WriteLine(
-                        $"[注入] 第{year}年：势力 {attacker} 增援 {reinforcements} 并对势力 {defender} 宣战");
+                        $"[注入] 第{year}年：势力 {attacker} 增援 {reinforcements}、" +
+                        $"势力 {defender} 增援 {defenderReinforcements}，双方开战（势均力敌）");
                 }
 
                 // 每年追踪行军：注入后打印 attacker/defender 单位数与位置（看是否接敌/减员）。

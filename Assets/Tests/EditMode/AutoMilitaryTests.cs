@@ -405,15 +405,15 @@ namespace PxC.Tests.EditMode
             var h = BuildHarness(1, false, labor: 200, soldiers: 0);
             h.Tech.EraValue = (int)Era.Modern;
             h.Geo.SetWaterRect(5, 5, 25, 25);
-            // 预先填满陆军（5 坦克，陆地，位于水域外），隔离 BuildGroundUnitStep。
-            for (int k = 0; k < 5; k++)
+            // 预先填满陆军（现代目标 12 坦克，陆地，位于水域外），隔离 BuildGroundUnitStep。
+            for (int k = 0; k < 12; k++)
             {
                 var gp = new Vector3(-10f + k * 2f, 0f, -10f);
                 var gid = h.Ground.Spawn(0, GroundForceModel.Tank, gp);
                 Assert.IsTrue(gid.IsValid);
             }
-            // 基础舰队 3 潜艇（水域）。
-            for (int k = 0; k < 3; k++)
+            // 基础舰队 6 潜艇（现代舰队目标 6，水域）。
+            for (int k = 0; k < 6; k++)
             {
                 var pos = new Vector3(6f + k * 2f, 0f, 6f);
                 var id = h.Naval.Spawn(0, NavalModel.Submarine, pos);
