@@ -93,7 +93,8 @@ namespace PxC.Tests.EditMode
             _factions = new FactionRegistry();
             _settlements = new SettlementRegistry();
             _economy = new FakeEconomy();
-            _population = new FakePopulation(FactionCount, 100, 10);
+            // labor=120、soldiers=10，合计 130 ≥ 第二聚落门槛 115（v10.3.1 指数门槛）。
+            _population = new FakePopulation(FactionCount, 120, 10);
             _tech = new FakeTech();
             _geo = new GridGeography();
             _events = new StrongEventBus();

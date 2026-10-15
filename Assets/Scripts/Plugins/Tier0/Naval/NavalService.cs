@@ -170,19 +170,34 @@ namespace PxC.Plugins.Naval
         /// <summary>在势力出生点附近寻找一片水域（供初始船只锚泊）。</summary>
         public bool FindWaterNear(float homeX, float homeZ, float searchRadius, out Vector3 water)
         {
-            for (float ring = 8f; ring <= searchRadius; ring += 4f)
+            // 在半径内逐格扫描，返回最近的水域（旧实现只扫 8 方向稀疏环，
+            // ring 从 8 起步，半径内任意格的水会被漏判）。
+            int radius = Mathf.CeilToInt(searchRadius);
+            int hx = Mathf.RoundToInt(homeX);
+            int hz = Mathf.RoundToInt(homeZ);
+            int bestX = 0;
+            int bestZ = 0;
+            float bestDist = float.MaxValue;
+            for (int dz = -radius; dz <= radius; dz++)
             {
-                for (int a = 0; a < 8; a++)
+                for (int dx = -radius; dx <= radius; dx++)
                 {
-                    float ang = a * (Mathf.PI * 2f / 8f);
-                    float x = homeX + Mathf.Cos(ang) * ring;
-                    float z = homeZ + Mathf.Sin(ang) * ring;
+                    float dist = Mathf.Sqrt(dx * dx + dz * dz);
+                    if (dist > searchRadius || dist >= bestDist) continue;
+                    int x = hx + dx;
+                    int z = hz + dz;
                     if (_geo.IsWater(x, z))
                     {
-                        water = new Vector3(x, _geo.TerrainHeight(x, z), z);
-                        return true;
+                        bestDist = dist;
+                        bestX = x;
+                        bestZ = z;
                     }
                 }
+            }
+            if (bestDist < float.MaxValue)
+            {
+                water = new Vector3(bestX, _geo.TerrainHeight(bestX, bestZ), bestZ);
+                return true;
             }
             water = Vector3.zero;
             return false;

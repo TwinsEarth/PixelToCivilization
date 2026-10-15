@@ -118,6 +118,11 @@ namespace PxC.Plugins.Settlement
                     if (!float.IsNaN(crop) && !float.IsInfinity(crop) && crop > 0f)
                         growth *= crop;
                 }
+                // logistic 饱和：接近人口软上限时增长降到最低系数，防止长跨度爆炸。
+                float setSat = Math.Max(0f,
+                    1f - (float)r.Population / (float)SettlementProfile.PopulationSoftCap);
+                growth *= SettlementProfile.MinimumGrowthFactor +
+                    (1f - SettlementProfile.MinimumGrowthFactor) * setSat;
                 int added = (int)Math.Floor(r.Population * growth);
                 if (added < 1) added = 1;
                 r.Population += added;

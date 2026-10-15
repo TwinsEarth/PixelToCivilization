@@ -29,6 +29,12 @@ namespace PxC.Plugins.Settlement
         /// <summary>首都初始发展度。</summary>
         public const float InitialCapitalProsperity = 50f;
 
+        /// <summary>聚落人口软上限（接近时增长饱和，防止长跨度数值爆炸）。</summary>
+        public const int PopulationSoftCap = 5000;
+
+        /// <summary>聚落人口接近软上限时，年增长率的最低比例。</summary>
+        public const float MinimumGrowthFactor = 0.35f;
+
         /// <summary>聚落基础领土半径（1 级）。</summary>
         public const float BaseTerritoryRadius = 30f;
 

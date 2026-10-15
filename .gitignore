@@ -53,3 +53,6 @@ sysinfo.txt
 /missing_dlls.txt
 
 # 说明：可直接游玩的 HTML5 构建以 GitHub Release 附件形式发布，不入库二进制。
+
+# ===== 离线编译/测试临时产物（tools/run_editmode_tests.ps1 产出）=====
+/tools/build_out/

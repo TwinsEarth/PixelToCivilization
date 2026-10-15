@@ -199,11 +199,10 @@ namespace PxC.Plugins.Colonization
                 if (count >= ColonizationProfile.MaxSettlementsPerFaction) continue;
                 if (_settlements.Count >= ColonizationProfile.MaxSettlementsTotal) break;
 
-                // 扩张门槛：总人口随聚落数提高
+                // 扩张门槛：总人口按指数曲线随聚落数提高（115×1.40^(count−1)），
+                // 使聚落间隔均匀，避免开局即扩张与后期门槛过低。
                 int total = population.Total(f);
-                int threshold =
-                    ColonizationProfile.MinPopulationForExpansion +
-                    (count - 1) * ColonizationProfile.PopulationPerSettlement;
+                int threshold = ColonizationProfile.ExpansionThreshold(count);
                 if (total < threshold) continue;
 
                 // 选址：从首都（或势力出生点）出发，沿确定性方向尝试

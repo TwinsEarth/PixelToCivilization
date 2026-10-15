@@ -26,6 +26,7 @@ namespace PxC.Plugins.Economy
         private const float StonePerCapita = 0.03f;    // 每人年基础采石
         private const float ResearchPerScholar = 2.0f; // 每名学者年研究
         private const float CulturePerScholar = 1.6f;  // 每名学者年文化
+        private const float GoldTaxPerCapita = 0.03f;  // 每人年基础人头税（金）
 
         // 新游戏初始库存
         private const float InitialFood = 100f;
@@ -142,6 +143,9 @@ namespace PxC.Plugins.Economy
                 // 基础采集与学者产出（政策系数）
                 _state.Add(f, ResourceType.Wood, total * WoodPerCapita);
                 _state.Add(f, ResourceType.Stone, total * StonePerCapita);
+                // 基础人头税（金）：金币闭环不依赖市集，缺失市集时仍可缓慢积累，
+                // 避免 2 个沿海聚落耗尽金币后殖民永久卡死；市集/工坊是额外加成。
+                _state.Add(f, ResourceType.Gold, total * GoldTaxPerCapita);
                 float researchOut = scholars * ResearchPerScholar;
                 float cultureOut = scholars * CulturePerScholar;
                 if (policy != null)

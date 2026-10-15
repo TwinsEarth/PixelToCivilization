@@ -23,6 +23,10 @@ namespace PxC.Plugins.Population
         private const float MatureRatio = 0.12f;       // 每年儿童成年比例
         private const float FoodPerCapita = 1.0f;      // 每人年口粮（饥荒折算）
 
+        // 人口承载容量：每个聚落提供 550 人容量；人口接近容量时出生率降到最低系数。
+        private const float PopulationCapacityPerSettlement = 550f;
+        private const float MinimumBirthFactor = 0.30f; // 饱和时出生率的最低比例
+
         // 新游戏初始人口（合计 100）
         private static readonly int[] InitialLayers = { 20, 55, 8, 8, 4, 5 };
 
@@ -130,7 +134,17 @@ namespace PxC.Plugins.Population
                     deathMod = pol.DeathModifier(f);
                 }
 
-                int births = (int)Math.Round(total * BirthRate * birthMod);
+                // 出生率 logistic 饱和：容量 = 聚落数 × 550，接近容量时出生率降到 30%。
+                // 聚落数取年初口径（settlement 在 population 之后结算，故读到上一年末值）。
+                int settlementCount = 1;
+                if (_ctx.Services.TryResolve<ISettlementService>(out var setSvc))
+                    settlementCount = Math.Max(1, setSvc.Count(f));
+                float capacity = settlementCount * PopulationCapacityPerSettlement;
+                float popSat = Math.Max(0f, 1f - total / capacity);
+                float effBirth = BirthRate *
+                    (MinimumBirthFactor + (1f - MinimumBirthFactor) * popSat);
+
+                int births = (int)Math.Round(total * effBirth * birthMod);
                 int mature = (int)Math.Round(children * MatureRatio);
                 int naturalDeaths = (int)Math.Round(total * NaturalDeathRate * deathMod);
 
