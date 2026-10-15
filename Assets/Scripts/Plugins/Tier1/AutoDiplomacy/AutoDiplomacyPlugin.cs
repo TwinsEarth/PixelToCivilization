@@ -44,6 +44,13 @@ namespace PxC.Plugins.AutoDiplomacy
         /// <summary>是否让玩家势力也主动宣战（默认 false）。</summary>
         public bool EnablePlayerAutomation;
 
+        /// <summary>
+        /// 是否允许 AI 主动对人类玩家（faction 0）宣战（默认 false：保护主角，
+        /// 玩家不会因军力暂时落后就被 AI 无故灭国）。玩家主动宣战后，AI 仍可正常反击。
+        /// 开启后 AI 会把弱军力的玩家视为可宣战目标（更高难度）。
+        /// </summary>
+        public bool AiMayDeclareOnHumanPlayer;
+
         public string Id => PluginIdValue;
         public string DisplayName => "自动外交";
         public int Version => 1;
@@ -76,8 +83,8 @@ namespace PxC.Plugins.AutoDiplomacy
                 int attackerPower = military.Firepower(attacker);
                 if (attackerPower < MinimumFirepower) continue;
 
-                if (TryChooseDefender(attacker, attackerPower, military, factions,
-                                      out int defender))
+                if (TryChooseDefender(attacker, attackerInfo.IsPlayer, attackerPower,
+                                      military, factions, out int defender))
                 {
                     _ctx.Events.Publish(new WarDeclaredEvent
                     {
@@ -102,7 +109,7 @@ namespace PxC.Plugins.AutoDiplomacy
         /// 优势比 = attackerPower / max(1, defenderPower)。
         /// </summary>
         private bool TryChooseDefender(
-            int attacker, int attackerPower,
+            int attacker, bool attackerIsPlayer, int attackerPower,
             IMilitaryService military, FactionRegistry factions,
             out int defender)
         {
@@ -112,6 +119,10 @@ namespace PxC.Plugins.AutoDiplomacy
                 FactionInfo otherInfo = factions.Get(other);
                 if (!otherInfo.Alive) continue;
                 if (military.IsAtWar(attacker, other)) continue;
+
+                // 保护人类玩家：AI 攻方默认不主动对人类玩家宣战（除非显式开启）。
+                if (otherInfo.IsPlayer && !attackerIsPlayer && !AiMayDeclareOnHumanPlayer)
+                    continue;
 
                 int defenderPower = System.Math.Max(1, military.Firepower(other));
                 float ratio = (float)attackerPower / (float)defenderPower;

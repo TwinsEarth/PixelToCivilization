@@ -67,9 +67,15 @@ namespace PxC.Plugins.GroundForce
             // 战斗结算（可选）：combat 插件依赖本插件、拓扑上在之后初始化，故 AI 用延迟解析，不在此强 Resolve。
             _state = new GroundForceState(_units.Capacity);
             _service = new GroundForceService(_units, _state, _geo, _ctx.Services, _ctx.Log);
+
+            // 聚落（首府坐标，用于战略行军目标）；在装配/启动期已注册，缺失则 null。
+            var settlements = _ctx.Services.Resolve<SettlementRegistry>();
+
             _ai = new GroundForceAi(
                 _units, _state, _geo,
                 () => _ctx.Services.TryResolve<ICombatService>(out var c) ? c : null,
+                settlements,
+                () => _ctx.Services.TryResolve<IMilitaryService>(out var m) ? m : null,
                 _ctx.Log);
 
             // 暴露给 UI / 集结令 / 征兵

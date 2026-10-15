@@ -13,6 +13,7 @@ namespace PxC.Plugins.GroundForce
         private int[] _xp;
         private float[] _cooldown;
         private int[] _squad;
+        private float[] _pursuitTime;
         private int _cap;
 
         public GroundForceState(int initialCapacity = 128)
@@ -22,6 +23,7 @@ namespace PxC.Plugins.GroundForce
             _xp = new int[_cap];
             _cooldown = new float[_cap];
             _squad = new int[_cap];
+            _pursuitTime = new float[_cap];
         }
 
         /// <summary>当前数组容量（=可索引 slot 上界）。</summary>
@@ -37,6 +39,7 @@ namespace PxC.Plugins.GroundForce
             Array.Resize(ref _xp, newCap);
             Array.Resize(ref _cooldown, newCap);
             Array.Resize(ref _squad, newCap);
+            Array.Resize(ref _pursuitTime, newCap);
             _cap = newCap;
         }
 
@@ -48,6 +51,7 @@ namespace PxC.Plugins.GroundForce
             _xp[slot] = 0;
             _cooldown[slot] = 0f;
             _squad[slot] = squadId;
+            _pursuitTime[slot] = 0f;
         }
 
         /// <summary>单位死亡/移除时清理（slot 可能被 UnitRegistry 复用）。</summary>
@@ -58,6 +62,7 @@ namespace PxC.Plugins.GroundForce
             _xp[slot] = 0;
             _cooldown[slot] = 0f;
             _squad[slot] = 0;
+            _pursuitTime[slot] = 0f;
         }
 
         public bool IsGround(int slot) =>
@@ -73,6 +78,11 @@ namespace PxC.Plugins.GroundForce
         public int GetSquad(int slot) => _squad[slot];
         public void SetSquad(int slot, int squadId) => _squad[slot] = squadId;
 
+        /// <summary>追击累计时间（秒）。进入 Pursuing 时重置，用于超时放弃绕圈目标。</summary>
+        public float GetPursuitTime(int slot) => _pursuitTime[slot];
+        public void AddPursuitTime(int slot, float dt) => _pursuitTime[slot] += dt;
+        public void ResetPursuitTime(int slot) => _pursuitTime[slot] = 0f;
+
         /// <summary>清空全部（新游戏/卸载）。</summary>
         public void Clear()
         {
@@ -80,6 +90,7 @@ namespace PxC.Plugins.GroundForce
             Array.Clear(_xp, 0, _cap);
             Array.Clear(_cooldown, 0, _cap);
             Array.Clear(_squad, 0, _cap);
+            Array.Clear(_pursuitTime, 0, _cap);
         }
     }
 }

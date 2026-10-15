@@ -179,20 +179,36 @@ namespace PxC.Tests.EditMode
         }
 
         // ------------------------------------------------------------
-        // 6. AI 可以对玩家宣战（玩家作为 defender）
+        // 6. 显式开启 AiMayDeclareOnHumanPlayer 后，AI 可以对玩家宣战（高难度）
         // ------------------------------------------------------------
         [Test]
-        public void AiCanDeclareOnPlayer()
+        public void AiCanDeclareOnPlayer_WhenEnabled()
         {
             var h = Build(2, true);
             h.Military.SetFirepower(0, 20);   // 玩家
             h.Military.SetFirepower(1, 60);  // AI
+            h.Plugin.AiMayDeclareOnHumanPlayer = true;
 
             h.Plugin.OnYear(1);
 
             Assert.AreEqual(1, h.Wars.Count);
             Assert.AreEqual(1, h.Wars[0].AttackerFaction);
             Assert.AreEqual(0, h.Wars[0].DefenderFaction);
+        }
+
+        // ------------------------------------------------------------
+        // 6b. 默认 AI 不主动对玩家宣战（保护主角）
+        // ------------------------------------------------------------
+        [Test]
+        public void AiDoesNotDeclareOnPlayer_ByDefault()
+        {
+            var h = Build(2, true);
+            h.Military.SetFirepower(0, 20);   // 玩家
+            h.Military.SetFirepower(1, 60);  // AI（军力优势）
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(0, h.Wars.Count, "默认 AI 不应主动对玩家宣战");
         }
 
         // ------------------------------------------------------------

@@ -34,7 +34,7 @@ namespace PxC.Plugins.Naval
 
             t[(int)NavalModel.Raft] = new NavalProfile
             {
-                Speed = 0.02f, Durability = 40f, Attack = 0f, Defense = 2f,
+                Speed = 0.7f, Durability = 40f, Attack = 0f, Defense = 2f,
                 AttackRange = 0f, FireRate = 0f, CarryCapacity = 2,
                 Size = 1, Rank = 1, Intelligence = 2,
                 PerceptionRadius = 8f, Damage = DamageType.Blunt, LevelGrowth = 0.05f, Civilian = true,
@@ -42,7 +42,7 @@ namespace PxC.Plugins.Naval
 
             t[(int)NavalModel.FishingBoat] = new NavalProfile
             {
-                Speed = 0.03f, Durability = 80f, Attack = 0f, Defense = 4f,
+                Speed = 1.0f, Durability = 80f, Attack = 0f, Defense = 4f,
                 AttackRange = 0f, FireRate = 0f, CarryCapacity = 4,
                 Size = 2, Rank = 1, Intelligence = 2,
                 PerceptionRadius = 10f, Damage = DamageType.Blunt, LevelGrowth = 0.05f, Civilian = true,
@@ -50,7 +50,7 @@ namespace PxC.Plugins.Naval
 
             t[(int)NavalModel.Warship] = new NavalProfile
             {
-                Speed = 0.04f, Durability = 250f, Attack = 20f, Defense = 14f,
+                Speed = 1.3f, Durability = 250f, Attack = 20f, Defense = 14f,
                 AttackRange = 3f, FireRate = 0.6f, CarryCapacity = 60,
                 Size = 4, Rank = 3, Intelligence = 4,
                 PerceptionRadius = 18f, Damage = DamageType.Slashing, LevelGrowth = 0.10f, Civilian = false,
@@ -58,7 +58,7 @@ namespace PxC.Plugins.Naval
 
             t[(int)NavalModel.SailingShip] = new NavalProfile
             {
-                Speed = 0.05f, Durability = 300f, Attack = 25f, Defense = 16f,
+                Speed = 1.5f, Durability = 300f, Attack = 25f, Defense = 16f,
                 AttackRange = 8f, FireRate = 0.5f, CarryCapacity = 80,
                 Size = 4, Rank = 3, Intelligence = 4,
                 PerceptionRadius = 20f, Damage = DamageType.Explosive, LevelGrowth = 0.10f, Civilian = false,
@@ -66,7 +66,7 @@ namespace PxC.Plugins.Naval
 
             t[(int)NavalModel.Steamship] = new NavalProfile
             {
-                Speed = 0.10f, Durability = 500f, Attack = 40f, Defense = 24f,
+                Speed = 2.5f, Durability = 500f, Attack = 40f, Defense = 24f,
                 AttackRange = 15f, FireRate = 0.5f, CarryCapacity = 100,
                 Size = 5, Rank = 4, Intelligence = 6,
                 PerceptionRadius = 30f, Damage = DamageType.Explosive, LevelGrowth = 0.08f, Civilian = false,
@@ -74,7 +74,7 @@ namespace PxC.Plugins.Naval
 
             t[(int)NavalModel.Submarine] = new NavalProfile
             {
-                Speed = 0.08f, Durability = 400f, Attack = 70f, Defense = 20f,
+                Speed = 2.0f, Durability = 400f, Attack = 70f, Defense = 20f,
                 AttackRange = 20f, FireRate = 0.3f, CarryCapacity = 40,
                 Size = 4, Rank = 5, Intelligence = 7,
                 PerceptionRadius = 35f, Damage = DamageType.Piercing, LevelGrowth = 0.08f, Civilian = false,
@@ -82,7 +82,7 @@ namespace PxC.Plugins.Naval
 
             t[(int)NavalModel.AircraftCarrier] = new NavalProfile
             {
-                Speed = 0.06f, Durability = 900f, Attack = 50f, Defense = 30f,
+                Speed = 1.8f, Durability = 900f, Attack = 50f, Defense = 30f,
                 AttackRange = 60f, FireRate = 0.2f, CarryCapacity = 500,
                 Size = 6, Rank = 6, Intelligence = 8,
                 PerceptionRadius = 80f, Damage = DamageType.Explosive, LevelGrowth = 0.07f, Civilian = false,

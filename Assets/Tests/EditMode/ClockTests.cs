@@ -11,7 +11,7 @@ namespace PxC.Tests.EditMode
             var c = new GameClock();
             c.SnapToStart();
             int years = 0;
-            c.Advance(60f, y => years++);
+            c.Advance(60f, y => years++, out _);
             Assert.AreEqual(1, years);
             Assert.AreEqual(GameClock.StartGameYear + 1, c.Year);
         }
@@ -22,7 +22,7 @@ namespace PxC.Tests.EditMode
             var c = new GameClock();
             c.Paused = true;
             int years = 0;
-            c.Advance(100f, y => years++);
+            c.Advance(100f, y => years++, out _);
             Assert.AreEqual(0, years);
         }
 
@@ -33,7 +33,7 @@ namespace PxC.Tests.EditMode
             c.SnapToStart();
             c.Speed = 3f;
             int years = 0;
-            c.Advance(60f, y => years++);
+            c.Advance(60f, y => years++, out _);
             Assert.AreEqual(3, years);
             Assert.AreEqual(GameClock.StartGameYear + 3, c.Year);
         }
@@ -44,7 +44,7 @@ namespace PxC.Tests.EditMode
             var c = new GameClock();
             c.Running = false;
             int years = 0;
-            c.Advance(60f, y => years++);
+            c.Advance(60f, y => years++, out _);
             Assert.AreEqual(0, years);
         }
 
