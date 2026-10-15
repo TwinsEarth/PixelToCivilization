@@ -203,7 +203,8 @@ namespace PxC.Tests.EditMode
         }
 
         // ------------------------------------------------------------
-        // 8. 石料不足但仍在原始时代 → 采石场时代门控，不建（不会降级乱建）
+        // 8. 石料不足但仍在原始时代 → 采石场时代门控（不建 Quarry）
+        //    发展型 AI 可转而建立原始时代即可得的伐木场（属正常基建覆盖，非降级乱建）
         // ------------------------------------------------------------
         [Test]
         public void StoneShortage_PrimitiveEra_QuarryBlocked()
@@ -216,14 +217,19 @@ namespace PxC.Tests.EditMode
 
             h.Governor.OnYear(1);
 
-            Assert.AreEqual(0, h.Buildings.TotalCount(0));
+            // 核心：采石场被时代门控，绝不建在原始时代。
+            Assert.AreEqual(0, h.Buildings.CountByType(0, (int)BuildingType.Quarry));
+            // 若有建造，只可能是原始时代可得的伐木场（不跨时代乱建）。
+            Assert.AreEqual(h.Buildings.Count,
+                h.Buildings.CountByType(0, (int)BuildingType.LumberMill));
         }
 
         // ------------------------------------------------------------
-        // 9. 所有储备充足 → 当年不建造
+        // 9. 储备均高于安全线但无任何基建 → 发展型 AI 主动补基建覆盖
+        //    （首个覆盖目标为伐木场，而非"储备够就完全不建"）
         // ------------------------------------------------------------
         [Test]
-        public void AllReservesAdequate_NoBuild()
+        public void AllReservesAdequate_NoCoverage_StartsInfrastructure()
         {
             var h = BuildHarness(1, false);
             h.EcoState.Set(0, ResourceType.Food, 300f);
@@ -233,7 +239,9 @@ namespace PxC.Tests.EditMode
 
             h.Governor.OnYear(1);
 
-            Assert.AreEqual(0, h.Buildings.TotalCount(0));
+            // 储备充足但无覆盖：发展型 AI 主动建第一个覆盖目标（伐木场）。
+            Assert.AreEqual(1, h.Buildings.CountByType(0, (int)BuildingType.LumberMill));
+            Assert.AreEqual(1, h.Buildings.TotalCount(0));
         }
     }
 }
