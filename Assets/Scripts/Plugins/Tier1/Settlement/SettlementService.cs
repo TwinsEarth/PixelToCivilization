@@ -8,14 +8,16 @@ using PxC.Gameplay.Services;
 namespace PxC.Plugins.Settlement
 {
     /// <summary>
-    /// ISettlementService 实现。聚落人口年度增长（受天气农业系数影响）、
-    /// 发展度累积、达到阈值自动升级。新游戏时为每个势力建立首都。
+    /// ISettlementService 实现（v10.4.0 治本统一）。人口由 population 插件统一
+    /// （聚落 × 分层）：建立首都后调用 SeedCapital 写入 100 人；本服务只做
+    /// 发展度累积与自动升级，人口查询全部委托 IPopulationService。
     /// </summary>
     public sealed class SettlementService : ISettlementService
     {
         private readonly SettlementRegistry _settlements;
         private readonly IServiceLocator _services;
         private readonly Action<string> _log;
+        private IPopulationService _pop;
 
         public SettlementService(
             SettlementRegistry settlements,
@@ -27,25 +29,35 @@ namespace PxC.Plugins.Settlement
             _log = log;
         }
 
+        /// <summary>缓存人口服务（OnInitialize 时 population 已注册）。</summary>
+        public void BindPopulation()
+        {
+            if (_services != null && _services.TryResolve<IPopulationService>(out var pop))
+                _pop = pop;
+        }
+
         // ------------------------------------------------------------
-        // 新游戏：为每个势力建立首都
+        // 新游戏：为每个势力建立首都，并写入统一初始人口
         // ------------------------------------------------------------
         public void FoundInitialCapitals(FactionRegistry factions, int gameYear)
         {
+            BindPopulation();
             for (int i = 0; i < factions.Count; i++)
             {
                 var f = factions.Get(i);
                 if (f == null) continue;
                 var pos = new Vector3(f.HomeX, 0f, f.HomeZ);
                 string name = f.Name + "聚落";
-                _settlements.Found(
+                int slot = _settlements.Found(
                     f.Id,
                     SettlementKind.Capital,
                     name,
                     pos,
                     gameYear,
-                    SettlementProfile.InitialCapitalPopulation,
                     SettlementProfile.InitialCapitalProsperity);
+
+                // 首都建立后写入统一初始人口（100 人，20/55/8/8/4/5）。
+                _pop?.SeedCapital(slot);
             }
         }
 
@@ -56,21 +68,21 @@ namespace PxC.Plugins.Settlement
 
         public int GetCapital(int faction) => _settlements.FindCapital(faction);
 
-        public int GetLevel(int slot) =>
-            _settlements.GetSafe(slot).Alive ? _settlements.GetSafe(slot).Level : 0;
+        public int GetLevel(int slot)
+        {
+            var r = _settlements.GetSafe(slot);
+            return r.Alive ? r.Level : 0;
+        }
 
-        public int GetPopulation(int slot) => _settlements.GetSafe(slot).Population;
+        public int GetPopulation(int slot)
+        {
+            if (!_settlements.GetSafe(slot).Alive) return 0;
+            return _pop != null ? _pop.SettlementTotal(slot) : 0;
+        }
 
         public int TotalPopulation(int faction)
         {
-            int sum = 0;
-            int cap = _settlements.Capacity;
-            for (int i = 0; i < cap; i++)
-            {
-                var r = _settlements.GetSafe(i);
-                if (r.Alive && r.Faction == faction) sum += r.Population;
-            }
-            return sum;
+            return _pop != null ? _pop.Total(faction) : 0;
         }
 
         public float GetProsperity(int slot) => _settlements.GetSafe(slot).Prosperity;
@@ -85,52 +97,31 @@ namespace PxC.Plugins.Settlement
 
         public float DevelopmentScore(int faction)
         {
+            // 发展度 = 势力总人口（统一人口）+ 建筑加权。
             float score = 0f;
-            int cap = _settlements.Capacity;
-            for (int i = 0; i < cap; i++)
-            {
-                var r = _settlements.GetSafe(i);
-                if (r.Alive && r.Faction == faction)
-                    score += r.Level * r.Population / 100f;
-            }
+            if (_pop != null) score += _pop.Total(faction);
+            if (_services != null && _services.TryResolve<IBuildingService>(out var bld))
+                score += bld.TotalCount(faction);
             return score;
         }
 
         // ------------------------------------------------------------
-        // 年度发展
+        // 年度发展（只做发展度累积 + 升级；人口已由 population 结算）
         // ------------------------------------------------------------
         public void AdvanceYear(int gameYear)
         {
-            IWeatherService weather = null;
-            if (_services != null) _services.TryResolve<IWeatherService>(out weather);
-
+            BindPopulation();
             int cap = _settlements.Capacity;
             for (int slot = 0; slot < cap; slot++)
             {
                 if (!_settlements.IsAlive(slot, _settlements.GetGeneration(slot))) continue;
                 ref var r = ref _settlements.GetSlotRef(slot);
 
-                // 人口增长（天气好则增长快；天气插件缺失用基准）
-                float growth = SettlementProfile.BaseGrowthRate;
-                if (weather != null)
-                {
-                    float crop = weather.CropYieldModifier(r.Faction);
-                    if (!float.IsNaN(crop) && !float.IsInfinity(crop) && crop > 0f)
-                        growth *= crop;
-                }
-                // logistic 饱和：接近人口软上限时增长降到最低系数，防止长跨度爆炸。
-                float setSat = Math.Max(0f,
-                    1f - (float)r.Population / (float)SettlementProfile.PopulationSoftCap);
-                growth *= SettlementProfile.MinimumGrowthFactor +
-                    (1f - SettlementProfile.MinimumGrowthFactor) * setSat;
-                int added = (int)Math.Floor(r.Population * growth);
-                if (added < 1) added = 1;
-                r.Population += added;
-
-                // 发展度累积
+                // 发展度累积（人口取自统一人口服务）
+                int population = _pop != null ? _pop.SettlementTotal(slot) : 0;
                 r.Prosperity +=
                     SettlementProfile.ProsperityBase +
-                    r.Population * SettlementProfile.ProsperityPerCapita;
+                    population * SettlementProfile.ProsperityPerCapita;
 
                 // 自动升级
                 while (r.Level < SettlementProfile.MaxLevel &&
@@ -138,7 +129,7 @@ namespace PxC.Plugins.Settlement
                 {
                     r.Prosperity -= SettlementProfile.UpgradeRequirement(r.Level);
                     r.Level++;
-                    _log?.Invoke($"[聚落] {r.Name} 于 {gameYear} 年升至 {r.Level} 级（人口 {r.Population}）");
+                    _log?.Invoke($"[聚落] {r.Name} 于 {gameYear} 年升至 {r.Level} 级（人口 {population}）");
                 }
             }
         }

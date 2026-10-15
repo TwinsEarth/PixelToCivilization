@@ -56,9 +56,6 @@ namespace PxC.Gameplay.Entities
         /// <summary>等级（1-10，发展自动提升）。</summary>
         public int Level;
 
-        /// <summary>聚落规模人口（移民基数 + 自身增长）。</summary>
-        public int Population;
-
         /// <summary>建立的游戏年份。</summary>
         public int FoundedYear;
 
@@ -98,7 +95,6 @@ namespace PxC.Gameplay.Entities
             string name,
             Vector3 position,
             int foundedYear,
-            int initialPopulation,
             float initialProsperity = 0f)
         {
             int slot;
@@ -122,7 +118,6 @@ namespace PxC.Gameplay.Entities
                 Name = name,
                 Position = position,
                 Level = 1,
-                Population = Math.Max(1, initialPopulation),
                 FoundedYear = foundedYear,
                 Prosperity = initialProsperity,
             };

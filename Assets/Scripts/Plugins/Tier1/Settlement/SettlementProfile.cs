@@ -3,14 +3,12 @@ using System;
 namespace PxC.Plugins.Settlement
 {
     /// <summary>
-    /// 聚落数值配置（权威）。聚落人口年增长、发展度、升级阈值、领土半径。
-    /// 所有数值集中于此，便于平衡与复算。
+    /// 聚落数值配置（权威，v10.4.0 起只管发展度/领土）。
+    /// 人口出生/死亡/容量已统一到 population 插件（聚落 × 分层），本类不再有
+    /// 人口增长率/软上限，避免两套口径。
     /// </summary>
     public static class SettlementProfile
     {
-        /// <summary>聚落人口基础年增长率（每人每年）。</summary>
-        public const float BaseGrowthRate = 0.025f;
-
         /// <summary>每名居民每年贡献的发展度。</summary>
         public const float ProsperityPerCapita = 0.1f;
 
@@ -23,17 +21,8 @@ namespace PxC.Plugins.Settlement
         /// <summary>聚落最高等级。</summary>
         public const int MaxLevel = 10;
 
-        /// <summary>首都初始规模人口。</summary>
-        public const int InitialCapitalPopulation = 50;
-
         /// <summary>首都初始发展度。</summary>
         public const float InitialCapitalProsperity = 50f;
-
-        /// <summary>聚落人口软上限（接近时增长饱和，防止长跨度数值爆炸）。</summary>
-        public const int PopulationSoftCap = 5000;
-
-        /// <summary>聚落人口接近软上限时，年增长率的最低比例。</summary>
-        public const float MinimumGrowthFactor = 0.35f;
 
         /// <summary>聚落基础领土半径（1 级）。</summary>
         public const float BaseTerritoryRadius = 30f;

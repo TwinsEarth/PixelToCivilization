@@ -26,15 +26,20 @@ namespace PxC.Gameplay.Services
     }
 
     /// <summary>
-    /// 人口服务（population 插件实现）。人口以 SoA 存储 [faction, layer]，
-    /// 处理出生/死亡/周期律与职业分配；饥荒由本服务按年结算（修复每帧重复扣人）。
+    /// 人口服务（population 插件实现）。v10.4.0 起人口唯一存储为
+    /// <b>聚落 × 分层 [settlement, layer]</b>：出生/死亡/成年/职业分配都在聚落粒度结算，
+    /// 势力人口为该势力所有聚落的聚合。移民是聚落间的空间转移（总量守恒）。
     /// </summary>
     public interface IPopulationService
     {
-        /// <summary>总人口。</summary>
+        // ----------------------------------------------------------------
+        // 势力聚合口径（faction = Σ该势力聚落）
+        // ----------------------------------------------------------------
+
+        /// <summary>势力总人口（Σ该势力所有聚落各层）。</summary>
         int Total(int faction);
 
-        /// <summary>某分层人口。</summary>
+        /// <summary>势力某分层人口（Σ该势力所有聚落该层）。</summary>
         int ByLayer(int faction, PopulationLayer layer);
 
         /// <summary>粗出生率（每人每年）。</summary>
@@ -46,19 +51,45 @@ namespace PxC.Gameplay.Services
         /// <summary>当前饥荒风险 [0,1]（粮食缺口/需求）。</summary>
         float StarvationRisk(int faction);
 
-        /// <summary>尝试在分层间调配 count 人（来源不足返回 false）。</summary>
+        /// <summary>
+        /// 尝试在势力内把 count 人从 from 调配到 to（在该势力各聚落间凑齐来源，
+        /// 优先在同一聚落内转换）。来源不足返回 false。
+        /// </summary>
         bool TryAssign(int faction, PopulationLayer from, PopulationLayer to, int count);
 
         /// <summary>
-        /// 灾害/瘟疫造成的额外死亡：按灾害顺序扣减，返回实际死亡数。
+        /// 灾害/瘟疫造成的额外死亡：按灾害顺序从该势力各聚落扣减，返回实际死亡数。
         /// 供 disaster 插件调用（瘟疫/寒潮），不影响正常出生/死亡口径。
         /// </summary>
         int ApplyExcessDeaths(int faction, int count);
 
+        // ----------------------------------------------------------------
+        // 聚落粒度口径（settlement，人口的家）
+        // ----------------------------------------------------------------
+
+        /// <summary>某聚落总人口（Σ该聚落各层）。</summary>
+        int SettlementTotal(int slot);
+
+        /// <summary>某聚落某分层人口。</summary>
+        int SettlementByLayer(int slot, PopulationLayer layer);
+
         /// <summary>
-        /// 派遣移民（殖民/扩张）：从劳力人口中派出 count 人，成功则扣减并返回 true。
-        /// 供 colonization 插件建立新聚落时调用；劳力不足返回 false（不改数据）。
+        /// 清空某聚落全部人口（聚落灭城/废弃、殖民失败回滚时调用）。
+        /// 人口随聚落消亡；势力总人口相应减少。
         /// </summary>
-        bool Emigrate(int faction, int count);
+        void ClearSettlement(int slot);
+
+        /// <summary>
+        /// 首都建立时初始化人口：按权威分层写入首都槽位（20/55/8/8/4/5，共 100）。
+        /// 由 settlement 插件 FoundInitialCapitals 调用；仅用于开局首都，不凭空增加其他人口。
+        /// </summary>
+        void SeedCapital(int slot);
+
+        /// <summary>
+        /// 移民聚落间转移：从源聚落 fromSlot 的 layer 层转移 count 人到目标聚落 toSlot 同层，
+        /// 势力总人口不变（空间转移、总量守恒）。来源不足返回 false（不改数据）。
+        /// 供 colonization 插件建立新聚落时调用（从首都/源聚落转移到新聚落）。
+        /// </summary>
+        bool SendMigrants(int fromSlot, int toSlot, PopulationLayer layer, int count);
     }
 }

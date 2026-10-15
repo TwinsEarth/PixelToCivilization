@@ -9,6 +9,7 @@ using PxC.Gameplay.Entities;
 using PxC.Gameplay.Resources;
 using PxC.Gameplay.Services;
 using PxC.Gameplay.Tech;
+using PxC.Plugins.Population;
 using PxC.Plugins.Settlement;
 using PxC.Plugins.Colonization;
 
@@ -79,7 +80,7 @@ namespace PxC.Tests.EditMode
         private FactionRegistry _factions;
         private SettlementRegistry _settlements;
         private FakeEconomy _economy;
-        private FakePopulation _population;
+        private PopulationService _population;
         private FakeTech _tech;
         private GridGeography _geo;
         private StrongEventBus _events;
@@ -93,11 +94,13 @@ namespace PxC.Tests.EditMode
             _factions = new FactionRegistry();
             _settlements = new SettlementRegistry();
             _economy = new FakeEconomy();
-            // labor=120、soldiers=10，合计 130 ≥ 第二聚落门槛 115（v10.3.1 指数门槛）。
-            _population = new FakePopulation(FactionCount, 120, 10);
             _tech = new FakeTech();
             _geo = new GridGeography();
             _events = new StrongEventBus();
+
+            // 真实人口：settlement × layer（v10.4.0 唯一权威）
+            var populationState = new PopulationState();
+            _population = new PopulationService(populationState, _settlements, _services);
 
             _factions.Add("华夏", true, 0, 0, 0);
             _factions.Add("东夷", false, 60, 10, 1);
@@ -114,7 +117,16 @@ namespace PxC.Tests.EditMode
             _colonization = new ColonizationService(_settlements, _services, _events, null);
         }
 
-        // 1. 初始首都：每个势力一个首都
+        /// <summary>模拟一个完整年份：先人口结算，再发展度（与插件 OnYear 同序）。</summary>
+        private void RunYear(int year)
+        {
+            var births = new int[FactionCount];
+            var deaths = new int[FactionCount];
+            _population.SettlePopulationYear(FactionCount, births, deaths);
+            _settlementService.AdvanceYear(year);
+        }
+
+        // 1. 初始首都：每个势力一个首都，统一人口 100
         [Test]
         public void InitialCapitals_OnePerFaction()
         {
@@ -125,26 +137,28 @@ namespace PxC.Tests.EditMode
             Assert.AreEqual(1, _settlementService.Count(1));
             Assert.AreEqual(0, _settlementService.GetCapital(0));
             Assert.AreEqual(1, _settlementService.GetCapital(1));
-            Assert.AreEqual(50, _settlementService.GetPopulation(0));
+            Assert.AreEqual(100, _settlementService.GetPopulation(0),
+                "首都统一初始人口为 100（20/55/8/8/4/5）");
+            Assert.AreEqual(100, _population.Total(0),
+                "势力总人口=首都人口，无独立账本");
         }
 
-        // 2. 年度发展：人口增长、发展度自动升级
+        // 2. 年度发展：人口由 population 结算增长，发展度自动升级
         [Test]
         public void AdvanceYear_PopulationGrowsAndUpgrades()
         {
             _settlementService.FoundInitialCapitals(_factions, 0);
             int popBefore = _settlementService.GetPopulation(0);
 
-            for (int y = 1; y <= 60; y++)
-                _settlementService.AdvanceYear(y);
+            for (int y = 1; y <= 60; y++) RunYear(y);
 
             Assert.IsTrue(_settlementService.GetPopulation(0) > popBefore,
-                "聚落人口应逐年增长");
+                "首都人口应逐年增长");
             Assert.IsTrue(_settlementService.GetLevel(0) >= 2,
                 "60 年内首都应至少升级到 2 级");
         }
 
-        // 3. 殖民消耗：建立新聚落扣资源、派移民
+        // 3. 殖民消耗：建立新聚落扣资源、移民聚落间转移（势力总人口守恒）
         [Test]
         public void TryFound_SpendsResourcesAndMigrants()
         {
@@ -155,7 +169,8 @@ namespace PxC.Tests.EditMode
 
             _settlementService.FoundInitialCapitals(_factions, 0);
             float foodBefore = _economy.Get(0, ResourceType.Food);
-            int laborBefore = _population.ByLayer(0, PopulationLayer.Laborer);
+            int totalBefore = _population.Total(0);
+            int capitalLaborBefore = _population.SettlementByLayer(0, PopulationLayer.Laborer);
 
             var site = new Vector3(200f, 0f, 200f);
             bool ok = _colonization.TryFoundSettlement(0, SettlementKind.Village, site, "新村落");
@@ -164,8 +179,12 @@ namespace PxC.Tests.EditMode
             Assert.AreEqual(2, _settlements.CountByFaction(0));
             Assert.IsTrue(_economy.Get(0, ResourceType.Food) < foodBefore,
                 "建立聚落应消耗粮食");
-            Assert.IsTrue(_population.ByLayer(0, PopulationLayer.Laborer) < laborBefore,
-                "建立聚落应派出移民");
+            Assert.IsTrue(_population.SettlementByLayer(0, PopulationLayer.Laborer) < capitalLaborBefore,
+                "首都劳力应减少（派出移民）");
+            Assert.AreEqual(8, _population.SettlementByLayer(2, PopulationLayer.Laborer),
+                "新聚落应收到 8 名移民");
+            Assert.AreEqual(totalBefore, _population.Total(0),
+                "移民是聚落间转移，势力总人口守恒");
         }
 
         // 4. 领土归属
@@ -241,7 +260,7 @@ namespace PxC.Tests.EditMode
                 "水域不能建立聚落");
         }
 
-        // 9. 自动扩张：人口达到门槛后年度新增聚落
+        // 9. 自动扩张：人口繁衍到门槛后年度新增聚落
         [Test]
         public void AutoExpand_FoundsWhenPopulationReady()
         {
@@ -251,7 +270,11 @@ namespace PxC.Tests.EditMode
             _economy.Set(ResourceType.Gold, 100000f);
 
             _settlementService.FoundInitialCapitals(_factions, 0);
-            int founded = _colonization.AutoExpand(1);
+
+            // 先繁衍 8 年，让首都人口超过 115 门槛（初始 100）。
+            for (int y = 1; y <= 8; y++) RunYear(y);
+
+            int founded = _colonization.AutoExpand(9);
 
             Assert.IsTrue(founded >= 1, "人口达到门槛的势力应在年度自动扩张");
             Assert.IsTrue(_settlements.CountByFaction(0) >= 2,

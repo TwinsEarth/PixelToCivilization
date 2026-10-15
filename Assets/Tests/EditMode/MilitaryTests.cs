@@ -9,17 +9,22 @@ using PxC.Plugins.Military;
 
 namespace PxC.Tests.EditMode
 {
-    /// <summary>测试用人口：内存分层，可在层间调配。</summary>
+    /// <summary>测试用人口：势力分层（内存），可在层间调配；聚落方法独立桩。</summary>
     public sealed class FakePopulation : IPopulationService
     {
         private const int Layers = 6;
+        private const int MaxSlots = 128;
+        private static readonly int[] CapitalLayers = { 20, 55, 8, 8, 4, 5 };
+
         private readonly int[,] _pop;
+        private readonly int[,] _settlementPop;
         private readonly int _factions;
 
         public FakePopulation(int factions, int labor, int soldiers)
         {
             _factions = factions;
             _pop = new int[factions, Layers];
+            _settlementPop = new int[MaxSlots, Layers];
             for (int f = 0; f < factions; f++)
             {
                 _pop[f, (int)PopulationLayer.Laborer] = labor;
@@ -73,12 +78,42 @@ namespace PxC.Tests.EditMode
             return count - remaining;
         }
 
-        public bool Emigrate(int faction, int count)
+        // ---- 聚落粒度桩（MilitaryTests 不测聚落；与势力层独立，不联动）----
+        public int SettlementTotal(int slot)
         {
-            int idx = (int)PopulationLayer.Laborer;
-            if (_pop[faction, idx] < count) return false;
-            _pop[faction, idx] -= count;
+            if (slot < 0 || slot >= MaxSlots) return 0;
+            int sum = 0;
+            for (int l = 0; l < Layers; l++) sum += _settlementPop[slot, l];
+            return sum;
+        }
+
+        public int SettlementByLayer(int slot, PopulationLayer layer)
+        {
+            if (slot < 0 || slot >= MaxSlots) return 0;
+            return _settlementPop[slot, (int)layer];
+        }
+
+        public void SeedCapital(int slot)
+        {
+            if (slot < 0 || slot >= MaxSlots) return;
+            for (int l = 0; l < Layers; l++) _settlementPop[slot, l] = CapitalLayers[l];
+        }
+
+        public bool SendMigrants(int fromSlot, int toSlot, PopulationLayer layer, int count)
+        {
+            if (fromSlot < 0 || fromSlot >= MaxSlots || toSlot < 0 || toSlot >= MaxSlots)
+                return false;
+            int l = (int)layer;
+            if (_settlementPop[fromSlot, l] < count) return false;
+            _settlementPop[fromSlot, l] -= count;
+            _settlementPop[toSlot, l] += count;
             return true;
+        }
+
+        public void ClearSettlement(int slot)
+        {
+            if (slot < 0 || slot >= MaxSlots) return;
+            for (int l = 0; l < Layers; l++) _settlementPop[slot, l] = 0;
         }
     }
 
