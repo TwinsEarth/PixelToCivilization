@@ -38,8 +38,8 @@ namespace PxC.Plugins.AutoMilitary
         public const int TargetGroundUnits = 5;
 
         // ---- 防御塔口径 ----
-        /// <summary>战争时目标箭塔数。</summary>
-        public const int TargetWarTowers = 2;
+        /// <summary>战争时目标防御建筑数（1 基础箭塔 + 1 进阶火塔/炮塔 + 1 工业时代碉堡）。</summary>
+        public const int TargetWarTowers = 3;
 
         // ---- 船艇口径 ----
         /// <summary>目标船艇总数（仅靠水势力；内陆势力始终为 0）。</summary>
@@ -234,6 +234,9 @@ namespace PxC.Plugins.AutoMilitary
             if (towers >= TargetWarTowers) return;
 
             int era = (int)tech.GetEra(faction);
+            // 第 3 座（碉堡）仅工业时代建造；时代不足则保持 2 座，不再补建。
+            if (towers >= 2 && era < (int)Era.Industrial) return;
+
             BuildingType towerType = ChooseTowerType(towers, era);
             if (!buildings.CanBuild(faction, (int)towerType)) return;
 
@@ -244,13 +247,20 @@ namespace PxC.Plugins.AutoMilitary
         }
 
         /// <summary>
-        /// 按已建塔数与时代选塔型：第 1 座为基础箭塔；
+        /// 按已建塔数与时代选塔型：
+        /// 第 1 座为基础箭塔；
         /// 第 2 座起，铁器时代→炮塔（CannonTower），青铜时代→火塔（FireTower），
-        /// 否则继续箭塔。
+        /// 否则继续箭塔；
+        /// 第 3 座起，工业时代→碉堡（Bunker，重防御），否则继续箭塔。
         /// </summary>
         private static BuildingType ChooseTowerType(int existingTowers, int era)
         {
             if (existingTowers <= 0) return BuildingType.ArrowTower;
+            if (existingTowers >= 2)
+            {
+                if (era >= (int)Era.Industrial) return BuildingType.Bunker;
+                return BuildingType.ArrowTower;
+            }
             if (era >= (int)Era.IronAge) return BuildingType.CannonTower;
             if (era >= (int)Era.BronzeAge) return BuildingType.FireTower;
             return BuildingType.ArrowTower;
@@ -273,6 +283,7 @@ namespace PxC.Plugins.AutoMilitary
             n += buildings.CountByType(faction, (int)BuildingType.ArrowTower);
             n += buildings.CountByType(faction, (int)BuildingType.FireTower);
             n += buildings.CountByType(faction, (int)BuildingType.CannonTower);
+            n += buildings.CountByType(faction, (int)BuildingType.Bunker);
             return n;
         }
 
