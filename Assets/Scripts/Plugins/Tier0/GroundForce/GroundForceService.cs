@@ -109,6 +109,37 @@ namespace PxC.Plugins.GroundForce
         }
 
         /// <summary>
+        /// 付费建造地面单位：先陆地校验、再按 <see cref="RecruitCost"/> 扣费，最后生成。
+        /// 资源不足 / 水域 / 达上限均拒绝并返回 Invalid（扣费前完成全部校验，绝不扣了费却失败）。
+        /// 这是制造地面单位的唯一入口（新游戏初始编队除外）。
+        /// </summary>
+        public EntityId TryBuildUnit(int faction, GroundForceModel model, Vector3 position)
+        {
+            if (Count >= HardCap)
+            {
+                _log?.Invoke($"[地面] 已达上限 {HardCap}，{model} 取消");
+                return EntityId.Invalid;
+            }
+            if (_geo.IsWater(position.x, position.z))
+            {
+                _log?.Invoke($"[地面] 建造点 ({position.x},{position.z}) 为水域，{model} 拒绝");
+                return EntityId.Invalid;
+            }
+
+            if (_services.TryResolve<IEconomyService>(out var economy))
+            {
+                ResourceCost[] costs = RecruitCost(model);
+                if (!economy.TrySpendBundle(faction, costs))
+                {
+                    _log?.Invoke($"[地面] 资源不足，{model} 取消");
+                    return EntityId.Invalid;
+                }
+            }
+
+            return Spawn(faction, model, position);
+        }
+
+        /// <summary>
         /// 集结令：命令地面单位移动到旗帜点。
         /// radius &lt;= 0 表示全体；旗帜点若为水域则安全失败（不移动任何单位）。
         /// 仅改命令，不瞬时搬运（单位沿陆地行进，根治"被拉到某坐标"）。
