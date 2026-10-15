@@ -103,9 +103,11 @@ if (-not $SkipBuild) {
 }
 
 # ---------------- 反射运行 ----------------
-[void][System.Reflection.Assembly]::LoadFrom("$out\UnityEngine.dll")
-[void][System.Reflection.Assembly]::LoadFrom("$out\NUnit.dll")
-$asm = [System.Reflection.Assembly]::LoadFrom("$out\PxC.Tests.EditMode.dll")
+# 用 Load(byte[]) 而非 LoadFrom：本机 Application Control (WDAC) 策略
+# 会按文件来源拦截 UnityEngine.dll 的 LoadFrom（0x800711C7），字节加载不受此限。
+[void][System.Reflection.Assembly]::Load([IO.File]::ReadAllBytes("$out\UnityEngine.dll"))
+[void][System.Reflection.Assembly]::Load([IO.File]::ReadAllBytes("$out\NUnit.dll"))
+$asm = [System.Reflection.Assembly]::Load([IO.File]::ReadAllBytes("$out\PxC.Tests.EditMode.dll"))
 
 $nunitTest = [NUnit.Framework.TestAttribute]
 $nunitSetup = [NUnit.Framework.SetUpAttribute]
