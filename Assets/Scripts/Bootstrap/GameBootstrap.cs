@@ -26,6 +26,12 @@ namespace PxC.Bootstrap
     {
         public const int HostVersion = 10;
 
+        /// <summary>应用完整版本号（与 Git tag / Release 对齐）。</summary>
+        public const string AppVersion = "v10.2.0";
+
+        /// <summary>启动后的测试上下文（PlayMode 冒烟测试使用；安全模式下为 null）。</summary>
+        public static BootstrapTestContext TestContext { get; private set; }
+
         private static CrashGuard _crashGuard;
         private static GameClock _clock;
         private static StrongEventBus _events;
@@ -139,6 +145,10 @@ namespace PxC.Bootstrap
             _runtime.InitializeAll();
             _runtime.StartAll();
 
+            TestContext = new BootstrapTestContext(
+                _clock, _events, _services, _world, _runtime,
+                _factions, _units, _buildings);
+
             // 主循环
             var loopGo = new GameObject("PxC_GameLoop");
             UnityEngine.Object.DontDestroyOnLoad(loopGo);
@@ -152,7 +162,7 @@ namespace PxC.Bootstrap
                 Log("检测到上次异常退出；可在安全模式中选择恢复上次进度（UI 恢复界面为后续版本）");
 
             _crashGuard.MarkCleanRun();
-            Log($"宿主 v{HostVersion} 启动完成，插件数 {_runtime.PluginCount}，资源后端 {assets.BackendName}");
+            Log($"{AppVersion} 启动完成，插件数 {_runtime.PluginCount}，资源后端 {assets.BackendName}");
         }
 
         // ------------------------------------------------------------

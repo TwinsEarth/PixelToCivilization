@@ -1,0 +1,19 @@
+{
+  "name": "PxC.Plugin.Naval",
+  "rootNamespace": "PxC.Plugins.Naval",
+  "references": [
+    "PxC.Core",
+    "PxC.Host",
+    "PxC.Infra",
+    "PxC.Gameplay"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

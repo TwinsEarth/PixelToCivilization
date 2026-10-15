@@ -1,0 +1,19 @@
+{
+  "name": "PxC.Plugin.GroundForce",
+  "rootNamespace": "PxC.Plugins.GroundForce",
+  "references": [
+    "PxC.Core",
+    "PxC.Host",
+    "PxC.Infra",
+    "PxC.Gameplay"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

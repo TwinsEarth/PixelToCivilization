@@ -48,6 +48,30 @@ namespace PxC.Tests.EditMode
             _pop[faction, (int)to] += count;
             return true;
         }
+
+        public int ApplyExcessDeaths(int faction, int count)
+        {
+            // 按灾害顺序扣减：老、少、劳力、工匠、学者、士兵
+            PopulationLayer[] order =
+            {
+                PopulationLayer.Elder,
+                PopulationLayer.Children,
+                PopulationLayer.Laborer,
+                PopulationLayer.Artisan,
+                PopulationLayer.Scholar,
+                PopulationLayer.Soldier,
+            };
+
+            int remaining = count;
+            for (int i = 0; i < order.Length && remaining > 0; i++)
+            {
+                int have = _pop[faction, (int)order[i]];
+                int take = have < remaining ? have : remaining;
+                _pop[faction, (int)order[i]] -= take;
+                remaining -= take;
+            }
+            return count - remaining;
+        }
     }
 
     public sealed class MilitaryTests

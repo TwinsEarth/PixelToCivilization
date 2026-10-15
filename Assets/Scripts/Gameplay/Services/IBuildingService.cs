@@ -25,5 +25,11 @@ namespace PxC.Gameplay.Services
 
         /// <summary>尝试拆除（返还部分资源，从 BuildingRegistry 移除）。</summary>
         bool TryDemolish(int faction, int slot);
+
+        /// <summary>
+        /// 灾害/战争损毁：摧毁某势力至多 count 栋建筑（不返还资源），返回实际摧毁数。
+        /// 供 disaster 插件调用（地震/洪水/台风）。
+        /// </summary>
+        int DestroyByDisaster(int faction, int count);
     }
 }

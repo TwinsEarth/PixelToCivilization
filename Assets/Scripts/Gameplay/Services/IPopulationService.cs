@@ -48,5 +48,11 @@ namespace PxC.Gameplay.Services
 
         /// <summary>尝试在分层间调配 count 人（来源不足返回 false）。</summary>
         bool TryAssign(int faction, PopulationLayer from, PopulationLayer to, int count);
+
+        /// <summary>
+        /// 灾害/瘟疫造成的额外死亡：按灾害顺序扣减，返回实际死亡数。
+        /// 供 disaster 插件调用（瘟疫/寒潮），不影响正常出生/死亡口径。
+        /// </summary>
+        int ApplyExcessDeaths(int faction, int count);
     }
 }

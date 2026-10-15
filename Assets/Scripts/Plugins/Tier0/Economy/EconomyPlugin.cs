@@ -113,7 +113,14 @@ namespace PxC.Plugins.Economy
                 int scholars = pop.ByLayer(f, PopulationLayer.Scholar);
 
                 // 粮食：产出 − 消耗；库存不足则钳制为 0 并发布饥荒
-                float foodProduced = labor * FoodPerLabor;
+                // 天气为可选 Tier-1 服务：缺失时系数=1（不影响无天气插件的口径）。
+                float cropMod = 1f;
+                if (_ctx.Services.TryResolve<IWeatherService>(out var weather))
+                    cropMod = weather.CropYieldModifier(f);
+                float foodProduced = labor * FoodPerLabor * cropMod;
+                // 政策为可选 Tier-1 服务：缺失时系数=1。
+                if (_ctx.Services.TryResolve<IPolicyService>(out var policy))
+                    foodProduced *= policy.FoodModifier(f);
                 float foodDemanded = total * FoodPerCapita + soldiers * FoodPerSoldier;
                 float foodStock = _state.Get(f, ResourceType.Food);
                 float newFood = foodStock + foodProduced - foodDemanded;
@@ -132,11 +139,18 @@ namespace PxC.Plugins.Economy
                     _state.Set(f, ResourceType.Food, newFood);
                 }
 
-                // 基础采集与学者产出
+                // 基础采集与学者产出（政策系数）
                 _state.Add(f, ResourceType.Wood, total * WoodPerCapita);
                 _state.Add(f, ResourceType.Stone, total * StonePerCapita);
-                _state.Add(f, ResourceType.Research, scholars * ResearchPerScholar);
-                _state.Add(f, ResourceType.Culture, scholars * CulturePerScholar);
+                float researchOut = scholars * ResearchPerScholar;
+                float cultureOut = scholars * CulturePerScholar;
+                if (policy != null)
+                {
+                    researchOut *= policy.ResearchModifier(f);
+                    cultureOut *= policy.CultureModifier(f);
+                }
+                _state.Add(f, ResourceType.Research, researchOut);
+                _state.Add(f, ResourceType.Culture, cultureOut);
             }
         }
 

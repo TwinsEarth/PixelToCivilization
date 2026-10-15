@@ -11,6 +11,14 @@ namespace PxC.Plugins.Population
         private const float BaseBirthRate = 0.035f;
         private const float BaseDeathRate = 0.015f;
 
+        /// <summary>灾害死亡顺序（瘟疫/寒潮先影响老人、小孩）。</summary>
+        private static readonly PopulationLayer[] DisasterOrder =
+        {
+            PopulationLayer.Elder, PopulationLayer.Children,
+            PopulationLayer.Laborer, PopulationLayer.Artisan,
+            PopulationLayer.Scholar, PopulationLayer.Soldier
+        };
+
         private readonly PopulationState _state;
 
         public PopulationService(PopulationState state)
@@ -38,6 +46,13 @@ namespace PxC.Plugins.Population
             if (!_state.TryRemove(faction, from, count)) return false;
             _state.Add(faction, to, count);
             return true;
+        }
+
+        public int ApplyExcessDeaths(int faction, int count)
+        {
+            if (count <= 0) return 0;
+            int removed = _state.RemoveInOrder(faction, count, DisasterOrder);
+            return removed;
         }
     }
 }

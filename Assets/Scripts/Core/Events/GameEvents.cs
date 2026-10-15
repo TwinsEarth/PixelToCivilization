@@ -99,4 +99,61 @@ namespace PxC.Core.Events
         public int Deaths;
         public int NewTotal;
     }
+
+    /// <summary>天气变化：当年主导天气切换（视图据此播放晴/雨/雪/风粒子，按需加载）。</summary>
+    public struct WeatherChangedEvent
+    {
+        public int NewWeather;
+        public float Intensity;
+        public int GameYear;
+    }
+
+    /// <summary>灾害发生：Type=DisasterType，Severity[0,1]，附影响（人/建筑/粮食）。</summary>
+    public struct DisasterOccurredEvent
+    {
+        public int Type;
+        public int Faction;
+        public float Severity;
+        public int GameYear;
+        public int Deaths;
+        public int BuildingsDestroyed;
+        public float FoodLost;
+    }
+
+    /// <summary>国策切换：OldPolicy→NewPolicy。</summary>
+    public struct PolicyChangedEvent
+    {
+        public int Faction;
+        public int NewPolicy;
+        public int OldPolicy;
+        public int GameYear;
+    }
+
+    /// <summary>文化等级提升。</summary>
+    public struct CultureLevelUpEvent
+    {
+        public int Faction;
+        public int NewLevel;
+        public int OldLevel;
+        public int GameYear;
+    }
+
+    /// <summary>胜利达成：Type=VictoryType。</summary>
+    public struct VictoryEvent
+    {
+        public int Faction;
+        public int Type;
+        public int GameYear;
+        public string VictoryName;
+    }
+
+    /// <summary>重大历史事件触发（EventsPack 内容包，按公历年份匹配）。</summary>
+    public struct HistoricalEventEvent
+    {
+        public int GameYear;
+        public int AdYear;
+        public int Kind;
+        public string EventName;
+        public string Description;
+    }
 }

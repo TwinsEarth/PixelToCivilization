@@ -1,0 +1,21 @@
+{
+  "name": "PxC.Plugin.Combat",
+  "rootNamespace": "PxC.Plugins.Combat",
+  "references": [
+    "PxC.Core",
+    "PxC.Host",
+    "PxC.Infra",
+    "PxC.Gameplay",
+    "PxC.Plugin.GroundForce",
+    "PxC.Plugin.Naval"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

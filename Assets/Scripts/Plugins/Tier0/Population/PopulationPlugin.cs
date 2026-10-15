@@ -121,9 +121,18 @@ namespace PxC.Plugins.Population
                 int labor = _state.Get(f, PopulationLayer.Laborer);
                 int elders = _state.Get(f, PopulationLayer.Elder);
 
-                int births = (int)Math.Round(total * BirthRate);
+                // 政策为可选 Tier-1 服务：缺失时系数=1。
+                float birthMod = 1f;
+                float deathMod = 1f;
+                if (_ctx.Services.TryResolve<IPolicyService>(out var pol))
+                {
+                    birthMod = pol.BirthModifier(f);
+                    deathMod = pol.DeathModifier(f);
+                }
+
+                int births = (int)Math.Round(total * BirthRate * birthMod);
                 int mature = (int)Math.Round(children * MatureRatio);
-                int naturalDeaths = (int)Math.Round(total * NaturalDeathRate);
+                int naturalDeaths = (int)Math.Round(total * NaturalDeathRate * deathMod);
 
                 // 出生
                 _state.Add(f, PopulationLayer.Children, births);

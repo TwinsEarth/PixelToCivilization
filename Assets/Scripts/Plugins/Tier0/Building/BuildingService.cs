@@ -130,5 +130,24 @@ namespace PxC.Plugins.Building
                 scaled[i] = new ResourceCost(baseCost[i].Type, baseCost[i].Amount * factor);
             return scaled;
         }
+
+        public int DestroyByDisaster(int faction, int count)
+        {
+            if (count <= 0) return 0;
+            int destroyed = 0;
+            int cap = _registry.Capacity;
+            for (int slot = 0; slot < cap && destroyed < count; slot++)
+            {
+                ref var r = ref _registry.GetSlotRef(slot);
+                if (r.Alive && r.Faction == faction)
+                {
+                    _registry.Kill(slot);
+                    destroyed++;
+                }
+            }
+            if (destroyed > 0)
+                _log?.Invoke($"[灾害] 势力 {faction} 被摧毁 {destroyed} 栋建筑");
+            return destroyed;
+        }
     }
 }

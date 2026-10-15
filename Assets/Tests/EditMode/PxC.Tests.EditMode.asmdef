@@ -1,0 +1,45 @@
+{
+  "name": "PxC.Tests.EditMode",
+  "rootNamespace": "PxC.Tests.EditMode",
+  "references": [
+    "PxC.Core",
+    "PxC.Host",
+    "PxC.Infra",
+    "PxC.Gameplay",
+    "PxC.Bootstrap",
+    "PxC.Plugin.Smoke",
+    "PxC.Plugin.Economy",
+    "PxC.Plugin.Population",
+    "PxC.Plugin.Building",
+    "PxC.Plugin.Tech",
+    "PxC.Plugin.GroundForce",
+    "PxC.Plugin.Naval",
+    "PxC.Plugin.Combat",
+    "PxC.Plugin.Rally",
+    "PxC.Plugin.Military",
+    "PxC.Plugin.Weather",
+    "PxC.Plugin.Disaster",
+    "PxC.Plugin.Policy",
+    "PxC.Plugin.Culture",
+    "PxC.Plugin.History",
+    "PxC.Plugin.Victory",
+    "PxC.Content.Dynasties",
+    "PxC.Content.Events",
+    "PxC.Content.Towers",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

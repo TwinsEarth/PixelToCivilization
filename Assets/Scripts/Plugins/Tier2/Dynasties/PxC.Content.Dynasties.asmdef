@@ -1,0 +1,19 @@
+{
+  "name": "PxC.Content.Dynasties",
+  "rootNamespace": "PxC.Content.Dynasties",
+  "references": [
+    "PxC.Core",
+    "PxC.Host",
+    "PxC.Infra",
+    "PxC.Gameplay"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
