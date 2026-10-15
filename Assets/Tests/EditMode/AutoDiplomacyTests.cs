@@ -48,6 +48,9 @@ namespace PxC.Tests.EditMode
             {
                 return _atWar[faction, otherFaction];
             }
+
+            public int GetWarStartYear(int faction, int otherFaction) => 1;
+            public void MakePeace(int faction, int otherFaction) { }
         }
 
         private sealed class Harness

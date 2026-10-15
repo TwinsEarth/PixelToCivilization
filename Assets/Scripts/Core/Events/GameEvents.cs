@@ -59,6 +59,15 @@ namespace PxC.Core.Events
         public int GameYear;
     }
 
+    /// <summary>和约/停战：僵持战争在持续若干年后双方停战（无胜负，仅结束战争）。</summary>
+    public struct PeaceTreatyEvent
+    {
+        public int FactionA;
+        public int FactionB;
+        public int WarStartYear;
+        public int GameYear;
+    }
+
     public struct ProjectileFiredEvent
     {
         public int ProjectileType;
