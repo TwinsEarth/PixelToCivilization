@@ -41,11 +41,21 @@ namespace PxC.Core.Events
         public int DefenderFaction;
     }
 
-    /// <summary>势力被灭国：战争中一方作战单位被全部消灭（Faction=败者，ByFaction=胜者）。</summary>
+        /// <summary>势力被灭国：战争中一方作战单位被全部消灭（Faction=败者，ByFaction=胜者）。</summary>
     public struct FactionEliminatedEvent
     {
         public int Faction;
         public int ByFaction;
+        public int GameYear;
+    }
+
+    /// <summary>灭国领土占领：败者聚落/建筑归属胜者（Settlements/Buildings 为转移数量）。</summary>
+    public struct TerritoryConqueredEvent
+    {
+        public int Loser;
+        public int Winner;
+        public int Settlements;
+        public int Buildings;
         public int GameYear;
     }
 
