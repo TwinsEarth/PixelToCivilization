@@ -47,7 +47,6 @@ namespace PxC.Plugins.Naval
         private NavalService _service;
         NavalAi _ai;
         private IGeographyQuery _geo;
-        private ICombatService _combat;
 
         public void OnRegister(IPluginContext context) => _ctx = context;
 
@@ -57,11 +56,13 @@ namespace PxC.Plugins.Naval
             _factions = _ctx.Services.Resolve<FactionRegistry>();
             _geo = _ctx.Services.Resolve<IGeographyQuery>();
             if (_geo == null) _geo = new PermissiveGeography();
-            _combat = _ctx.Services.Resolve<ICombatService>();
-
+            // combat 依赖本插件、拓扑上在之后初始化：AI 用延迟解析，不在此强 Resolve。
             _state = new NavalState(_units.Capacity);
             _service = new NavalService(_units, _state, _geo, _ctx.Services, _ctx.Log);
-            _ai = new NavalAi(_units, _state, _geo, _combat, _ctx.Log);
+            _ai = new NavalAi(
+                _units, _state, _geo,
+                () => _ctx.Services.TryResolve<ICombatService>(out var c) ? c : null,
+                _ctx.Log);
             _ctx.Services.Register<NavalService>(_service);
 
             var saves = _ctx.Services.Resolve<ISaveService>();

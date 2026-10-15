@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using PxC.Core.Persistence;
 using PxC.Core.Services;
 using PxC.Core.Time;
 using PxC.Core.World;
@@ -27,7 +28,7 @@ namespace PxC.Bootstrap
         public const int HostVersion = 10;
 
         /// <summary>应用完整版本号（与 Git tag / Release 对齐）。</summary>
-        public const string AppVersion = "v10.4.0";
+        public const string AppVersion = "v10.4.1";
 
         /// <summary>启动后的测试上下文（PlayMode 冒烟测试使用；安全模式下为 null）。</summary>
         public static BootstrapTestContext TestContext { get; private set; }
@@ -43,6 +44,7 @@ namespace PxC.Bootstrap
         private static UnitRegistry _units;
         private static BuildingRegistry _buildings;
         private static SettlementRegistry _settlements;
+        private static SaveCoordinator _saveCoordinator;
 
         // ------------------------------------------------------------
         // 阶段 1：最早安装崩溃守护
@@ -141,16 +143,36 @@ namespace PxC.Bootstrap
                 return;
             }
 
-            // 新游戏初始世界（开局势力布局）；读档路径后续由存档恢复
-            if (!_services.Resolve<ISaveService>().HasSave(0))
-                NewGameSetup.PopulateNewWorld(_factions);
+            // 启动模式：读档恢复（存档存在）或新游戏开局。
+            SaveData loaded = saves.Read(SaveCoordinator.MainSlot);
+            bool isRestoring = loaded != null;
 
+            if (isRestoring)
+            {
+                ApplyFactionSnapshot(_factions, loaded, Log);
+                _clock.Restore(loaded.GameYear, loaded.Day);
+                Log($"[启动] 检测到存档，准备恢复：游戏年 {loaded.GameYear}、势力 {loaded.FactionCount}、段 {loaded.Segments.Count}");
+            }
+            else
+            {
+                NewGameSetup.PopulateNewWorld(_factions);
+            }
+
+            // 统一初始化：注册服务、建立空状态容器。读档时 OnInitialize 的新游戏 seed 会被随后 RestoreSegments 覆盖。
             _runtime.InitializeAll();
+
+            if (isRestoring)
+                _runtime.RestoreSegments(loaded);
+
             _runtime.StartAll();
+
+            // 存档协调器：集中存档入口（自动存档/手动存档/退出存档）。
+            _saveCoordinator = new SaveCoordinator(
+                _runtime, saves, _services, _factions, _clock, AppVersion, Log);
 
             TestContext = new BootstrapTestContext(
                 _clock, _events, _services, _world, _runtime,
-                _factions, _units, _buildings);
+                _factions, _units, _buildings, _saveCoordinator);
 
             // 主循环
             var loopGo = new GameObject("PxC_GameLoop");
@@ -159,7 +181,14 @@ namespace PxC.Bootstrap
             loop.Configure(_clock, _runtime, _events, frameBudget, scheduler);
             loop.AddPerFrame(_ => memory.Tick());
             loop.AddPerFrame(saves.Tick);
-            loop.AddQuitHandler(() => _crashGuard.MarkCleanRun());
+            loop.AddYearHandler(_saveCoordinator.OnYearAdvanced);
+            loop.AddQuitHandler(() =>
+            {
+                // 退出最终存档（桌面有效；WebGL 关闭事件不可靠，靠自动存档兜底）。
+                try { _saveCoordinator.SaveImmediate(SaveCoordinator.MainSlot); }
+                catch (Exception e) { Debug.LogWarning($"[退出] 最终存档失败: {e.Message}"); }
+                _crashGuard.MarkCleanRun();
+            });
 
             if (_crashGuard.CrashedLastRun)
                 Log("检测到上次异常退出；可在安全模式中选择恢复上次进度（UI 恢复界面为后续版本）");
@@ -189,6 +218,38 @@ namespace PxC.Bootstrap
 #else
             return new ResourcesAssetLoader();
 #endif
+        }
+
+        // ------------------------------------------------------------
+        // 存档恢复：势力快照
+        // ------------------------------------------------------------
+        /// <summary>
+        /// 从存档恢复 FactionRegistry（按快照顺序 Add，保证 factionId 对齐）。
+        /// 旧存档无势力快照（FactionSnapshot 为 v10.4.1 新增）时按默认布局重建兜底。
+        /// </summary>
+        private static void ApplyFactionSnapshot(FactionRegistry registry, SaveData data, Action<string> log)
+        {
+            if (data.Factions != null && data.Factions.Count > 0)
+            {
+                for (int i = 0; i < data.Factions.Count; i++)
+                {
+                    var s = data.Factions[i];
+                    var info = registry.Add(
+                        s.Name ?? string.Empty,
+                        s.IsPlayer,
+                        s.HomeX,
+                        s.HomeZ,
+                        s.ColorIndex);
+                    info.Alive = s.Alive;
+                }
+                return;
+            }
+
+            // 旧存档无势力快照：默认开局按固定布局重建；非默认数量无法安全恢复，兜底新游戏。
+            log?.Invoke(data.FactionCount == NewGameSetup.InitialFactionCount
+                ? "[启动] 旧存档无势力快照，按默认开局势力布局重建"
+                : $"[启动] 旧存档势力数 {data.FactionCount} 无法从快照重建，兜底为新游戏");
+            NewGameSetup.PopulateNewWorld(registry);
         }
     }
 }

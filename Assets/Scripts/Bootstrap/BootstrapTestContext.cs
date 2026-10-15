@@ -5,6 +5,7 @@ using PxC.Core.World;
 using PxC.Gameplay.Entities;
 using PxC.Gameplay.Factions;
 using PxC.Host;
+using PxC.Infra.Save;
 
 namespace PxC.Bootstrap
 {
@@ -22,7 +23,8 @@ namespace PxC.Bootstrap
             PluginRuntime runtime,
             FactionRegistry factions,
             UnitRegistry units,
-            BuildingRegistry buildings)
+            BuildingRegistry buildings,
+            SaveCoordinator saves)
         {
             Clock = clock;
             Events = events;
@@ -32,6 +34,7 @@ namespace PxC.Bootstrap
             Factions = factions;
             Units = units;
             Buildings = buildings;
+            Saves = saves;
         }
 
         public GameClock Clock { get; }
@@ -42,5 +45,6 @@ namespace PxC.Bootstrap
         public FactionRegistry Factions { get; }
         public UnitRegistry Units { get; }
         public BuildingRegistry Buildings { get; }
+        public SaveCoordinator Saves { get; }
     }
 }
