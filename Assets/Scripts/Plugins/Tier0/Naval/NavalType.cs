@@ -61,5 +61,29 @@ namespace PxC.Plugins.Naval
                     return Era.Primitive;
             }
         }
+
+        /// <summary>
+        /// 蒸汽铁甲换代目标：进入工业时代（<paramref name="currentEra"/> ≥ <see cref="Era.Industrial"/>）后，
+        /// 木质桨帆 / 远洋风帆战舰统一换装为蒸汽铁甲舰（<see cref="NavalModel.Steamship"/>）。
+        /// 蒸汽机统一水面舰艇，近战战船与远洋帆船角色在工业化后合并。
+        /// 民用船（木筏 / 渔船）角色永恒不换代；蒸汽轮船、潜艇、航母不换代。
+        /// 返回 true 表示需要换代，<paramref name="upgrade"/> 为目标型号。
+        /// </summary>
+        public static bool TryGetSteamUpgrade(
+            NavalModel current, Era currentEra, out NavalModel upgrade)
+        {
+            upgrade = current;
+            if (currentEra < Era.Industrial) return false;
+            switch (current)
+            {
+                case NavalModel.Warship:
+                case NavalModel.SailingShip:
+                    upgrade = NavalModel.Steamship;
+                    return true;
+                default:
+                    // 民用船（Raft/FishingBoat）保留；蒸汽轮船 / 潜艇 / 航母不换代。
+                    return false;
+            }
+        }
     }
 }

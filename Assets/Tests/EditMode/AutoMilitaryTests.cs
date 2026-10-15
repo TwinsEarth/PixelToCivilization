@@ -623,6 +623,85 @@ namespace PxC.Tests.EditMode
             Assert.AreEqual(200f, h.EcoState.Get(0, ResourceType.Steel), 0.001f, "不应扣换代资源");
         }
 
+        // ------------------------------------------------------------
+        // 26. 工业时代 → 老战船换代为蒸汽轮船（扣 Steel90+Coal40）
+        // ------------------------------------------------------------
+        [Test]
+        public void Industrial_Warship_UpgradesToSteamship()
+        {
+            var h = BuildHarness(1, false);
+            h.Geo.SetWaterRect(15, 15, 25, 25);
+            h.Tech.EraValue = (int)Era.Industrial;
+            h.Naval.Spawn(0, NavalModel.Warship, new Vector3(20, 0, 20));
+            h.EcoState.Set(0, ResourceType.Steel, 200f);
+            h.EcoState.Set(0, ResourceType.Coal, 100f);
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(1, h.Naval.CountByModel(0, NavalModel.Steamship), "战船应换代为蒸汽轮船");
+            Assert.AreEqual(0, h.Naval.CountByModel(0, NavalModel.Warship));
+            Assert.AreEqual(110f, h.EcoState.Get(0, ResourceType.Steel), 0.001f, "应扣 Steel90");
+            Assert.AreEqual(60f, h.EcoState.Get(0, ResourceType.Coal), 0.001f, "应扣 Coal40");
+        }
+
+        // ------------------------------------------------------------
+        // 27. 工业时代 → 远洋帆船换代为蒸汽轮船
+        // ------------------------------------------------------------
+        [Test]
+        public void Industrial_SailingShip_UpgradesToSteamship()
+        {
+            var h = BuildHarness(1, false);
+            h.Geo.SetWaterRect(15, 15, 25, 25);
+            h.Tech.EraValue = (int)Era.Industrial;
+            h.Naval.Spawn(0, NavalModel.SailingShip, new Vector3(20, 0, 20));
+            h.EcoState.Set(0, ResourceType.Steel, 200f);
+            h.EcoState.Set(0, ResourceType.Coal, 100f);
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(1, h.Naval.CountByModel(0, NavalModel.Steamship), "帆船应换代为蒸汽轮船");
+            Assert.AreEqual(0, h.Naval.CountByModel(0, NavalModel.SailingShip));
+        }
+
+        // ------------------------------------------------------------
+        // 28. 时代不到工业 → 战船不换代
+        // ------------------------------------------------------------
+        [Test]
+        public void PreIndustrial_Warship_NoUpgrade()
+        {
+            var h = BuildHarness(1, false);
+            h.Geo.SetWaterRect(15, 15, 25, 25);
+            h.Tech.EraValue = (int)Era.IronAge;
+            h.Naval.Spawn(0, NavalModel.Warship, new Vector3(20, 0, 20));
+            h.EcoState.Set(0, ResourceType.Steel, 200f);
+            h.EcoState.Set(0, ResourceType.Coal, 100f);
+
+            h.Plugin.OnYear(1);
+
+            Assert.AreEqual(1, h.Naval.CountByModel(0, NavalModel.Warship), "未到工业应保持战船");
+            Assert.AreEqual(200f, h.EcoState.Get(0, ResourceType.Steel), 0.001f, "不应扣换代资源");
+        }
+
+        // ------------------------------------------------------------
+        // 29. 工业时代民用渔船不换代（民用船角色永恒）
+        // ------------------------------------------------------------
+        [Test]
+        public void Industrial_FishingBoat_NotUpgraded()
+        {
+            var h = BuildHarness(1, false);
+            h.Geo.SetWaterRect(15, 15, 25, 25);
+            h.Tech.EraValue = (int)Era.Industrial;
+            h.Naval.Spawn(0, NavalModel.FishingBoat, new Vector3(20, 0, 20));
+            h.EcoState.Set(0, ResourceType.Steel, 200f);
+            h.EcoState.Set(0, ResourceType.Coal, 100f);
+
+            h.Plugin.OnYear(1);
+
+            // 换代只验证"渔船保持"（渔船若被换代则不再是渔船）。
+            // 注：NavalStep 新建可能产生 Steamship，故不断言 Steamship 为 0。
+            Assert.AreEqual(1, h.Naval.CountByModel(0, NavalModel.FishingBoat), "渔船应保持、不被换代");
+        }
+
         private static int CountGroundByModel(Harness h, int faction, GroundForceModel model)
         {
             int n = 0;

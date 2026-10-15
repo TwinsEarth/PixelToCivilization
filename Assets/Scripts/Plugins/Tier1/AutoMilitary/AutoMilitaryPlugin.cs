@@ -18,6 +18,7 @@ namespace PxC.Plugins.AutoMilitary
     /// ① 自动征兵，维持士兵占比（劳动力转士兵，保留基础劳力）；
     /// ①b 机械化换代（进入现代后老骑兵/战车换代为装甲车/坦克）；
     /// ② 按时代付费建造陆军单位（骑兵/战车/坦克等，经 GroundForceService.TryBuildUnit 扣费）；
+    /// ②a 海军蒸汽铁甲换代（工业后战船/帆船换代为蒸汽轮船）；
     /// ③ 战争时自动建造防御箭塔。
     /// 玩家势力默认跳过；<see cref="EnablePlayerAutomation"/> 可开启。
     /// 纯决策、无运行时状态，不产生存档段。
@@ -145,6 +146,7 @@ namespace PxC.Plugins.AutoMilitary
                 BuildGroundUnitStep(f, info, ground, tech, population);
                 if (naval != null)
                 {
+                    NavalUpgradeStep(f, naval, tech);
                     NavalStep(f, info, naval, tech);
                     AircraftCarrierStep(f, info, naval, tech);
                 }
@@ -219,6 +221,17 @@ namespace PxC.Plugins.AutoMilitary
             if (era >= (int)Era.IronAge) return GroundForceModel.Chariot;
             if (era >= (int)Era.BronzeAge) return GroundForceModel.Cavalry;
             return GroundForceModel.Formation;
+        }
+
+        // ============================================================
+        // ②a 海军蒸汽铁甲换代（战船/帆船 → 蒸汽轮船）
+        // ============================================================
+        private void NavalUpgradeStep(int faction, NavalService naval, ITechService tech)
+        {
+            Era era = tech.GetEra(faction);
+            int n = naval.UpgradeFactionStep(faction, era);
+            if (n > 0)
+                _ctx.Log($"[自动军事] 势力 {faction} 蒸汽铁甲换代 {n} 艘（{era}）");
         }
 
         // ============================================================
