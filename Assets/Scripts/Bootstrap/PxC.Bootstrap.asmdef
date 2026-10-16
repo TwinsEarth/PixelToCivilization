@@ -5,7 +5,9 @@
         "PxC.Core",
         "PxC.Host",
         "PxC.Infra",
-        "PxC.Gameplay"
+        "PxC.Gameplay",
+        "PxC.Context",
+        "PxC.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using PxC.Context;
 using PxC.Core.Persistence;
 using PxC.Core.Services;
 using PxC.Core.Time;
@@ -28,10 +29,10 @@ namespace PxC.Bootstrap
         public const int HostVersion = 10;
 
         /// <summary>应用完整版本号（与 Git tag / Release 对齐）。</summary>
-        public const string AppVersion = "v10.7.8";
+        public const string AppVersion = PxC.Core.AppInfo.Version;
 
         /// <summary>启动后的测试上下文（PlayMode 冒烟测试使用；安全模式下为 null）。</summary>
-        public static BootstrapTestContext TestContext { get; private set; }
+        public static BootstrapTestContext TestContext => PxC.Context.GameContext.TestContext;
 
         private static CrashGuard _crashGuard;
         private static GameClock _clock;
@@ -170,9 +171,9 @@ namespace PxC.Bootstrap
             _saveCoordinator = new SaveCoordinator(
                 _runtime, saves, _services, _factions, _clock, AppVersion, Log);
 
-            TestContext = new BootstrapTestContext(
+            PxC.Context.GameContext.TestContext = new BootstrapTestContext(
                 _clock, _events, _services, _world, _runtime,
-                _factions, _units, _buildings, _saveCoordinator);
+                _factions, _units, _buildings, _settlements, _saveCoordinator);
 
             // 主循环
             var loopGo = new GameObject("PxC_GameLoop");
@@ -201,6 +202,19 @@ namespace PxC.Bootstrap
 
             _crashGuard.MarkCleanRun();
             Log($"{AppVersion} 启动完成，插件数 {_runtime.PluginCount}，资源后端 {assets.BackendName}");
+
+            // UI 表现层（v10.8.0）：插件装配完成后创建画面层（纯代码 uGUI，读 TestContext 渲染）。
+            // 独立 GameObject + DontDestroyOnLoad，失败不影响逻辑运行。
+            try
+            {
+                var uiGo = new GameObject("PxC_UI");
+                UnityEngine.Object.DontDestroyOnLoad(uiGo);
+                uiGo.AddComponent<PxC.UI.UiHud>();
+            }
+            catch (Exception e)
+            {
+                Log($"[UI] 表现层创建失败（逻辑层不受影响）: {e.Message}");
+            }
         }
 
         // ------------------------------------------------------------
