@@ -226,6 +226,18 @@ python -m http.server 8000
 | V9.x | 单体架构：内存/崩溃/存档/LOD/按需加载/算力分层工程底座，智能体驱动 |
 | **V10.0.2** | 极薄宿主 + 插件契约 + Roslyn 无 Unity 编译验证通道 |
 | **V10.1.01** | **全插件化重写**：9 个 Tier0 核心插件（经济/人口/建筑/科技/地面/海军/战斗/集结/军事），13 个 EditMode 测试，Roslyn 双配置编译 0 错误 |
+| V10.2→V10.7.8 | 31 个插件迭代版本：天气/灾害/政策/文化/历史/胜利/朝代/事件/塔防/聚落/殖民/自动发展/战争闭环/附庸纳贡/赔款没收等，每版均含 EditMode 回归 |
+| **V10.8.0** | **UI 表现层恢复（可玩性修复）**：全屏文明世界地图（势力色块/聚落/建筑/单位）+ 玩家面板（人口分层/资源/军队建筑聚落统计）+ 天下势力列表 + 中文事件日志 + 速度控制（⏸/1x/5x/20x/100x）；新增 PxC.UI / PxC.Context 程序集解除依赖环；真实团结引擎编译全绿、EditMode 160/160、PlayMode 11/11、WebGL 构建完整（data 55.6MB + wasm 27.9MB） |
+
+---
+
+## 🎮 三通道游玩
+
+1. **本地浏览器（推荐）**：解压 Release 的 `PTC_v10.8.0_HTML5.zip`，目录内执行 `python -m http.server 8080`，浏览器打开 `http://localhost:8080`
+2. **GitHub Pages**：https://twinsearth.github.io/PixelToCivilization/ （引导页，完整在线 WebGL 因构建包 55MB 超 GitHub REST 单文件上限暂未直挂，网络恢复后随 v10.9 部署）——**在线直玩：未验证/暂缓**
+3. **打包分发**：GitHub Release v10.8.0 → `PTC_v10.8.0_HTML5.zip`（53MB 可玩包）+ `PTC_v10.8.0_src.zip`（491MB 源码包）
+
+**验证口径**：本版所有结论均基于真实团结引擎 2022.3.61t13 实测（编译/EditMode/PlayMode/WebGL 构建落盘）；浏览器端 Unity 启动加载验证通过（console 无 JS 错误）；**浏览器 UI 画面截图级视觉回归未完成**（浏览器自动化会话被 WebGL 高负载卡死，标注未验证）。
 
 ---
 
