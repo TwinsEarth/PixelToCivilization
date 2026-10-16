@@ -66,6 +66,10 @@ namespace PxC.Tests.EditMode
             _economy = _services.Resolve<IEconomyService>();
             _events.Subscribe<FamineEvent>(e => _famine.Add(e));
 
+            // Unity Test Runner 会复用测试类实例，字段初始化器只在首次执行；
+            // SetUp 必须重置可变收集字段，避免上个用例的事件残留污染断言。
+            _famine.Clear();
+
             // 消除新游戏 seed 100 粮的干扰，每个用例从 0 库存开始。
             ZeroFood();
         }

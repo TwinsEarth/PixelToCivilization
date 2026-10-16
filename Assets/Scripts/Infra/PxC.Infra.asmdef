@@ -3,7 +3,8 @@
     "rootNamespace": "PxC.Infra",
     "references": [
         "PxC.Core",
-        "PxC.Host"
+        "PxC.Host",
+        "PxC.Gameplay"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

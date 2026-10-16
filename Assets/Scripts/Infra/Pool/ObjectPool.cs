@@ -68,12 +68,12 @@ namespace PxC.Infra.Pool
             var marker = instance.GetComponent<PooledObject>();
             if (marker == null || marker.Source == null)
             {
-                UnityEngine.Object.Destroy(instance);
+                DestroySafe(instance);
                 return;
             }
             if (!_goPools.TryGetValue(marker.Source, out var pool))
             {
-                UnityEngine.Object.Destroy(instance);
+                DestroySafe(instance);
                 return;
             }
             instance.SetActive(false);
@@ -133,7 +133,7 @@ namespace PxC.Infra.Pool
         {
             if (!_goPools.TryGetValue(prefab, out var p)) return;
             while (p.Inactive.Count > 0)
-                UnityEngine.Object.Destroy(p.Inactive.Pop());
+                DestroySafe(p.Inactive.Pop());
         }
 
         public void ClearAll()
@@ -141,10 +141,23 @@ namespace PxC.Infra.Pool
             foreach (var kv in _goPools)
             {
                 while (kv.Value.Inactive.Count > 0)
-                    UnityEngine.Object.Destroy(kv.Value.Inactive.Pop());
+                    DestroySafe(kv.Value.Inactive.Pop());
             }
             _goPools.Clear();
             _dataPools.Clear();
+        }
+
+        /// <summary>
+        /// 兼容 EditMode（测试）与运行时：编辑模式必须 DestroyImmediate，
+        /// 运行模式用 Destroy（延迟到帧末，避免编辑模式报错）。
+        /// </summary>
+        private static void DestroySafe(GameObject go)
+        {
+            if (go == null) return;
+            if (Application.isPlaying)
+                UnityEngine.Object.Destroy(go);
+            else
+                UnityEngine.Object.DestroyImmediate(go);
         }
     }
 }

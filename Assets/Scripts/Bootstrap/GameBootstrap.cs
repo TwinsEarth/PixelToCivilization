@@ -28,7 +28,7 @@ namespace PxC.Bootstrap
         public const int HostVersion = 10;
 
         /// <summary>应用完整版本号（与 Git tag / Release 对齐）。</summary>
-        public const string AppVersion = "v10.7.7";
+        public const string AppVersion = "v10.7.8";
 
         /// <summary>启动后的测试上下文（PlayMode 冒烟测试使用；安全模式下为 null）。</summary>
         public static BootstrapTestContext TestContext { get; private set; }

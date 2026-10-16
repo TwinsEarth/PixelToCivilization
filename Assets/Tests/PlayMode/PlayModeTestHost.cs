@@ -1,5 +1,8 @@
 using PxC.Bootstrap;
+using PxC.Core.Persistence;
+using PxC.Core.Services;
 using PxC.Core.Time;
+using PxC.Infra.Save;
 using UnityEngine;
 
 namespace PxC.Tests.PlayMode
@@ -16,6 +19,15 @@ namespace PxC.Tests.PlayMode
         public PlayModeTestHost()
         {
             _ctx = GameBootstrap.TestContext;
+            if (_ctx == null) return;
+
+            // 测试环境隔离（关键）：PlayMode 测试共享一个播放会话，GameBootstrap.Boot
+            // 只执行一次。测试推进年份时自动存档（OnYearAdvanced → MainSlot）会残留
+            // persistentDataPath，导致后续测试启动走"恢复存档"路径（GameYear 非开局年）。
+            // 每个测试构造时清除 MainSlot 并复位时钟，保证"新游戏"断言（4700）稳定。
+            if (_ctx.Services.TryResolve<ISaveService>(out var saves))
+                saves.Delete(SaveCoordinator.MainSlot);
+            _ctx.Clock.Restore(GameClock.StartGameYear, 0f);
         }
 
         /// <summary>宿主是否已成功启动（安全模式/装配失败时为 false）。</summary>
@@ -73,11 +85,14 @@ namespace PxC.Tests.PlayMode
 
             try
             {
-                // 大 realDt 一步可跨多年；HardCapTicks 兜底，故循环直到目标年份
+                // 1 游戏年 = 60 真实秒（GameClock.DaySeconds = 365/60）。
+                // 每步推进略超 1 年（60.1s），年结恰好触发 1 次；循环 years 步精确到目标年份。
+                // 浮点余量约 0.6 天/步，50 年累计约 30 天 < 365，不会额外跨年。
+                float stepDt = GameClock.YearDays / GameClock.DaySeconds + 0.1f; // ≈ 60.1s
                 int guard = 0;
                 while (_ctx.Clock.Year < start + years && guard < 100000)
                 {
-                    Step(1000f);
+                    Step(stepDt);
                     guard++;
                 }
             }

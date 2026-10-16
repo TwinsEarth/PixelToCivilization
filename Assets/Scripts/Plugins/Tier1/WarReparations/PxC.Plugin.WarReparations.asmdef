@@ -1,0 +1,19 @@
+{
+    "name": "PxC.Plugin.WarReparations",
+    "rootNamespace": "PxC.Plugins.WarReparations",
+    "references": [
+        "PxC.Core",
+        "PxC.Gameplay",
+        "PxC.Host",
+        "PxC.Infra"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

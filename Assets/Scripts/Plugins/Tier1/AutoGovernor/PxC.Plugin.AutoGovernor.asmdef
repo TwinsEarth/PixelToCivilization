@@ -1,0 +1,20 @@
+{
+    "name": "PxC.Plugin.AutoGovernor",
+    "rootNamespace": "PxC.Plugins.AutoGovernor",
+    "references": [
+        "PxC.Core",
+        "PxC.Gameplay",
+        "PxC.Host",
+        "PxC.Infra",
+        "PxC.Plugin.Building"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

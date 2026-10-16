@@ -1,0 +1,21 @@
+{
+    "name": "PxC.Plugin.AutoPeace",
+    "rootNamespace": "PxC.Plugins.AutoPeace",
+    "references": [
+        "PxC.Core",
+        "PxC.Gameplay",
+        "PxC.Host",
+        "PxC.Infra",
+        "PxC.Plugin.GroundForce",
+        "PxC.Plugin.Naval"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

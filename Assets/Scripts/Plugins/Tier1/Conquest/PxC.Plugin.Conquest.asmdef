@@ -1,0 +1,19 @@
+{
+    "name": "PxC.Plugin.Conquest",
+    "rootNamespace": "PxC.Plugins.Conquest",
+    "references": [
+        "PxC.Core",
+        "PxC.Gameplay",
+        "PxC.Host",
+        "PxC.Infra"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

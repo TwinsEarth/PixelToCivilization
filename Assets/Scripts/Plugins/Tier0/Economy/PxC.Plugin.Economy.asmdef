@@ -1,19 +1,20 @@
 {
-  "name": "PxC.Plugin.Economy",
-  "rootNamespace": "PxC.Plugins.Economy",
-  "references": [
-    "PxC.Core",
-    "PxC.Host",
-    "PxC.Infra",
-    "PxC.Gameplay"
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": false,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "PxC.Plugin.Economy",
+    "rootNamespace": "PxC.Plugins.Economy",
+    "references": [
+        "PxC.Core",
+        "PxC.Host",
+        "PxC.Infra",
+        "PxC.Gameplay",
+        "PxC.Plugin.Naval"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }
