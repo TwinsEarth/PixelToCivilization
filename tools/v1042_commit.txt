@@ -1,9 +1,0 @@
-﻿[main d272ee2] v10.4.2: fix food famine timing with two-phase year settlement
- 9 files changed, 423 insertions(+), 26 deletions(-)
- create mode 100644 Assets/Scripts/Gameplay/Services/IEconomyYearFinalizer.cs
- create mode 100644 Assets/Tests/EditMode/FamineTimingTests.cs
- create mode 100644 ReleaseNotes_v10.4.2.md
- create mode 100644 tools/v1042_test_console.txt
- create mode 100644 tools/v1042_test_console2.txt
-d272ee2feb686c6c46eadef0160ee593648560f5
-?? tools/v1042_commit.txt
