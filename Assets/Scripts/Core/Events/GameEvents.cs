@@ -1,5 +1,6 @@
 using UnityEngine;
 using PxC.Core.World;
+using PxC.Gameplay.Resources;
 
 namespace PxC.Core.Events
 {
@@ -223,5 +224,64 @@ namespace PxC.Core.Events
         public int GameYear;
         public Vector3 Position;
         public string SettlementName;
+    }
+
+    /// <summary>
+    /// 战争赔款条约签订：割地/附庸化和约后，败方（Payer）需向胜方（Receiver）
+    /// 分期支付 Type 资源。TotalAmount = PerYear × Years（条约总额）。
+    /// </summary>
+    public struct ReparationTreatySignedEvent
+    {
+        /// <summary>付款方（战败/割地/称臣方）。</summary>
+        public int Payer;
+        /// <summary>收款方（战胜方）。</summary>
+        public int Receiver;
+        /// <summary>赔款资源类型。</summary>
+        public ResourceType Type;
+        /// <summary>条约总额（每年付款 × 年数）。</summary>
+        public float TotalAmount;
+        /// <summary>分期年数。</summary>
+        public int Years;
+        /// <summary>签订年份。</summary>
+        public int GameYear;
+    }
+
+    /// <summary>战争赔款某一年度付款完成（Amount 为当年实付额，≤ 年付额）。</summary>
+    public struct ReparationsPaymentEvent
+    {
+        public int Payer;
+        public int Receiver;
+        public ResourceType Type;
+        public float Amount;
+        public int GameYear;
+    }
+
+    /// <summary>战争赔款条约履行完毕：TotalPaid 为该条约累计实付总额。</summary>
+    public struct ReparationsCompletedEvent
+    {
+        public int Payer;
+        public int Receiver;
+        public ResourceType Type;
+        public float TotalPaid;
+        public int GameYear;
+    }
+
+    /// <summary>
+    /// 灭国没收：败者（Loser）被灭国后，其全部国库资源被胜者（Winner）没收。
+    /// Gold/Capital/Food/Strategic 为四大类合计（Strategic=青铜+铁+煤+石油+钢）。
+    /// </summary>
+    public struct ConfiscationEvent
+    {
+        public int Loser;
+        public int Winner;
+        public int GameYear;
+        /// <summary>没收金币。</summary>
+        public float Gold;
+        /// <summary>没收资金（资本）。</summary>
+        public float Capital;
+        /// <summary>没收粮食。</summary>
+        public float Food;
+        /// <summary>没收战略资源（青铜+铁+煤+石油+钢）。</summary>
+        public float Strategic;
     }
 }
