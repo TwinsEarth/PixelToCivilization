@@ -56,3 +56,6 @@ sysinfo.txt
 
 # ===== 离线编译/测试临时产物（tools/run_editmode_tests.ps1 产出）=====
 /tools/build_out/
+.com-unity-codely.json
+build_status.txt
+
